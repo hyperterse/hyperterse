@@ -11,7 +11,7 @@ generate: ## Generate protobuf code using protoc
 
 build: generate ## Build the project
 	@echo "Building hyperterse..."
-	go build -mod=mod -o hyperterse
+	go build -mod=mod -o dist/hyperterse
 	@echo "✓ Build complete"
 
 run: build ## Build and run the server (requires CONFIG_FILE env var or -file flag)
