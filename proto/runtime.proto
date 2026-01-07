@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package hyperterse.runtime;
+
+option go_package = "github.com/hyperterse/hyperterse/core/pb/runtime";
+
+// QueryService provides endpoints for executing queries
+service QueryService {
+  // ExecuteQuery executes a query by name with provided inputs
+  // REST: POST /query/{query_name}
+  rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
+}
+
+// MCPService provides MCP protocol endpoints
+service MCPService {
+  // ListTools returns all available tools (queries) as MCP tools
+  // JSON-RPC 2.0: POST /mcp with method "tools/list"
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+
+  // CallTool executes a tool (query) by name
+  // JSON-RPC 2.0: POST /mcp with method "tools/call"
+  rpc CallTool(CallToolRequest) returns (CallToolResponse);
+}
+
+// ExecuteQueryRequest contains the query name and input parameters
+message ExecuteQueryRequest {
+  string query_name = 1; // Required
+  map<string, string> inputs = 2; // JSON-encoded values
+}
+
+// ExecuteQueryResponse contains the query results
+message ExecuteQueryResponse {
+  repeated ResultRow results = 1; // JSON-encoded rows
+  string error = 2;
+  bool success = 3;
+}
+
+// ResultRow represents a single row of results
+message ResultRow {
+  map<string, string> fields = 1; // Column name -> JSON-encoded value
+}
+
+// ListToolsRequest is empty
+message ListToolsRequest {}
+
+// ListToolsResponse contains all available tools
+message ListToolsResponse {
+  repeated Tool tools = 1;
+}
+
+// Tool represents an MCP tool (query)
+message Tool {
+  string name = 1; // Required
+  string description = 2; // Required
+  map<string, ToolInput> inputs = 3;
+}
+
+// ToolInput describes an input parameter for a tool
+message ToolInput {
+  string type = 1; // Required
+  string description = 2;
+  bool optional = 3;
+  string default_value = 4;
+}
+
+// CallToolRequest contains the tool name and arguments
+message CallToolRequest {
+  string name = 1; // Required
+  map<string, string> arguments = 2;
+}
+
+// CallToolResponse contains the tool execution result
+message CallToolResponse {
+  string content = 1; // JSON-encoded results
+  bool is_error = 2;
+}
+
