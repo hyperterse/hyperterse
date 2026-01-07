@@ -1,4 +1,4 @@
-.PHONY: help generate build run lint format clean setup release release-snapshot release-local
+.PHONY: help generate build run setup
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -27,3 +27,4 @@ setup: ## Complete setup: install dependencies and generate code
 	@./scripts/setup.sh
 	@echo ""
 	@echo "✓ Setup complete! Run 'make build' to build the project."
+

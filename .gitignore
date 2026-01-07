@@ -38,3 +38,6 @@ core/types/
 pkg/proto
 pkg/types
 pkg/pb
+
+# Goreleaser
+dist/
