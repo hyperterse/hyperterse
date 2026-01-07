@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package hyperterse;
+
+option go_package = "github.com/hyperterse/hyperterse/core/pb";
+
+// Primitive types supported for Input and Data fields
+enum Primitive {
+  PRIMITIVE_UNSPECIFIED = 0; // Default value, should not be used
+  PRIMITIVE_STRING = 1; // "string"
+  PRIMITIVE_INT = 2; // "int"
+  PRIMITIVE_FLOAT = 3; // "float"
+  PRIMITIVE_BOOLEAN = 4; // "boolean"
+  PRIMITIVE_UUID = 5; // "uuid"
+  PRIMITIVE_DATETIME = 6; // "datetime"
+}
+
