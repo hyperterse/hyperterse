@@ -1,11 +1,13 @@
 #!/bin/bash
 set -e
 
-# Ensure we're in the project root
+# Flatten binaries from artifact subdirectories to dist root
+# After download-artifact, structure is: dist/hyperterse-linux-amd64/hyperterse-linux-amd64
+# This script flattens to: dist/hyperterse-linux-amd64
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-# Default to dist directory
 DIST_DIR="${1:-dist}"
 
 if [ ! -d "$DIST_DIR" ]; then
@@ -23,38 +25,18 @@ for dir in hyperterse-*; do
         fi
 
         binary_name=$(basename "$binary")
-        platform="${dir#hyperterse-}"
 
-        # Get absolute paths to check if source and destination are the same
-        binary_abs=$(cd "$(dirname "$binary")" && pwd)/$(basename "$binary")
-        dest_abs=$(pwd)/$binary_name
+        # Move binary to temp location first to avoid conflict with same-named directory
+        # (mv would move INTO the directory instead of replacing it)
+        mv "$binary" "./${binary_name}.tmp"
 
-        # Copy binary to dist root only if source and destination differ
-        if [ "$binary_abs" != "$dest_abs" ]; then
-            cp "$binary" "./$binary_name"
-        fi
+        # Clean up artifact directory
+        rm -rf "$dir"
 
-        # Create archive
-        if [[ "$binary_name" == *.exe ]]; then
-            # Windows - create zip
-            archive_name="hyperterse-${platform}.zip"
-            zip "${archive_name}" "${binary_name}"
-            [ -f ../README.md ] && zip -u "${archive_name}" ../README.md || true
-            [ -f ../LICENSE ] && zip -u "${archive_name}" ../LICENSE || true
-            [ -f ../install.sh ] && zip -u "${archive_name}" ../install.sh || true
-        else
-            # Unix-like - create tar.gz
-            archive_name="hyperterse-${platform}.tar.gz"
-            # Build list of files to include
-            files="${binary_name}"
-            [ -f ../README.md ] && files="${files} ../README.md" || true
-            [ -f ../LICENSE ] && files="${files} ../LICENSE" || true
-            [ -f ../install.sh ] && files="${files} ../install.sh" || true
-            # Create archive with all files
-            tar -czf "${archive_name}" ${files}
-        fi
+        # Rename to final name
+        mv "./${binary_name}.tmp" "./$binary_name"
     fi
 done
 
-echo "✓ Archives created successfully"
+echo "✓ Binaries flattened successfully"
 

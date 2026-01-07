@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build:
@@ -78,7 +78,7 @@ jobs:
         with:
           path: dist
 
-      - name: Create archives
+      - name: Flatten binaries
         run: ./scripts/create-archives.sh dist
 
       - name: Generate checksums
@@ -87,17 +87,9 @@ jobs:
           sha256sum hyperterse-* > checksums.txt 2>/dev/null || shasum -a 256 hyperterse-* > checksums.txt
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/release-action@v1
         with:
-          files: |
-            dist/hyperterse-*.tar.gz
-            dist/hyperterse-*.zip
-            dist/hyperterse-*.exe
-            dist/hyperterse-linux-*
-            dist/hyperterse-darwin-*
-            dist/checksums.txt
-          generate_release_notes: true
+          artifacts: "dist/hyperterse-*,dist/checksums.txt"
+          generateReleaseNotes: true
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

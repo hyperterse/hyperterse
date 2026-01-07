@@ -40,3 +40,5 @@ pkg/pb
 
 # Goreleaser
 dist/
+
+.cursor
