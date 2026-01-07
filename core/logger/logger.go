@@ -4,8 +4,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"golang.org/x/term"
+)
+
+// Log level constants
+const (
+	LogLevelError = 1
+	LogLevelWarn  = 2
+	LogLevelInfo  = 3
+	LogLevelDebug = 4
 )
 
 // ANSI color codes
@@ -19,10 +28,38 @@ const (
 	colorDim    = "\033[2m"
 )
 
+var (
+	globalLogLevel = LogLevelInfo // Default to INFO
+	logLevelMutex  sync.RWMutex
+)
+
+// SetLogLevel sets the global log level
+func SetLogLevel(level int) {
+	logLevelMutex.Lock()
+	defer logLevelMutex.Unlock()
+	if level >= LogLevelError && level <= LogLevelDebug {
+		globalLogLevel = level
+	}
+}
+
+// GetLogLevel returns the current global log level
+func GetLogLevel() int {
+	logLevelMutex.RLock()
+	defer logLevelMutex.RUnlock()
+	return globalLogLevel
+}
+
 // Logger provides structured logging with pretty formatting for interactive environments
 type Logger struct {
 	packageName string
 	interactive bool
+}
+
+// shouldLog checks if a message at the given level should be logged
+func (l *Logger) shouldLog(level int) bool {
+	logLevelMutex.RLock()
+	defer logLevelMutex.RUnlock()
+	return level <= globalLogLevel
 }
 
 // New creates a new logger instance for a package
@@ -151,6 +188,9 @@ func (l *Logger) FormatSuccess(message string) string {
 
 // PrintValidationErrors prints formatted validation errors using Multiline
 func (l *Logger) PrintValidationErrors(errors []string) {
+	if !l.shouldLog(LogLevelError) {
+		return
+	}
 	if len(errors) == 0 {
 		return
 	}
@@ -176,6 +216,9 @@ func (l *Logger) PrintValidationErrors(errors []string) {
 
 // PrintError prints a formatted error
 func (l *Logger) PrintError(title string, err error) {
+	if !l.shouldLog(LogLevelError) {
+		return
+	}
 	formatted := l.FormatError(title, err)
 	lines := strings.Split(strings.TrimRight(formatted, "\n"), "\n")
 	if len(lines) > 0 {
@@ -197,28 +240,81 @@ func (l *Logger) PrintError(title string, err error) {
 
 // PrintSuccess prints a formatted success message
 func (l *Logger) PrintSuccess(message string) {
+	if !l.shouldLog(LogLevelInfo) {
+		return
+	}
 	formatted := l.FormatSuccess(message)
 	formatted = strings.TrimRight(formatted, "\n")
 	fmt.Print(l.getPrefix() + " " + formatted + "\n")
 }
 
 // Printf is a convenience method that wraps fmt.Printf with prefix
+// Logs at INFO level by default
 func (l *Logger) Printf(format string, args ...interface{}) {
+	if !l.shouldLog(LogLevelInfo) {
+		return
+	}
 	message := fmt.Sprintf(format, args...)
 	message = strings.TrimRight(message, "\n")
 	fmt.Print(l.getPrefix() + " " + message + "\n")
 }
 
 // Println is a convenience method that wraps fmt.Println with prefix
+// Logs at INFO level by default
 func (l *Logger) Println(args ...interface{}) {
+	if !l.shouldLog(LogLevelInfo) {
+		return
+	}
 	message := fmt.Sprint(args...)
 	fmt.Print(l.getPrefix() + " " + message + "\n")
+}
+
+// Debugf logs at DEBUG level
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	if !l.shouldLog(LogLevelDebug) {
+		return
+	}
+	message := fmt.Sprintf(format, args...)
+	message = strings.TrimRight(message, "\n")
+	fmt.Print(l.getPrefix() + " " + message + "\n")
+}
+
+// Debugln logs at DEBUG level
+func (l *Logger) Debugln(args ...interface{}) {
+	if !l.shouldLog(LogLevelDebug) {
+		return
+	}
+	message := fmt.Sprint(args...)
+	fmt.Print(l.getPrefix() + " " + message + "\n")
+}
+
+// Warnf logs at WARN level
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	if !l.shouldLog(LogLevelWarn) {
+		return
+	}
+	message := fmt.Sprintf(format, args...)
+	message = strings.TrimRight(message, "\n")
+	fmt.Print(l.getPrefix() + " " + l.yellow(message) + "\n")
+}
+
+// Warnln logs at WARN level
+func (l *Logger) Warnln(args ...interface{}) {
+	if !l.shouldLog(LogLevelWarn) {
+		return
+	}
+	message := fmt.Sprint(args...)
+	fmt.Print(l.getPrefix() + " " + l.yellow(message) + "\n")
 }
 
 // Multiline prints multiple lines where:
 // - The first element is printed on the same line as the prefix
 // - Elements 2 to N are printed on new lines WITHOUT the prefix
+// Logs at INFO level by default
 func (l *Logger) Multiline(lines []interface{}) {
+	if !l.shouldLog(LogLevelInfo) {
+		return
+	}
 	if len(lines) == 0 {
 		return
 	}

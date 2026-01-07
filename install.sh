@@ -165,6 +165,77 @@ download_file() {
     return 1
 }
 
+# Function to add to PATH in shell config
+add_to_path() {
+    local install_dir=$1
+    local shell_config=""
+    local path_line=""
+    local is_fish=false
+
+    # Detect shell and find config file
+    if [ -n "$ZSH_VERSION" ] || [ -n "$ZSH" ]; then
+        shell_config="${HOME}/.zshrc"
+        path_line="export PATH=\"\$PATH:$install_dir\""
+    elif [ -n "$BASH_VERSION" ]; then
+        # Check for .bash_profile first (macOS), then .bashrc
+        if [ -f "${HOME}/.bash_profile" ]; then
+            shell_config="${HOME}/.bash_profile"
+        else
+            shell_config="${HOME}/.bashrc"
+        fi
+        path_line="export PATH=\"\$PATH:$install_dir\""
+    else
+        # Try to detect from SHELL env var
+        case "$SHELL" in
+            *zsh*)
+                shell_config="${HOME}/.zshrc"
+                path_line="export PATH=\"\$PATH:$install_dir\""
+                ;;
+            *bash*)
+                if [ -f "${HOME}/.bash_profile" ]; then
+                    shell_config="${HOME}/.bash_profile"
+                else
+                    shell_config="${HOME}/.bashrc"
+                fi
+                path_line="export PATH=\"\$PATH:$install_dir\""
+                ;;
+            *fish*)
+                shell_config="${HOME}/.config/fish/config.fish"
+                path_line="set -gx PATH \$PATH $install_dir"
+                is_fish=true
+                ;;
+        esac
+    fi
+
+    # Skip if no config file found or install dir already in PATH
+    if [ -z "$shell_config" ]; then
+        return 1
+    fi
+
+    # Check if already in PATH
+    if echo "$PATH" | grep -q "$install_dir"; then
+        return 0
+    fi
+
+    # Check if already added to config file
+    if [ -f "$shell_config" ] && grep -q "$install_dir" "$shell_config" 2>/dev/null; then
+        return 0
+    fi
+
+    # Create config file and directory if they don't exist
+    if [ ! -f "$shell_config" ]; then
+        mkdir -p "$(dirname "$shell_config")"
+        touch "$shell_config"
+    fi
+
+    # Add to PATH
+    echo "" >> "$shell_config"
+    echo "# Hyperterse" >> "$shell_config"
+    echo "$path_line" >> "$shell_config"
+
+    return 0
+}
+
 # Function to install binary
 install_binary() {
     local binary_path=$1
@@ -179,17 +250,107 @@ install_binary() {
 
     success "Binary installed to $install_path"
 
-    # Check if install directory is in PATH
+    # Check if install directory is already in PATH
     if echo "$PATH" | grep -q "$INSTALL_DIR"; then
         success "Installation complete! You can now run 'hyperterse' from anywhere."
+        return 0
+    fi
+
+    # Try to add to PATH automatically
+    info "Adding hyperterse to PATH..."
+    if add_to_path "$INSTALL_DIR"; then
+        success "Added hyperterse to PATH in your shell configuration."
+        info "To use hyperterse in this session, run:"
+        echo -e "  ${GREEN}export PATH=\"\$PATH:$INSTALL_DIR\"${NC}"
+        echo ""
+        info "Or start a new terminal session."
     else
-        warning "Installation directory ($INSTALL_DIR) is not in your PATH."
+        warning "Could not automatically add to PATH."
         echo ""
         info "To use hyperterse, add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
         echo -e "  ${GREEN}export PATH=\"\$PATH:$INSTALL_DIR\"${NC}"
         echo ""
         info "Or run hyperterse directly:"
         echo -e "  ${GREEN}$install_path${NC}"
+    fi
+}
+
+# Function to install shell completions
+install_completions() {
+    local binary_path=$1
+    local shell=""
+    local completion_file=""
+    local completion_dir=""
+
+    # Detect shell
+    if [ -n "$ZSH_VERSION" ]; then
+        shell="zsh"
+        completion_dir="${HOME}/.zsh/completions"
+        completion_file="${completion_dir}/_hyperterse"
+    elif [ -n "$BASH_VERSION" ]; then
+        shell="bash"
+        completion_dir="${HOME}/.local/share/bash-completion/completions"
+        # Fallback to common locations
+        if [ ! -d "$completion_dir" ]; then
+            completion_dir="${HOME}/.bash_completion.d"
+        fi
+        completion_file="${completion_dir}/hyperterse"
+    else
+        # Try to detect from SHELL env var or parent process
+        if [ -n "$SHELL" ]; then
+            case "$SHELL" in
+                *zsh*)
+                    shell="zsh"
+                    completion_dir="${HOME}/.zsh/completions"
+                    completion_file="${completion_dir}/_hyperterse"
+                    ;;
+                *bash*)
+                    shell="bash"
+                    completion_dir="${HOME}/.local/share/bash-completion/completions"
+                    if [ ! -d "$completion_dir" ]; then
+                        completion_dir="${HOME}/.bash_completion.d"
+                    fi
+                    completion_file="${completion_dir}/hyperterse"
+                    ;;
+            esac
+        fi
+    fi
+
+    # Skip if shell not detected or binary doesn't exist
+    if [ -z "$shell" ] || [ ! -f "$binary_path" ]; then
+        return 0
+    fi
+
+    # Generate completion script
+    info "Installing shell completions for $shell..."
+
+    # Create completion directory
+    mkdir -p "$completion_dir"
+
+    # Generate completion using the binary
+    if "$binary_path" completion "$shell" > "$completion_file" 2>/dev/null; then
+        # zsh completions need execute permission, bash completions don't
+        if [ "$shell" = "zsh" ]; then
+            chmod +x "$completion_file" 2>/dev/null || true
+        else
+            chmod 644 "$completion_file" 2>/dev/null || true
+        fi
+        success "Shell completions installed to $completion_file"
+
+        # Provide instructions for enabling completions
+        if [ "$shell" = "zsh" ]; then
+            if ! grep -q "fpath.*\.zsh/completions" "${HOME}/.zshrc" 2>/dev/null; then
+                info "To enable completions, add this to your ~/.zshrc:"
+                echo -e "  ${GREEN}fpath=(\$HOME/.zsh/completions \$fpath)${NC}"
+                echo -e "  ${GREEN}autoload -U compinit && compinit${NC}"
+            fi
+        elif [ "$shell" = "bash" ]; then
+            if [ -f "${HOME}/.bashrc" ] && ! grep -q "bash-completion" "${HOME}/.bashrc" 2>/dev/null; then
+                info "To enable completions, ensure bash-completion is installed and sourced in your ~/.bashrc"
+            fi
+        fi
+    else
+        warning "Failed to generate shell completions (this is optional)"
     fi
 }
 
@@ -262,6 +423,9 @@ main() {
 
     # Install the binary
     install_binary "$DOWNLOAD_FILE"
+
+    # Install shell completions
+    install_completions "$INSTALL_DIR/$BINARY_NAME"
 
     echo ""
     success "Hyperterse installed successfully!"

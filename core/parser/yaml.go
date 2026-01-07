@@ -11,12 +11,45 @@ import (
 
 // ParseYAML parses YAML content into a protobuf Model
 func ParseYAML(data []byte) (*hyperterse.Model, error) {
+	model, err := ParseYAMLWithConfig(data)
+	return model, err
+}
+
+// ParseYAMLWithConfig parses YAML content into a protobuf Model with ServerConfig
+func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
 
 	model := &hyperterse.Model{}
+
+	// Parse server configuration
+	if serverRaw, ok := raw["server"].(map[string]interface{}); ok {
+		serverConfig := &hyperterse.ServerConfig{}
+
+		// Parse port
+		if portRaw, ok := serverRaw["port"]; ok {
+			switch v := portRaw.(type) {
+			case int:
+				serverConfig.Port = fmt.Sprintf("%d", v)
+			case string:
+				serverConfig.Port = v
+			}
+		}
+
+		// Parse log_level
+		if logLevelRaw, ok := serverRaw["log_level"]; ok {
+			switch v := logLevelRaw.(type) {
+			case int:
+				serverConfig.LogLevel = int32(v)
+			case float64:
+				serverConfig.LogLevel = int32(v)
+			}
+		}
+
+		model.Server = serverConfig
+	}
 
 	// Parse adapters - now a map where keys are names
 	if adaptersRaw, ok := raw["adapters"].(map[string]interface{}); ok {

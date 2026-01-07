@@ -1,0 +1,73 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+)
+
+var (
+	configFile string
+	port       string
+	logLevel   int
+	verbose    bool
+)
+
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
+	Use:   "hyperterse",
+	Short: "Hyperterse - High-performance runtime server for database queries",
+	Long: `Hyperterse is a high-performance runtime server that exposes database queries
+as RESTful API endpoints and MCP (Model Context Protocol) tools.`,
+}
+
+// completionCmd is a hidden command used by install.sh to generate shell completions
+var completionCmd = &cobra.Command{
+	Use:   "completion [bash|zsh|fish|powershell]",
+	Short: "Generate shell completion script",
+	Long: `Generate shell completion script for hyperterse.
+This command is used internally by install.sh and is hidden from help.`,
+	Hidden:    true,
+	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
+	Args:      cobra.ExactValidArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		switch args[0] {
+		case "bash":
+			return cmd.Root().GenBashCompletion(os.Stdout)
+		case "zsh":
+			return cmd.Root().GenZshCompletion(os.Stdout)
+		case "fish":
+			return cmd.Root().GenFishCompletion(os.Stdout, true)
+		case "powershell":
+			return cmd.Root().GenPowerShellCompletion(os.Stdout)
+		default:
+			return fmt.Errorf("unsupported shell: %s", args[0])
+		}
+	},
+}
+
+// Execute adds all child commands to the root command and sets flags appropriately.
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.hyperterse, .yaml, or .yml)")
+
+	// Add flags that run command uses (for backward compatibility when using root command)
+	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
+	rootCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
+	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging (sets log level to DEBUG)")
+
+	// Add hidden completion command for install.sh
+	rootCmd.AddCommand(completionCmd)
+
+	// Make root command run the server (backward compatibility)
+	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if configFile == "" {
+			return fmt.Errorf("please provide a file path using -f or --file")
+		}
+		return runServer(cmd, args)
+	}
+}

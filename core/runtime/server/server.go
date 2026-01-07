@@ -22,11 +22,14 @@ import (
 
 // Runtime represents the Hyperterse runtime server
 type Runtime struct {
-	model      *hyperterse.Model
-	executor   *executor.Executor
-	connectors map[string]connectors.Connector
-	server     *http.Server
-	port       string
+	model        *hyperterse.Model
+	executor     *executor.Executor
+	connectors   map[string]connectors.Connector
+	server       *http.Server
+	port         string
+	mux          *http.ServeMux
+	queryHandler *handlers.QueryServiceHandler
+	mcpHandler   *handlers.MCPServiceHandler
 }
 
 // NewRuntime creates a new runtime instance
@@ -74,15 +77,48 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 
 // Start starts the runtime server
 func (r *Runtime) Start() error {
-	mux := http.NewServeMux()
+	r.mux = http.NewServeMux()
 	log := logger.New("runtime")
 
 	// Create handlers
-	queryHandler := handlers.NewQueryServiceHandler(r.executor)
-	mcpHandler := handlers.NewMCPServiceHandler(r.executor, r.model)
+	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
+	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
+
+	// Register routes
+	r.registerRoutes()
+
+	// Create HTTP server
+	r.server = &http.Server{
+		Addr:         ":" + r.port,
+		Handler:      r.mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start server in goroutine
+	go func() {
+		log.Printf("Starting Hyperterse runtime on port http://127.0.0.1:%s", r.port)
+		if err := r.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.PrintError("Server error", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.New("runtime").Println("Shutting down server...")
+	return r.Stop()
+}
+
+// registerRoutes registers all HTTP routes
+func (r *Runtime) registerRoutes() {
+	log := logger.New("runtime")
 
 	// Create ConnectRPC service implementations
-	queryService := &queryServiceServer{handler: queryHandler}
+	queryService := &queryServiceServer{handler: r.queryHandler}
 
 	// Track routes for logging
 	var utilityRoutes []string
@@ -90,7 +126,7 @@ func (r *Runtime) Start() error {
 
 	// Register MCP JSON-RPC 2.0 endpoint
 	// MCP uses JSON-RPC 2.0 messages over HTTP POST
-	mux.HandleFunc("/mcp", func(w http.ResponseWriter, req *http.Request) {
+	r.mux.HandleFunc("/mcp", func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -104,7 +140,7 @@ func (r *Runtime) Start() error {
 		}
 
 		// Handle JSON-RPC request
-		responseBody, err := handlers.HandleJSONRPC(req.Context(), mcpHandler, body)
+		responseBody, err := handlers.HandleJSONRPC(req.Context(), r.mcpHandler, body)
 		if err != nil {
 			http.Error(w, "Failed to process JSON-RPC request", http.StatusInternalServerError)
 			return
@@ -117,11 +153,11 @@ func (r *Runtime) Start() error {
 	utilityRoutes = append(utilityRoutes, "POST /mcp (JSON-RPC 2.0)")
 
 	// LLM documentation endpoint
-	mux.HandleFunc("/llms.txt", handlers.LLMTxtHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
+	r.mux.HandleFunc("/llms.txt", handlers.LLMTxtHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
 	utilityRoutes = append(utilityRoutes, "GET /llms.txt")
 
 	// OpenAPI/Swagger docs endpoint
-	mux.HandleFunc("/docs", handlers.GenerateOpenAPISpecHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
+	r.mux.HandleFunc("/docs", handlers.GenerateOpenAPISpecHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
 	utilityRoutes = append(utilityRoutes, "GET /docs")
 
 	// Register individual endpoints for each query
@@ -129,7 +165,7 @@ func (r *Runtime) Start() error {
 		queryName := query.Name
 		endpointPath := "/query/" + queryName
 
-		mux.HandleFunc(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
+		r.mux.HandleFunc(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
 			return func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodPost {
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -218,31 +254,56 @@ func (r *Runtime) Start() error {
 		}
 	}
 	log.Println("")
+}
 
-	// Create HTTP server
-	r.server = &http.Server{
-		Addr:         ":" + r.port,
-		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+// ReloadModel reloads the model without restarting the HTTP server
+func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
+	log := logger.New("runtime")
+	log.Println("Reloading model...")
+
+	// Close existing connectors
+	for name, conn := range r.connectors {
+		if err := conn.Close(); err != nil {
+			log.Warnf("Error closing connector '%s': %v", name, err)
+		}
 	}
 
-	// Start server in goroutine
-	go func() {
-		log.Printf("Starting Hyperterse runtime on port http://127.0.0.1:%s", r.port)
-		if err := r.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.PrintError("Server error", err)
+	// Initialize new connectors
+	connectorsMap := make(map[string]connectors.Connector)
+	for _, adapter := range model.Adapters {
+		log.Printf("\tConnecting adapter '%s'", adapter.Name)
+		conn, err := connectors.NewConnector(adapter)
+		if err != nil {
+			return fmt.Errorf("failed to create connector for adapter '%s': %w", adapter.Name, err)
 		}
-	}()
+		connectorsMap[adapter.Name] = conn
+		log.Printf("\t  ✓ Successfully connected adapter '%s'", adapter.Name)
+	}
 
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	// Update model
+	r.model = model
 
-	logger.New("runtime").Println("Shutting down server...")
-	return r.Stop()
+	// Create new executor
+	r.executor = executor.NewExecutor(model, connectorsMap)
+
+	// Update connectors map
+	r.connectors = connectorsMap
+
+	// Update handlers
+	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
+	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
+
+	// Re-register routes (this will update the handlers)
+	r.mux = http.NewServeMux()
+	r.registerRoutes()
+
+	// Update server handler
+	if r.server != nil {
+		r.server.Handler = r.mux
+	}
+
+	log.PrintSuccess("Model reloaded successfully")
+	return nil
 }
 
 // Stop stops the runtime server

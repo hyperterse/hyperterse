@@ -1,3 +1,7 @@
+server:
+  port: 3000
+  log_level: 4
+
 adapters:
   my_pg1:
     connector: postgres

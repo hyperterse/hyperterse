@@ -226,6 +226,29 @@ alwaysApply: false
 - [ ] Manual testing completed
 - [ ] No sensitive data exposed
 - [ ] Backward compatibility considered
+- [ ] Artifacts updated (see Artifacts section below)
+
+### 11. Artifacts That Must Be Updated
+
+**When making CLI changes, these artifacts must be updated:**
+
+- **`install.sh`**: The installation script installs shell completions automatically. When CLI commands, flags, or structure change:
+  - Verify `install_completions()` function still works correctly
+  - Test installation on different shells (bash, zsh)
+  - Ensure completion generation works: `hyperterse completion <shell>`
+  - Update any hardcoded command examples in the script if they change
+
+**When to update `install.sh`:**
+
+- Any change that affects the CLI interface
+
+**Testing checklist for install.sh updates:**
+
+- [ ] Test installation on macOS (bash and zsh)
+- [ ] Test installation on Linux (bash and zsh)
+- [ ] Verify completions are generated correctly
+- [ ] Verify completions are installed to correct locations
+- [ ] Test that completions work after installation
 
 ## Specific Guidelines
 
