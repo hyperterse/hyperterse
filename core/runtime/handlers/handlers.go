@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	"github.com/hyperterse/hyperterse/core/proto/runtime"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
-	"github.com/hyperterse/hyperterse/core/pb"
-	"github.com/hyperterse/hyperterse/core/pb/runtime"
 )
 
 // QueryServiceHandler implements the QueryService
@@ -74,11 +74,11 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 // MCPServiceHandler implements the MCPService
 type MCPServiceHandler struct {
 	executor *executor.Executor
-	model    *pb.Model
+	model    *hyperterse.Model
 }
 
 // NewMCPServiceHandler creates a new MCPService handler
-func NewMCPServiceHandler(exec *executor.Executor, model *pb.Model) *MCPServiceHandler {
+func NewMCPServiceHandler(exec *executor.Executor, model *hyperterse.Model) *MCPServiceHandler {
 	return &MCPServiceHandler{
 		executor: exec,
 		model:    model,
@@ -94,7 +94,7 @@ func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListTool
 		toolInputs := make(map[string]*runtime.ToolInput)
 		for _, input := range query.Inputs {
 			toolInputs[input.Name] = &runtime.ToolInput{
-				Type:         input.Type,
+				Type:         input.Type.String(),
 				Description:  input.Description,
 				Optional:     input.Optional,
 				DefaultValue: input.DefaultValue,

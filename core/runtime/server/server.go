@@ -13,8 +13,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/hyperterse/hyperterse/core/logger"
-	"github.com/hyperterse/hyperterse/core/pb"
-	"github.com/hyperterse/hyperterse/core/pb/runtime"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	"github.com/hyperterse/hyperterse/core/proto/runtime"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
 	"github.com/hyperterse/hyperterse/core/runtime/handlers"
@@ -22,7 +22,7 @@ import (
 
 // Runtime represents the Hyperterse runtime server
 type Runtime struct {
-	model      *pb.Model
+	model      *hyperterse.Model
 	executor   *executor.Executor
 	connectors map[string]connectors.Connector
 	server     *http.Server
@@ -30,7 +30,7 @@ type Runtime struct {
 }
 
 // NewRuntime creates a new runtime instance
-func NewRuntime(model *pb.Model, port string) (*Runtime, error) {
+func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 	if port == "" {
 		port = "8080"
 	}
@@ -129,7 +129,7 @@ func (r *Runtime) Start() error {
 		queryName := query.Name
 		endpointPath := "/query/" + queryName
 
-		mux.HandleFunc(endpointPath, func(q *pb.Query) http.HandlerFunc {
+		mux.HandleFunc(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
 			return func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodPost {
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

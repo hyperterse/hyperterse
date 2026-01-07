@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/types"
 )
 
@@ -21,8 +21,8 @@ func NewParser(input string) *Parser {
 }
 
 // Parse parses the input string into a Protobuf Model
-func (p *Parser) Parse() (*pb.Model, error) {
-	model := &pb.Model{}
+func (p *Parser) Parse() (*hyperterse.Model, error) {
+	model := &hyperterse.Model{}
 
 	for {
 		p.skipWhitespace()
@@ -50,7 +50,7 @@ func (p *Parser) Parse() (*pb.Model, error) {
 	return model, nil
 }
 
-func (p *Parser) parseAdapter() (*pb.Adapter, error) {
+func (p *Parser) parseAdapter() (*hyperterse.Adapter, error) {
 	if !p.consume("adapter") {
 		return nil, fmt.Errorf("expected 'adapter'")
 	}
@@ -64,7 +64,7 @@ func (p *Parser) parseAdapter() (*pb.Adapter, error) {
 		return nil, fmt.Errorf("expected '{' after adapter name")
 	}
 
-	adapter := &pb.Adapter{Name: name}
+	adapter := &hyperterse.Adapter{Name: name}
 
 	for {
 		p.skipWhitespace()
@@ -115,11 +115,11 @@ func (p *Parser) parseAdapter() (*pb.Adapter, error) {
 	return adapter, nil
 }
 
-func (p *Parser) parseAdapterOptions() (*pb.AdapterOptions, error) {
+func (p *Parser) parseAdapterOptions() (*hyperterse.AdapterOptions, error) {
 	if !p.consume("{") {
 		return nil, fmt.Errorf("expected '{' for options")
 	}
-	opts := &pb.AdapterOptions{
+	opts := &hyperterse.AdapterOptions{
 		Options: make(map[string]string),
 	}
 	for {
@@ -157,7 +157,7 @@ func (p *Parser) parseAdapterOptions() (*pb.AdapterOptions, error) {
 	return opts, nil
 }
 
-func (p *Parser) parseQuery() (*pb.Query, error) {
+func (p *Parser) parseQuery() (*hyperterse.Query, error) {
 	if !p.consume("query") {
 		return nil, fmt.Errorf("expected 'query'")
 	}
@@ -171,7 +171,7 @@ func (p *Parser) parseQuery() (*pb.Query, error) {
 		return nil, fmt.Errorf("expected '{'")
 	}
 
-	query := &pb.Query{Name: name}
+	query := &hyperterse.Query{Name: name}
 
 	for {
 		p.skipWhitespace()
@@ -227,11 +227,11 @@ func (p *Parser) parseQuery() (*pb.Query, error) {
 	return query, nil
 }
 
-func (p *Parser) parseInputs() ([]*pb.Input, error) {
+func (p *Parser) parseInputs() ([]*hyperterse.Input, error) {
 	if !p.consume("{") {
 		return nil, fmt.Errorf("expected '{' for inputs")
 	}
-	var inputs []*pb.Input
+	var inputs []*hyperterse.Input
 	for {
 		p.skipWhitespace()
 		if p.consume("}") {
@@ -257,7 +257,7 @@ func (p *Parser) parseInputs() ([]*pb.Input, error) {
 			return nil, fmt.Errorf("expected '{' for input body")
 		}
 
-		input := &pb.Input{
+		input := &hyperterse.Input{
 			Name:     name,
 			Optional: optional,
 		}
@@ -281,7 +281,15 @@ func (p *Parser) parseInputs() ([]*pb.Input, error) {
 				if err != nil {
 					return nil, err
 				}
-				input.Type = val
+				inputType := val // Keep as string for validation
+				if !types.IsValidPrimitiveType(inputType) {
+					return nil, fmt.Errorf("invalid type '%s': must be one of: %s", inputType, strings.Join(types.GetValidPrimitives(), ", "))
+				}
+				enumType, err := types.StringToPrimitiveEnum(inputType)
+				if err != nil {
+					return nil, err
+				}
+				input.Type = enumType
 			} else if k == "description" {
 				val, err := p.parseStringLiteral()
 				if err != nil {
@@ -313,11 +321,11 @@ func (p *Parser) parseInputs() ([]*pb.Input, error) {
 	return inputs, nil
 }
 
-func (p *Parser) parseData() ([]*pb.Data, error) {
+func (p *Parser) parseData() ([]*hyperterse.Data, error) {
 	if !p.consume("{") {
 		return nil, fmt.Errorf("expected '{' for data")
 	}
-	var dataList []*pb.Data
+	var dataList []*hyperterse.Data
 	for {
 		p.skipWhitespace()
 		if p.consume("}") {
@@ -340,7 +348,7 @@ func (p *Parser) parseData() ([]*pb.Data, error) {
 			return nil, fmt.Errorf("expected '{'")
 		}
 
-		d := &pb.Data{
+		d := &hyperterse.Data{
 			Name:     name,
 			Optional: optional,
 		}
@@ -363,7 +371,11 @@ func (p *Parser) parseData() ([]*pb.Data, error) {
 				if err != nil {
 					return nil, err
 				}
-				d.Type = val
+				dataType, err := types.StringToPrimitiveEnum(val)
+				if err != nil {
+					return nil, err
+				}
+				d.Type = dataType
 			} else if k == "description" {
 				val, err := p.parseStringLiteral()
 				if err != nil {
@@ -487,4 +499,3 @@ func (p *Parser) peek(n int) string {
 	}
 	return p.input[p.pos : p.pos+n]
 }
-

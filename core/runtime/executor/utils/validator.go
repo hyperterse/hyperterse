@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 )
 
 // ValidationError represents an input validation error
@@ -20,9 +20,9 @@ func (e *ValidationError) Error() string {
 }
 
 // ValidateInputs validates user-provided inputs against query input definitions
-func ValidateInputs(query *pb.Query, userInputs map[string]interface{}) (map[string]interface{}, error) {
+func ValidateInputs(query *hyperterse.Query, userInputs map[string]interface{}) (map[string]interface{}, error) {
 	validated := make(map[string]interface{})
-	queryInputMap := make(map[string]*pb.Input)
+	queryInputMap := make(map[string]*hyperterse.Input)
 
 	// Build map of query inputs for quick lookup
 	for _, input := range query.Inputs {
@@ -55,7 +55,7 @@ func ValidateInputs(query *pb.Query, userInputs map[string]interface{}) (map[str
 		}
 
 		// Convert and validate the value
-		convertedValue, err := convertAndValidateValue(value, inputDef.Type)
+		convertedValue, err := convertAndValidateValue(value, inputDef.Type.String())
 		if err != nil {
 			return nil, &ValidationError{
 				Field:   key,
@@ -70,7 +70,7 @@ func ValidateInputs(query *pb.Query, userInputs map[string]interface{}) (map[str
 	for _, input := range query.Inputs {
 		if _, exists := validated[input.Name]; !exists {
 			if input.DefaultValue != "" {
-				convertedValue, err := convertAndValidateValue(input.DefaultValue, input.Type)
+				convertedValue, err := convertAndValidateValue(input.DefaultValue, input.Type.String())
 				if err != nil {
 					return nil, &ValidationError{
 						Field:   input.Name,

@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 )
 
 // GenerateLLMDocumentation generates markdown documentation for LLMs
-func GenerateLLMDocumentation(model *pb.Model, baseURL string) string {
+func GenerateLLMDocumentation(model *hyperterse.Model, baseURL string) string {
 	var sb strings.Builder
 
 	// Header
@@ -119,7 +119,7 @@ func GenerateLLMDocumentation(model *pb.Model, baseURL string) string {
 			if len(query.Inputs) > 0 {
 				exampleInputs := make([]string, 0)
 				for _, input := range query.Inputs {
-					exampleValue := getExampleValue(input.Type)
+					exampleValue := getExampleValue(input.Type.String())
 					exampleInputs = append(exampleInputs, fmt.Sprintf("\"%s\": %s", input.Name, exampleValue))
 				}
 				sb.WriteString("{" + strings.Join(exampleInputs, ", ") + "}")
@@ -136,7 +136,7 @@ func GenerateLLMDocumentation(model *pb.Model, baseURL string) string {
 			if len(query.Inputs) > 0 {
 				exampleInputs := make([]string, 0)
 				for _, input := range query.Inputs {
-					exampleValue := getExampleValue(input.Type)
+					exampleValue := getExampleValue(input.Type.String())
 					exampleInputs = append(exampleInputs, fmt.Sprintf("  \"%s\": %s", input.Name, exampleValue))
 				}
 				sb.WriteString(strings.Join(exampleInputs, ",\n"))
@@ -164,7 +164,7 @@ func GenerateLLMDocumentation(model *pb.Model, baseURL string) string {
 		sb.WriteString("  -H \"Content-Type: application/json\" \\\n")
 		if len(exampleQuery.Inputs) > 0 {
 			exampleInput := exampleQuery.Inputs[0]
-			exampleValue := getExampleValue(exampleInput.Type)
+			exampleValue := getExampleValue(exampleInput.Type.String())
 			sb.WriteString(fmt.Sprintf("  -d '{\"%s\": %s}'\n", exampleInput.Name, exampleValue))
 		} else {
 			sb.WriteString("  -d '{}'\n")
@@ -209,7 +209,7 @@ func getExampleValue(typ string) string {
 }
 
 // LLMTxtHandler handles requests to /llms.txt
-func LLMTxtHandler(model *pb.Model, baseURL string) http.HandlerFunc {
+func LLMTxtHandler(model *hyperterse.Model, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

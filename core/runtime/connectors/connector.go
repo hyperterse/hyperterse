@@ -3,7 +3,8 @@ package connectors
 import (
 	"fmt"
 
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/connectors"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 )
 
 // Connector defines the interface for database connectors
@@ -19,7 +20,7 @@ type Connector interface {
 }
 
 // NewConnector creates a new connector based on the adapter configuration
-func NewConnector(adapter *pb.Adapter) (Connector, error) {
+func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 	if adapter.ConnectionString == "" {
 		return nil, fmt.Errorf("adapter '%s' missing connection string", adapter.Name)
 	}
@@ -27,13 +28,13 @@ func NewConnector(adapter *pb.Adapter) (Connector, error) {
 	connectionString := adapter.ConnectionString
 
 	switch adapter.Connector {
-	case pb.Connector_CONNECTOR_POSTGRES:
+	case connectors.Connector_CONNECTOR_POSTGRES:
 		return NewPostgresConnector(connectionString)
-	case pb.Connector_CONNECTOR_MYSQL:
+	case connectors.Connector_CONNECTOR_MYSQL:
 		return NewMySQLConnector(connectionString)
-	case pb.Connector_CONNECTOR_REDIS:
+	case connectors.Connector_CONNECTOR_REDIS:
 		return NewRedisConnector(connectionString)
-	case pb.Connector_CONNECTOR_UNSPECIFIED:
+	case connectors.Connector_CONNECTOR_UNSPECIFIED:
 		return nil, fmt.Errorf("adapter '%s' has unspecified connector type", adapter.Name)
 	default:
 		return nil, fmt.Errorf("unsupported connector type '%s' for adapter '%s'", adapter.Connector.String(), adapter.Name)

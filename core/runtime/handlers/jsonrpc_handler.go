@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hyperterse/hyperterse/core/logger"
-	"github.com/hyperterse/hyperterse/core/pb/runtime"
+	"github.com/hyperterse/hyperterse/core/proto/runtime"
 )
 
 // JSONRPCRequest represents a JSON-RPC 2.0 request

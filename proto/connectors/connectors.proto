@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package hyperterse;
 
-option go_package = "github.com/hyperterse/hyperterse/core/pb";
+option go_package = "github.com/hyperterse/hyperterse/core/proto/connectors";
 
 // Connector types supported by adapters
 enum Connector {

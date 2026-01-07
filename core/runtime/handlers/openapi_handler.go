@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/pb33f/libopenapi"
 )
 
 // GenerateOpenAPISpec generates a complete OpenAPI 3.0 specification using libopenapi
-func GenerateOpenAPISpec(model *pb.Model, baseURL string) ([]byte, error) {
+func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error) {
 	// Build the OpenAPI spec as a map structure
 	spec := map[string]interface{}{
 		"openapi": "3.0.0",
@@ -42,16 +42,16 @@ func GenerateOpenAPISpec(model *pb.Model, baseURL string) ([]byte, error) {
 
 		for _, input := range query.Inputs {
 			prop := map[string]interface{}{
-				"type":        mapProtoTypeToOpenAPIType(input.Type),
+				"type":        mapProtoTypeToOpenAPIType(input.Type.String()),
 				"description": input.Description,
 			}
 
 			// Add example value
-			prop["example"] = getExampleValueForOpenAPI(input.Type)
+			prop["example"] = getExampleValueForOpenAPI(input.Type.String())
 
 			// Handle default value
 			if input.DefaultValue != "" {
-				prop["default"] = parseDefaultValue(input.DefaultValue, input.Type)
+				prop["default"] = parseDefaultValue(input.DefaultValue, input.Type.String())
 			}
 
 			properties[input.Name] = prop
@@ -285,7 +285,7 @@ func GenerateOpenAPISpec(model *pb.Model, baseURL string) ([]byte, error) {
 }
 
 // GenerateOpenAPISpecHandler returns an HTTP handler for the OpenAPI spec
-func GenerateOpenAPISpecHandler(model *pb.Model, baseURL string) http.HandlerFunc {
+func GenerateOpenAPISpecHandler(model *hyperterse.Model, baseURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

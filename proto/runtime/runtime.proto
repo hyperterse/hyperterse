@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package hyperterse.runtime;
+package hyperterse;
 
-option go_package = "github.com/hyperterse/hyperterse/core/pb/runtime";
+option go_package = "github.com/hyperterse/hyperterse/core/proto/runtime";
 
 // QueryService provides endpoints for executing queries
 service QueryService {

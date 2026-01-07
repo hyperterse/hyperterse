@@ -8,7 +8,7 @@ import (
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/parser"
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime"
 )
 
@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var model *pb.Model
+	var model *hyperterse.Model
 
 	// Determine parser based on file extension
 	if strings.HasSuffix(*filePath, ".yaml") || strings.HasSuffix(*filePath, ".yml") {

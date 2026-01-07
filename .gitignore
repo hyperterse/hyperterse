@@ -32,7 +32,7 @@ go.work.sum
 tmp/**
 
 # Generated files
-core/pb/
+core/proto/
 core/types/
 *.pb.go
 pkg/proto

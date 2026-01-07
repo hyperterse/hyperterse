@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/logger"
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/connectors"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/types"
 )
 
@@ -34,7 +35,7 @@ func (ve *ValidationErrors) Format() string {
 }
 
 // Validate performs comprehensive validation on the Model
-func Validate(model *pb.Model) error {
+func Validate(model *hyperterse.Model) error {
 	var errors []string
 
 	// 1. Validate adapters is required and has at least one entry
@@ -70,11 +71,11 @@ func Validate(model *pb.Model) error {
 		}
 
 		// 3. Connector is required and must be one of: postgres, redis, mysql
-		if adapter.Connector == pb.Connector_CONNECTOR_UNSPECIFIED {
+		if adapter.Connector == connectors.Connector_CONNECTOR_UNSPECIFIED {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' requires a connector", prefix))
-		} else if adapter.Connector != pb.Connector_CONNECTOR_POSTGRES &&
-			adapter.Connector != pb.Connector_CONNECTOR_REDIS &&
-			adapter.Connector != pb.Connector_CONNECTOR_MYSQL {
+		} else if adapter.Connector != connectors.Connector_CONNECTOR_POSTGRES &&
+			adapter.Connector != connectors.Connector_CONNECTOR_REDIS &&
+			adapter.Connector != connectors.Connector_CONNECTOR_MYSQL {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' - connector is invalid. Must be one of: %s", prefix, strings.Join(types.GetValidConnectors(), ", ")))
 		}
 
@@ -159,10 +160,11 @@ func Validate(model *pb.Model) error {
 			inputNames[input.Name] = true
 
 			// Input type is required and must be valid
-			if input.Type == "" {
+			typeStr := types.PrimitiveEnumToString(input.Type)
+			if typeStr == "" {
 				errors = append(errors, fmt.Sprintf("%s.type is required", inputPrefix))
-			} else if !types.IsValidPrimitiveType(input.Type) {
-				errors = append(errors, fmt.Sprintf("%s.type '%s' must be one of: %s", inputPrefix, input.Type, strings.Join(types.GetValidPrimitives(), ", ")))
+			} else if !types.IsValidPrimitiveType(typeStr) {
+				errors = append(errors, fmt.Sprintf("%s.type '%s' must be one of: %s", inputPrefix, typeStr, strings.Join(types.GetValidPrimitives(), ", ")))
 			}
 
 			// If input is optional, it must have a default value
@@ -200,17 +202,19 @@ func Validate(model *pb.Model) error {
 				continue
 			}
 
+			dataPrefix = fmt.Sprintf("%s.data.%s", prefix, data.Name)
+
 			// Data name must be unique within the query
 			if dataNames[data.Name] {
 				errors = append(errors, fmt.Sprintf("%s.name '%s' must be unique within the query", dataPrefix, data.Name))
 			}
 			dataNames[data.Name] = true
-
 			// Data type is required and must be valid
-			if data.Type == "" {
+			typeStr := types.PrimitiveEnumToString(data.Type)
+			if typeStr == "" {
 				errors = append(errors, fmt.Sprintf("%s.type is required", dataPrefix))
-			} else if !types.IsValidPrimitiveType(data.Type) {
-				errors = append(errors, fmt.Sprintf("%s.type '%s' must be one of: %s", dataPrefix, data.Type, strings.Join(types.GetValidPrimitives(), ", ")))
+			} else if !types.IsValidPrimitiveType(typeStr) {
+				errors = append(errors, fmt.Sprintf("%s.type '%s' must be one of: %s", dataPrefix, typeStr, strings.Join(types.GetValidPrimitives(), ", ")))
 			}
 		}
 	}
@@ -250,4 +254,3 @@ func extractInputReferences(statement string) []string {
 
 	return result
 }
-

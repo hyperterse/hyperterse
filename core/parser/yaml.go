@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hyperterse/hyperterse/core/pb"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/types"
 	"gopkg.in/yaml.v3"
 )
 
 // ParseYAML parses YAML content into a protobuf Model
-func ParseYAML(data []byte) (*pb.Model, error) {
+func ParseYAML(data []byte) (*hyperterse.Model, error) {
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
 
-	model := &pb.Model{}
+	model := &hyperterse.Model{}
 
 	// Parse adapters - now a map where keys are names
 	if adaptersRaw, ok := raw["adapters"].(map[string]interface{}); ok {
@@ -26,7 +26,7 @@ func ParseYAML(data []byte) (*pb.Model, error) {
 				return nil, fmt.Errorf("invalid adapter structure for '%s'", adapterName)
 			}
 
-			adapter := &pb.Adapter{
+			adapter := &hyperterse.Adapter{
 				Name: adapterName,
 			}
 			if connectorStr, ok := adapterMap["connector"].(string); ok {
@@ -42,7 +42,7 @@ func ParseYAML(data []byte) (*pb.Model, error) {
 			}
 			// Parse optional connector-specific options
 			if optionsRaw, ok := adapterMap["options"].(map[string]interface{}); ok {
-				adapter.Options = &pb.AdapterOptions{
+				adapter.Options = &hyperterse.AdapterOptions{
 					Options: make(map[string]string),
 				}
 				for key, value := range optionsRaw {
@@ -67,7 +67,7 @@ func ParseYAML(data []byte) (*pb.Model, error) {
 				return nil, fmt.Errorf("invalid query structure for '%s'", queryName)
 			}
 
-			query := &pb.Query{
+			query := &hyperterse.Query{
 				Name: queryName,
 			}
 			if description, ok := queryMap["description"].(string); ok {
@@ -99,14 +99,18 @@ func ParseYAML(data []byte) (*pb.Model, error) {
 						return nil, fmt.Errorf("invalid input structure for '%s' in query '%s'", inputName, queryName)
 					}
 
-					input := &pb.Input{
+					input := &hyperterse.Input{
 						Name: inputName,
 					}
 					if typ, ok := inputMap["type"].(string); ok {
 						if !types.IsValidPrimitiveType(typ) {
 							return nil, fmt.Errorf("invalid type '%s' for input '%s' in query '%s': must be one of: %s", typ, inputName, queryName, strings.Join(types.GetValidPrimitives(), ", "))
 						}
-						input.Type = typ
+						inputType, err := types.StringToPrimitiveEnum(typ)
+						if err != nil {
+							return nil, err
+						}
+						input.Type = inputType
 					}
 					if description, ok := inputMap["description"].(string); ok {
 						input.Description = description
@@ -130,14 +134,18 @@ func ParseYAML(data []byte) (*pb.Model, error) {
 						return nil, fmt.Errorf("invalid data structure for '%s' in query '%s'", dataName, queryName)
 					}
 
-					data := &pb.Data{
+					data := &hyperterse.Data{
 						Name: dataName,
 					}
 					if typ, ok := dataMap["type"].(string); ok {
 						if !types.IsValidPrimitiveType(typ) {
 							return nil, fmt.Errorf("invalid type '%s' for data '%s' in query '%s': must be one of: %s", typ, dataName, queryName, strings.Join(types.GetValidPrimitives(), ", "))
 						}
-						data.Type = typ
+						dataType, err := types.StringToPrimitiveEnum(typ)
+						if err != nil {
+							return nil, err
+						}
+						data.Type = dataType
 					}
 					if description, ok := dataMap["description"].(string); ok {
 						data.Description = description
@@ -156,4 +164,3 @@ func ParseYAML(data []byte) (*pb.Model, error) {
 
 	return model, nil
 }
-

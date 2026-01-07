@@ -4,19 +4,19 @@ import (
 	"fmt"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor/utils"
-	"github.com/hyperterse/hyperterse/core/pb"
 )
 
 // Executor executes queries against database connectors
 type Executor struct {
 	connectors map[string]connectors.Connector
-	model      *pb.Model
+	model      *hyperterse.Model
 }
 
 // NewExecutor creates a new query executor
-func NewExecutor(model *pb.Model, connectorsMap map[string]connectors.Connector) *Executor {
+func NewExecutor(model *hyperterse.Model, connectorsMap map[string]connectors.Connector) *Executor {
 	return &Executor{
 		connectors: connectorsMap,
 		model:      model,
@@ -26,7 +26,7 @@ func NewExecutor(model *pb.Model, connectorsMap map[string]connectors.Connector)
 // ExecuteQuery executes a query by name with the provided inputs
 func (e *Executor) ExecuteQuery(queryName string, userInputs map[string]interface{}) ([]map[string]interface{}, error) {
 	// Find the query definition
-	var query *pb.Query
+	var query *hyperterse.Query
 	for _, q := range e.model.Queries {
 		if q.Name == queryName {
 			query = q
@@ -63,7 +63,7 @@ func (e *Executor) ExecuteQuery(queryName string, userInputs map[string]interfac
 	}
 
 	// Find the adapter to get connector type
-	var adapter *pb.Adapter
+	var adapter *hyperterse.Adapter
 	for _, a := range e.model.Adapters {
 		if a.Name == adapterName {
 			adapter = a
@@ -89,7 +89,7 @@ func (e *Executor) ExecuteQuery(queryName string, userInputs map[string]interfac
 }
 
 // GetQuery returns a query definition by name
-func (e *Executor) GetQuery(queryName string) (*pb.Query, error) {
+func (e *Executor) GetQuery(queryName string) (*hyperterse.Query, error) {
 	for _, q := range e.model.Queries {
 		if q.Name == queryName {
 			return q, nil
@@ -99,6 +99,6 @@ func (e *Executor) GetQuery(queryName string) (*pb.Query, error) {
 }
 
 // GetAllQueries returns all query definitions
-func (e *Executor) GetAllQueries() []*pb.Query {
+func (e *Executor) GetAllQueries() []*hyperterse.Query {
 	return e.model.Queries
 }
