@@ -35,6 +35,18 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: Install build dependencies
+        run: |
+          # Ensure GOPATH/bin is in PATH for protoc-gen-go
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          # Install protoc-gen-go
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+
       - name: Install dependencies
         run: ./scripts/check-deps.sh
 
