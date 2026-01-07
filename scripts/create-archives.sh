@@ -21,13 +21,19 @@ for dir in hyperterse-*; do
         if [ -z "$binary" ]; then
             continue
         fi
-        
+
         binary_name=$(basename "$binary")
         platform="${dir#hyperterse-}"
-        
-        # Copy binary to dist root
-        cp "$binary" "./$binary_name"
-        
+
+        # Get absolute paths to check if source and destination are the same
+        binary_abs=$(cd "$(dirname "$binary")" && pwd)/$(basename "$binary")
+        dest_abs=$(pwd)/$binary_name
+
+        # Copy binary to dist root only if source and destination differ
+        if [ "$binary_abs" != "$dest_abs" ]; then
+            cp "$binary" "./$binary_name"
+        fi
+
         # Create archive
         if [[ "$binary_name" == *.exe ]]; then
             # Windows - create zip
