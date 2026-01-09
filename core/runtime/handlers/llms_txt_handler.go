@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	"github.com/hyperterse/hyperterse/core/types"
 )
 
 // GenerateLLMDocumentation generates markdown documentation for LLMs
@@ -75,7 +76,7 @@ func GenerateLLMDocumentation(model *hyperterse.Model, baseURL string) string {
 					}
 
 					sb.WriteString(fmt.Sprintf("| `%s` | `%s` | %s | %s | %s |\n",
-						input.Name, input.Type, required, description, defaultVal))
+						input.Name, types.PrimitiveEnumToString(input.Type), required, description, defaultVal))
 				}
 				sb.WriteString("\n")
 			} else {
@@ -100,7 +101,7 @@ func GenerateLLMDocumentation(model *hyperterse.Model, baseURL string) string {
 					}
 
 					sb.WriteString(fmt.Sprintf("| `%s` | `%s` | %s%s |\n",
-						data.Name, data.Type, description, mapTo))
+						data.Name, types.PrimitiveEnumToString(data.Type), description, mapTo))
 				}
 				sb.WriteString("\n")
 			}
