@@ -5,9 +5,9 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-  cmd = "go build -o ./tmp/main ."
+  cmd = "make build"
   delay = 1000
-  entrypoint = ["./tmp/main", "-f myconfig.yaml"]
+  entrypoint = ["./tmp/main", "-f", "myconfig.yaml"]
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "core/proto", "core/types"]
   exclude_file = []
   exclude_regex = ["_test.go", "\\.pb\\.go$"]
