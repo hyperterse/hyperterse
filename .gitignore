@@ -8,6 +8,11 @@
 *.so
 *.dylib
 
+# System files
+**/.DS_Store
+**/thumbs.db
+**/Thumbs.db
+
 # Test binary, built with `go test -c`
 *.test
 
