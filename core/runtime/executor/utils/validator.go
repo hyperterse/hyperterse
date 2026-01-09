@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	"github.com/hyperterse/hyperterse/core/types"
 )
 
 // ValidationError represents an input validation error
@@ -55,7 +56,7 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]interface{}) 
 		}
 
 		// Convert and validate the value
-		convertedValue, err := convertAndValidateValue(value, inputDef.Type.String())
+		convertedValue, err := convertAndValidateValue(value, types.PrimitiveEnumToString(inputDef.Type))
 		if err != nil {
 			return nil, &ValidationError{
 				Field:   key,
@@ -70,7 +71,7 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]interface{}) 
 	for _, input := range query.Inputs {
 		if _, exists := validated[input.Name]; !exists {
 			if input.DefaultValue != "" {
-				convertedValue, err := convertAndValidateValue(input.DefaultValue, input.Type.String())
+				convertedValue, err := convertAndValidateValue(input.DefaultValue, types.PrimitiveEnumToString(input.Type))
 				if err != nil {
 					return nil, &ValidationError{
 						Field:   input.Name,
