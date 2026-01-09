@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/cli/internal"
@@ -31,19 +30,22 @@ func init() {
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
-	// Load config
+	rt, err := PrepareRuntime()
+	if err != nil {
+		return err
+	}
+	return rt.Start()
+}
+
+// PrepareRuntime loads config, validates, and creates a runtime ready to start
+func PrepareRuntime() (*runtime.Runtime, error) {
 	model, err := internal.LoadConfig(configFile)
 	if err != nil {
-		log := logger.New("main")
-		log.PrintError("Error loading config", err)
-		os.Exit(1)
+		return nil, err
 	}
 
-	// Resolve port and log level
 	resolvedPort := internal.ResolvePort(port, model)
 	resolvedLogLevel := internal.ResolveLogLevel(verbose, logLevel, model)
-
-	// Set log level
 	logger.SetLogLevel(resolvedLogLevel)
 	log := logger.New("main")
 
@@ -100,33 +102,16 @@ func runServer(cmd *cobra.Command, args []string) error {
 		log.Println("")
 	}
 
-	// Validate model
 	if err := parser.Validate(model); err != nil {
-		if validationErr, ok := err.(*parser.ValidationErrors); ok {
-			log.PrintValidationErrors(validationErr.Errors)
-		} else {
-			log.PrintError("Validation Error", err)
-		}
-		os.Exit(1)
+		return nil, err
 	}
-
 	log.PrintSuccess("Validation successful!")
 
-	log.Println("Starting runtime")
-	log.Println("Runtime initialization")
 	rt, err := runtime.NewRuntime(model, resolvedPort)
 	if err != nil {
-		log.PrintError("Failed to create runtime", err)
-		os.Exit(1)
+		return nil, err
 	}
 	log.PrintSuccess("Runtime initialized")
 
-	log.Println("Starting runtime server")
-	if err := rt.Start(); err != nil {
-		log.PrintError("Runtime error", err)
-		os.Exit(1)
-	}
-	log.PrintSuccess("Runtime server started")
-
-	return nil
+	return rt, nil
 }

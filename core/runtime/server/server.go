@@ -75,19 +75,29 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 	}, nil
 }
 
-// Start starts the runtime server
+// Start starts the runtime server and blocks until SIGTERM/SIGINT
 func (r *Runtime) Start() error {
+	if err := r.StartAsync(); err != nil {
+		return err
+	}
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	return r.Stop()
+}
+
+// StartAsync starts the runtime server without blocking
+func (r *Runtime) StartAsync() error {
 	r.mux = http.NewServeMux()
 	log := logger.New("runtime")
 
-	// Create handlers
 	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
 	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
-
-	// Register routes
 	r.registerRoutes()
 
-	// Create HTTP server
 	r.server = &http.Server{
 		Addr:         ":" + r.port,
 		Handler:      r.mux,
@@ -96,7 +106,6 @@ func (r *Runtime) Start() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in goroutine
 	go func() {
 		log.Printf("Starting Hyperterse runtime on port http://127.0.0.1:%s", r.port)
 		if err := r.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -104,13 +113,7 @@ func (r *Runtime) Start() error {
 		}
 	}()
 
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	logger.New("runtime").Println("Shutting down server...")
-	return r.Stop()
+	return nil
 }
 
 // registerRoutes registers all HTTP routes
@@ -306,22 +309,37 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	return nil
 }
 
-// Stop stops the runtime server
+// Stop stops the runtime server gracefully
 func (r *Runtime) Stop() error {
+	log := logger.New("runtime")
+	log.Println("Shutting down server...")
+	log.Debugln("Initiating graceful shutdown...")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Close all connectors
+	log.Debugf("Closing %d connector(s)...", len(r.connectors))
 	for name, conn := range r.connectors {
+		log.Debugf("  Closing connector '%s'...", name)
 		if err := conn.Close(); err != nil {
-			logger.New("runtime").Printf("Error closing connector '%s': %v", name, err)
+			log.Printf("Error closing connector '%s': %v", name, err)
+		} else {
+			log.Debugf("  Connector '%s' closed", name)
 		}
 	}
 
 	// Shutdown HTTP server
 	if r.server != nil {
-		return r.server.Shutdown(ctx)
+		log.Debugln("Shutting down HTTP server...")
+		if err := r.server.Shutdown(ctx); err != nil {
+			log.Printf("Error shutting down HTTP server: %v", err)
+			return err
+		}
+		log.Debugln("HTTP server stopped")
 	}
+
+	log.Debugln("Shutdown complete")
 	return nil
 }
 
