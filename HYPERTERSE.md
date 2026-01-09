@@ -1,6 +1,6 @@
 # Hyperterse: Comprehensive Documentation
 
-> **Last Updated:** 2024-12-19  
+> **Last Updated:** 2026-01-07
 > **Status:** Living Document - Always Updated
 
 ## Table of Contents
@@ -10,12 +10,13 @@
 3. [Architecture Overview](#architecture-overview)
 4. [Key Features](#key-features)
 5. [Configuration](#configuration)
-6. [API Reference](#api-reference)
-7. [Protocols & Standards](#protocols--standards)
-8. [Security Model](#security-model)
-9. [Development Guide](#development-guide)
-10. [Extension Points](#extension-points)
-11. [Troubleshooting](#troubleshooting)
+6. [CLI Reference](#cli-reference)
+7. [API Reference](#api-reference)
+8. [Protocols & Standards](#protocols--standards)
+9. [Security Model](#security-model)
+10. [Development Guide](#development-guide)
+11. [Extension Points](#extension-points)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -24,11 +25,12 @@
 **Hyperterse** is a high-performance runtime server that transforms database queries into RESTful API endpoints and MCP (Model Context Protocol) tools. It acts as a **query gateway** that:
 
 - **Exposes database queries as APIs**: Define queries in YAML or DSL, and Hyperterse automatically generates individual REST endpoints for each query
-- **Provides AI integration**: Exposes queries as MCP tools for AI assistants and LLMs
+- **Provides AI integration**: Exposes queries as MCP tools for AI assistants and LLMs via JSON-RPC 2.0
 - **Generates documentation**: Auto-generates OpenAPI 3.0 specifications and LLM-friendly markdown documentation
 - **Validates inputs**: Automatic type checking and validation for all query inputs
 - **Supports multiple databases**: PostgreSQL, MySQL, and Redis connectors out of the box
 - **Maintains security**: Connection strings and raw SQL never exposed to clients
+- **Hot reloading**: Development mode with automatic reload on configuration changes
 
 ### Use Cases
 
@@ -52,12 +54,14 @@
 ### Adapters
 
 **Adapters** define database connections. Each adapter specifies:
+
 - **Name**: Unique identifier (lower-kebab-case or lower_snake_case)
 - **Connector Type**: `postgres`, `mysql`, or `redis`
 - **Connection String**: Database connection string (never exposed to clients)
 - **Options**: Connector-specific configuration (optional)
 
 **Example:**
+
 ```yaml
 adapters:
   production_db:
@@ -71,6 +75,7 @@ adapters:
 ### Queries
 
 **Queries** define database operations that become API endpoints. Each query specifies:
+
 - **Name**: Query identifier (becomes endpoint name: `/query/{name}`)
 - **Use**: Adapter(s) to use for execution
 - **Description**: Human-readable description (used in documentation)
@@ -79,6 +84,7 @@ adapters:
 - **Data**: Output schema definition (optional, for documentation)
 
 **Example:**
+
 ```yaml
 queries:
   get-user-by-id:
@@ -111,14 +117,16 @@ queries:
 ### Template Variables
 
 Queries use template variables to inject input values:
+
 - **Syntax**: `{{ inputs.fieldName }}`
 - **Substitution**: Values are properly escaped and formatted for SQL
 - **Validation**: All referenced inputs must be defined in the query's `inputs` section
 
 **Example:**
+
 ```sql
-SELECT * FROM products 
-WHERE category = {{ inputs.category }} 
+SELECT * FROM products
+WHERE category = {{ inputs.category }}
 AND price <= {{ inputs.maxPrice }}
 ORDER BY created_at DESC
 LIMIT {{ inputs.limit }}
@@ -127,6 +135,7 @@ LIMIT {{ inputs.limit }}
 ### Input Types
 
 Supported primitive types:
+
 - `string` - Text values
 - `int` - Integer numbers (64-bit)
 - `float` - Floating-point numbers (64-bit)
@@ -137,6 +146,7 @@ Supported primitive types:
 ### Optional Inputs
 
 Inputs can be marked as optional with default values:
+
 ```yaml
 inputs:
   limit:
@@ -159,29 +169,29 @@ inputs:
 └──────┬──────┘
        │
        ▼
-┌─────────────────────────────────────┐
-│      Hyperterse Runtime Server      │
-│  ┌──────────────────────────────┐  │
-│  │   HTTP Server (Port 8080)     │  │
+┌──────────────────────────────────────┐
+│       Hyperterse Runtime Server      │
+│  ┌────────────────────────────────┐  │
+│  │   HTTP Server (Port 8080)      │  │
 │  │  - Query Endpoints             │  │
-│  │  - MCP Endpoints               │  │
+│  │  - MCP JSON-RPC 2.0 Endpoint   │  │
 │  │  - Documentation Endpoints     │  │
 │  └──────────────┬─────────────────┘  │
-│                 │                     │
+│                 │                    │
 │  ┌──────────────▼─────────────────┐  │
 │  │      Query Executor            │  │
 │  │  - Input Validation            │  │
 │  │  - Template Substitution       │  │
 │  │  - Query Execution             │  │
 │  └──────────────┬─────────────────┘  │
-│                 │                     │
+│                 │                    │
 │  ┌──────────────▼─────────────────┐  │
 │  │    Connector Layer             │  │
-│  │  - PostgreSQL Connector       │  │
-│  │  - MySQL Connector            │  │
-│  │  - Redis Connector           │  │
+│  │  - PostgreSQL Connector        │  │
+│  │  - MySQL Connector             │  │
+│  │  - Redis Connector             │  │
 │  └──────────────┬─────────────────┘  │
-└─────────────────┼───────────────────┘
+└─────────────────┼────────────────────┘
                    │
         ┌──────────┼──────────┐
         │          │          │
@@ -195,33 +205,61 @@ inputs:
 
 ```
 hyperterse/
-├── main.go                    # Application entry point
+├── main.go                           # Application entry point
 ├── core/
-│   ├── parser/                # Configuration parsing
-│   │   ├── yaml.go            # YAML parser
-│   │   ├── dsl.go             # DSL parser
-│   │   └── validator.go       # Configuration validation
-│   ├── runtime/               # Runtime server & execution
-│   │   ├── server.go          # HTTP server
-│   │   ├── handlers.go        # Request handlers
-│   │   ├── executor.go        # Query executor
-│   │   ├── substitutor.go    # Template substitution
-│   │   ├── executor_validator.go  # Input validation
-│   │   ├── connector.go       # Connector interface
-│   │   ├── connector_factory.go  # Connector factory
-│   │   ├── postgres.go        # PostgreSQL connector
-│   │   ├── mysql.go           # MySQL connector
-│   │   ├── redis.go           # Redis connector
-│   │   ├── openapi_handler.go # OpenAPI generation
-│   │   └── llms_txt_handler.go # LLM documentation
-│   ├── types/                 # Type definitions
-│   │   ├── connectors.go      # Connector types
-│   │   └── primitives.go      # Primitive types
-│   └── logger/                # Logging utilities
-│       └── logger.go
-├── pkg/
-│   └── pb/                    # Generated protobuf code
-└── proto/                     # Protocol buffer definitions
+│   ├── cli/                          # CLI package
+│   │   ├── cli.go                    # CLI entry point
+│   │   ├── cmd/                      # CLI commands
+│   │   │   ├── root.go               # Root command with global flags
+│   │   │   ├── run.go                # 'run' command - start server
+│   │   │   ├── dev.go                # 'dev' command - hot reload mode
+│   │   │   ├── generate.go           # 'generate' parent command
+│   │   │   ├── llms.go               # 'generate llms' subcommand
+│   │   │   └── skills.go             # 'generate skills' subcommand
+│   │   └── internal/                 # CLI internal utilities
+│   │       └── loader.go             # Config loading and resolution
+│   ├── parser/                       # Configuration parsing
+│   │   ├── yaml.go                   # YAML parser
+│   │   ├── dsl.go                    # DSL parser (.hyperterse files)
+│   │   └── validator.go              # Configuration validation
+│   ├── runtime/                      # Runtime server & execution
+│   │   ├── runtime.go                # Runtime package exports
+│   │   ├── server/                   # HTTP server
+│   │   │   └── server.go             # Server implementation
+│   │   ├── handlers/                 # Request handlers
+│   │   │   ├── handlers.go           # Query & MCP service handlers
+│   │   │   ├── jsonrpc_handler.go    # JSON-RPC 2.0 for MCP
+│   │   │   ├── openapi_handler.go    # OpenAPI spec generation
+│   │   │   └── llms_txt_handler.go   # LLM documentation generation
+│   │   ├── executor/                 # Query execution
+│   │   │   ├── executor.go           # Query executor
+│   │   │   └── utils/                # Executor utilities
+│   │   │       ├── substitutor.go    # Template substitution
+│   │   │       └── validator.go      # Input validation
+│   │   └── connectors/               # Database connectors
+│   │       ├── connector.go          # Connector interface & factory
+│   │       ├── postgres.go           # PostgreSQL connector
+│   │       ├── mysql.go              # MySQL connector
+│   │       └── redis.go              # Redis connector
+│   ├── types/                        # Type definitions
+│   │   ├── connectors.go             # Connector types (generated)
+│   │   └── primitives.go             # Primitive types (generated)
+│   ├── logger/                       # Logging utilities
+│   │   └── logger.go                 # Structured logger with levels
+│   └── proto/                        # Generated protobuf code
+│       ├── connectors/
+│       ├── hyperterse/
+│       ├── primitives/
+│       └── runtime/
+└── proto/                            # Protocol buffer definitions
+    ├── connectors/
+    │   └── connectors.proto
+    ├── hyperterse/
+    │   └── hyperterse.proto
+    ├── primitives/
+    │   └── primitives.proto
+    └── runtime/
+        └── runtime.proto
 ```
 
 ### Request Flow
@@ -249,6 +287,7 @@ hyperterse/
 ### 1. Automatic Endpoint Generation
 
 Each query automatically becomes a REST endpoint:
+
 - **Path**: `POST /query/{query-name}`
 - **Request**: JSON body with input parameters
 - **Response**: JSON with `success`, `error`, and `results` fields
@@ -266,7 +305,7 @@ Each query automatically becomes a REST endpoint:
 ### 3. MCP Protocol Support
 
 - **JSON-RPC 2.0 Endpoint**: `POST /mcp` - MCP protocol endpoint using JSON-RPC 2.0
-- **Methods**: 
+- **Methods**:
   - `tools/list` - Returns all queries as MCP tools
   - `tools/call` - Execute a query via MCP protocol
 - **Tool Descriptions**: Queries exposed with descriptions and input schemas
@@ -297,6 +336,13 @@ Each query automatically becomes a REST endpoint:
 - **Error Message Sanitization**: No sensitive database information leaked
 - **Input Validation**: Type checking prevents injection attacks
 
+### 8. Development Mode with Hot Reload
+
+- **Command**: `hyperterse dev -f config.yaml`
+- **Auto-reload**: Watches configuration file for changes
+- **Debounced**: 500ms delay to handle rapid file saves
+- **Graceful**: Maintains server uptime during reloads
+
 ---
 
 ## Configuration
@@ -308,6 +354,11 @@ Hyperterse supports two configuration formats:
 #### YAML Format (`.yaml`, `.yml`)
 
 ```yaml
+# Optional server configuration
+server:
+  port: "8080"
+  log_level: 3 # 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG
+
 adapters:
   my_database:
     connector: postgres
@@ -371,6 +422,23 @@ query get-user {
 }
 ```
 
+### Server Configuration
+
+Server configuration can be specified in the config file or overridden via CLI flags:
+
+```yaml
+server:
+  port: "8080" # Server port (default: 8080)
+  log_level: 3 # 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)
+```
+
+**Priority order (highest to lowest):**
+
+1. CLI flags (`-p`, `--log-level`, `-v`)
+2. Config file (`server.port`, `server.log_level`)
+3. Environment variables (`PORT`)
+4. Defaults (`8080`, `INFO`)
+
 ### Naming Conventions
 
 - **Adapter Names**: `lower-kebab-case` or `lower_snake_case`, must start with letter
@@ -391,6 +459,80 @@ query get-user {
 
 ---
 
+## CLI Reference
+
+### Global Flags
+
+| Flag     | Short | Description                                              |
+| -------- | ----- | -------------------------------------------------------- |
+| `--file` | `-f`  | Path to configuration file (.hyperterse, .yaml, or .yml) |
+
+### Commands
+
+#### `hyperterse` or `hyperterse run`
+
+Run the Hyperterse server.
+
+```bash
+hyperterse -f config.yaml
+# or
+hyperterse run -f config.yaml
+```
+
+**Flags:**
+
+| Flag          | Short | Description                                          |
+| ------------- | ----- | ---------------------------------------------------- |
+| `--port`      | `-p`  | Server port (overrides config file and PORT env var) |
+| `--log-level` |       | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG          |
+| `--verbose`   | `-v`  | Enable verbose logging (sets log level to DEBUG)     |
+
+#### `hyperterse dev`
+
+Run the server in development mode with hot reload.
+
+```bash
+hyperterse dev -f config.yaml
+```
+
+The server will automatically reload when the configuration file changes.
+
+**Flags:** Same as `run` command.
+
+#### `hyperterse generate llms`
+
+Generate an llms.txt documentation file.
+
+```bash
+hyperterse generate llms -f config.yaml
+hyperterse generate llms -f config.yaml -o docs/llms.txt --base-url https://api.example.com
+```
+
+**Flags:**
+
+| Flag         | Short | Default                 | Description                       |
+| ------------ | ----- | ----------------------- | --------------------------------- |
+| `--output`   | `-o`  | `llms.txt`              | Output path for the llms.txt file |
+| `--base-url` |       | `http://localhost:8080` | Base URL for the API endpoints    |
+
+#### `hyperterse generate skills`
+
+Generate an Agent Skills compatible archive (.zip) for AI platforms.
+
+```bash
+hyperterse generate skills -f config.yaml
+hyperterse generate skills -f config.yaml -o my-skill.zip --name my-api-skill
+```
+
+**Flags:**
+
+| Flag       | Short | Default                        | Description                        |
+| ---------- | ----- | ------------------------------ | ---------------------------------- |
+| `--output` | `-o`  | `skill.zip`                    | Output path for the skills archive |
+| `--name`   |       | (derived from config filename) | Skill name                         |
+
+---
+
 ## API Reference
 
 ### Query Endpoints
@@ -400,6 +542,7 @@ query get-user {
 **Endpoint:** `POST /query/{query-name}`
 
 **Request:**
+
 ```json
 {
   "input1": "value1",
@@ -409,6 +552,7 @@ query get-user {
 ```
 
 **Response (Success):**
+
 ```json
 {
   "success": true,
@@ -424,11 +568,12 @@ query get-user {
 ```
 
 **Response (Error):**
+
 ```json
 {
   "success": false,
   "error": "validation error for field 'userId': required input 'userId' is missing",
-  "results": null
+  "results": []
 }
 ```
 
@@ -443,6 +588,7 @@ The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All MCP requests are
 ##### List MCP Tools (`tools/list` method)
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -452,6 +598,7 @@ The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All MCP requests are
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -480,6 +627,7 @@ The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All MCP requests are
 ##### Call MCP Tool (`tools/call` method)
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -495,6 +643,7 @@ The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All MCP requests are
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -529,7 +678,7 @@ The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All MCP requests are
 
 ### REST API
 
-- **Base URL**: `http://localhost:8080` (configurable via `PORT` env var)
+- **Base URL**: `http://localhost:8080` (configurable via `PORT` env var, config file, or CLI flag)
 - **Content-Type**: `application/json`
 - **Methods**: `GET` (utility endpoints), `POST` (query endpoints)
 - **Status Codes**: `200` (success), `400` (bad request), `500` (server error)
@@ -537,9 +686,10 @@ The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All MCP requests are
 ### MCP Protocol
 
 Hyperterse implements the Model Context Protocol (MCP) for AI assistant integration:
+
 - **JSON-RPC 2.0**: Uses JSON-RPC 2.0 messages over HTTP POST
 - **Endpoint**: Single `/mcp` endpoint handles all MCP requests
-- **Methods**: 
+- **Methods**:
   - `tools/list` - List all available tools (queries)
   - `tools/call` - Execute a tool (query)
 - **Tool Descriptions**: Include input schemas and descriptions
@@ -603,20 +753,39 @@ make generate
 # Build binary
 make build
 # or
-go build -o hyperterse .
+go build -o dist/hyperterse
 ```
 
 ### Running
 
 ```bash
 # Run with YAML config
-./hyperterse -file config.yaml
+./dist/hyperterse -f config.yaml
 
-# Run with DSL config
-./hyperterse -file config.hyperterse
+# Run with custom port
+./dist/hyperterse -f config.yaml -p 3000
 
-# Custom port
-PORT=3000 ./hyperterse -file config.yaml
+# Run with verbose logging
+./dist/hyperterse -f config.yaml -v
+
+# Development mode with hot reload
+./dist/hyperterse dev -f config.yaml
+```
+
+### Using Make
+
+```bash
+# Show available make targets
+make help
+
+# Complete setup (install dependencies and generate code)
+make setup
+
+# Build the project
+make build
+
+# Build and run with a config file
+make run CONFIG_FILE=config.yaml
 ```
 
 ### Testing
@@ -635,16 +804,26 @@ go test ./core/runtime/...
 ### Development Workflow
 
 1. **Define Queries**: Create/update YAML or DSL configuration
-2. **Validate**: Hyperterse validates configuration on startup
+2. **Run Dev Mode**: `hyperterse dev -f config.yaml` for hot reload
 3. **Test**: Use `curl` or HTTP client to test endpoints
 4. **Documentation**: Check `/docs` and `/llms.txt` for generated docs
-5. **Iterate**: Update configuration and restart server
+5. **Iterate**: Edit configuration, server reloads automatically
 
 ### Hot Reloading
 
-For development, use `air` for hot reloading:
+Development mode (`dev` command) includes built-in hot reloading:
+
 ```bash
-# Install air
+# Start dev server
+./dist/hyperterse dev -f config.yaml
+
+# Edit config.yaml - server reloads automatically
+```
+
+For source code changes, use `air` for hot reloading:
+
+```bash
+# Install air (included as tool dependency in go.mod)
 go install github.com/air-verse/air@latest
 
 # Run with air
@@ -657,31 +836,31 @@ air
 
 ### Adding New Connectors
 
-1. **Define Connector Type**: Add to `proto/hyperterse/hyperterse.proto` (Connector enum)
-2. **Implement Interface**: Create `core/runtime/{connector}.go` implementing `Connector` interface
-3. **Update Factory**: Add case to `NewConnector()` in `connector_factory.go`
-4. **Update Types**: Regenerate `core/types/connectors.go` (or update manually)
+1. **Define Connector Type**: Add to `proto/connectors/connectors.proto` (Connector enum)
+2. **Implement Interface**: Create `core/runtime/connectors/{connector}.go` implementing `Connector` interface
+3. **Update Factory**: Add case to `NewConnector()` in `connector.go`
+4. **Regenerate Types**: Run `make generate` to regenerate type files
 5. **Test**: Add tests for new connector
 
 ### Adding New Primitive Types
 
-1. **Define Type**: Add to `proto/hyperterse/hyperterse.proto` (Primitive enum)
-2. **Add Conversion**: Implement conversion in `executor_validator.go`
-3. **Update Types**: Regenerate `core/types/primitives.go`
+1. **Define Type**: Add to `proto/primitives/primitives.proto` (Primitive enum)
+2. **Regenerate Types**: Run `make generate` to regenerate type files
+3. **Add Conversion**: Implement conversion in `core/runtime/executor/utils/validator.go`
 4. **Update OpenAPI**: Add mapping in `openapi_handler.go`
 5. **Test**: Add validation tests
 
 ### Adding New Parsers
 
 1. **Create Parser**: Implement parser function in `core/parser/`
-2. **File Detection**: Add extension detection in `main.go`
-3. **Integration**: Call parser from main entry point
+2. **File Detection**: Add extension detection in `core/cli/internal/loader.go`
+3. **Integration**: Call parser from loader
 4. **Test**: Add parser tests
 
 ### Custom Handlers
 
-1. **Create Handler**: Implement HTTP handler function
-2. **Register Route**: Add route in `server.go` `Start()` method
+1. **Create Handler**: Implement HTTP handler function in `core/runtime/handlers/`
+2. **Register Route**: Add route in `server.go` `registerRoutes()` method
 3. **Documentation**: Update OpenAPI spec generation if needed
 4. **Test**: Add handler tests
 
@@ -696,6 +875,7 @@ air
 **Problem**: "failed to ping postgres database"
 
 **Solutions**:
+
 - Verify connection string format
 - Check database is running and accessible
 - Verify credentials
@@ -706,6 +886,7 @@ air
 **Problem**: "validation error for field 'x'"
 
 **Solutions**:
+
 - Check input name matches query definition
 - Verify input type matches expected type
 - Ensure required inputs are provided
@@ -716,6 +897,7 @@ air
 **Problem**: "input 'x' not found for substitution"
 
 **Solutions**:
+
 - Verify `{{ inputs.x }}` matches input name exactly
 - Check input is defined in query's `inputs` section
 - Ensure input name uses correct casing
@@ -725,6 +907,7 @@ air
 **Problem**: "query execution failed"
 
 **Solutions**:
+
 - Verify SQL syntax is correct
 - Check table/column names exist
 - Verify user has necessary permissions
@@ -732,13 +915,24 @@ air
 
 ### Debugging
 
-#### Enable Verbose Logging
+#### Log Levels
 
-Logging is built-in and shows:
-- Configuration parsing
-- Adapter initialization
-- Query execution
-- Error details
+Use the `--log-level` flag or `-v` for verbose output:
+
+```bash
+# Debug level logging
+./dist/hyperterse -f config.yaml --log-level 4
+
+# or use verbose shortcut
+./dist/hyperterse -f config.yaml -v
+```
+
+Log levels:
+
+- `1` = ERROR - Only errors
+- `2` = WARN - Warnings and errors
+- `3` = INFO - General information (default)
+- `4` = DEBUG - Detailed debugging information
 
 #### Check Generated Documentation
 
@@ -748,6 +942,7 @@ Logging is built-in and shows:
 #### Test Queries Directly
 
 Use `curl` to test endpoints:
+
 ```bash
 curl -X POST http://localhost:8080/query/get-user \
   -H "Content-Type: application/json" \
@@ -763,12 +958,17 @@ curl -X POST http://localhost:8080/query/get-user \
 **Current Version**: Development
 
 **Notable Changes**:
-- Initial implementation
-- YAML and DSL parser support
+
+- CLI with subcommands: `run`, `dev`, `generate llms`, `generate skills`
+- Hot reload development mode
+- YAML and DSL configuration support
+- Server configuration in config files
 - PostgreSQL, MySQL, Redis connectors
 - OpenAPI 3.0 generation
-- MCP protocol support
+- MCP protocol support via JSON-RPC 2.0
 - LLM documentation generation
+- Agent Skills archive generation
+- Configurable log levels
 
 ---
 
@@ -812,9 +1012,9 @@ curl -X POST http://localhost:8080/query/get-user \
 ---
 
 **Note**: This is a living document. Update it whenever:
+
 - New features are added
 - Architecture changes
 - API changes
 - New connectors or types are added
 - Security considerations change
-
