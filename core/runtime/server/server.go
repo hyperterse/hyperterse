@@ -22,14 +22,14 @@ import (
 
 // Runtime represents the Hyperterse runtime server
 type Runtime struct {
-	model        *hyperterse.Model
-	executor     *executor.Executor
-	connectors   map[string]connectors.Connector
-	server       *http.Server
-	port         string
-	mux          *http.ServeMux
-	queryHandler *handlers.QueryServiceHandler
-	mcpHandler   *handlers.MCPServiceHandler
+	model            *hyperterse.Model
+	executor         *executor.Executor
+	connectorManager *connectors.ConnectorManager
+	server           *http.Server
+	port             string
+	mux              *http.ServeMux
+	queryHandler     *handlers.QueryServiceHandler
+	mcpHandler       *handlers.MCPServiceHandler
 }
 
 // NewRuntime creates a new runtime instance
@@ -38,40 +38,27 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 		port = "8080"
 	}
 
-	// Initialize connectors
 	log := logger.New("runtime")
-	log.Println("Initializing Adapters:")
 
-	connectorsMap := make(map[string]connectors.Connector)
-	for _, adapter := range model.Adapters {
-		log.Printf("\tConnecting adapter '%s'", adapter.Name)
-		log.Printf("\t  Connector: %s", adapter.Connector.String())
-
-		// Log connector-specific options if present
-		if adapter.Options != nil && len(adapter.Options.Options) > 0 {
-			log.Printf("\t  Options: %v", adapter.Options.Options)
-		}
-
-		conn, err := connectors.NewConnector(adapter)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create connector for adapter '%s': %w", adapter.Name, err)
-		}
-		connectorsMap[adapter.Name] = conn
-		log.Printf("\t  ✓ Successfully connected adapter '%s'", adapter.Name)
+	// Initialize connectors using ConnectorManager (parallel initialization)
+	manager := connectors.NewConnectorManager()
+	if err := manager.InitializeAll(model.Adapters); err != nil {
+		return nil, err
 	}
 
 	if len(model.Adapters) == 0 {
+		log.Println("Initializing Adapters:")
 		log.Println("\t  (no adapters to initialize)")
 	}
 
-	// Create executor
-	exec := executor.NewExecutor(model, connectorsMap)
+	// Create executor with connector manager
+	exec := executor.NewExecutor(model, manager)
 
 	return &Runtime{
-		model:      model,
-		executor:   exec,
-		connectors: connectorsMap,
-		port:       port,
+		model:            model,
+		executor:         exec,
+		connectorManager: manager,
+		port:             port,
 	}, nil
 }
 
@@ -176,7 +163,7 @@ func (r *Runtime) registerRoutes() {
 				}
 
 				// Parse JSON body
-				var requestBody map[string]interface{}
+				var requestBody map[string]any
 				if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
 					http.Error(w, "Invalid JSON", http.StatusBadRequest)
 					return
@@ -210,19 +197,19 @@ func (r *Runtime) registerRoutes() {
 
 				// Manually construct response to ensure 'results' is always included
 				// (protobuf's omitempty tag would omit empty slices)
-				responseJSON := map[string]interface{}{
+				responseJSON := map[string]any{
 					"success": resp.Msg.Success,
 					"error":   resp.Msg.Error,
-					"results": make([]interface{}, 0),
+					"results": make([]any, 0),
 				}
 
 				// Convert results from proto format to regular JSON
 				if len(resp.Msg.Results) > 0 {
-					results := make([]map[string]interface{}, len(resp.Msg.Results))
+					results := make([]map[string]any, len(resp.Msg.Results))
 					for i, row := range resp.Msg.Results {
-						rowMap := make(map[string]interface{})
+						rowMap := make(map[string]any)
 						for key, valueJSON := range row.Fields {
-							var value interface{}
+							var value any
 							if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
 								// If unmarshaling fails, treat as string
 								value = valueJSON
@@ -264,33 +251,25 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	log := logger.New("runtime")
 	log.Println("Reloading model...")
 
-	// Close existing connectors
-	for name, conn := range r.connectors {
-		if err := conn.Close(); err != nil {
-			log.Warnf("Error closing connector '%s': %v", name, err)
-		}
+	// Close existing connectors in parallel
+	if err := r.connectorManager.CloseAll(); err != nil {
+		log.Warnf("Errors closing connectors: %v", err)
 	}
 
-	// Initialize new connectors
-	connectorsMap := make(map[string]connectors.Connector)
-	for _, adapter := range model.Adapters {
-		log.Printf("\tConnecting adapter '%s'", adapter.Name)
-		conn, err := connectors.NewConnector(adapter)
-		if err != nil {
-			return fmt.Errorf("failed to create connector for adapter '%s': %w", adapter.Name, err)
-		}
-		connectorsMap[adapter.Name] = conn
-		log.Printf("\t  ✓ Successfully connected adapter '%s'", adapter.Name)
+	// Initialize new connectors in parallel using a new manager
+	newManager := connectors.NewConnectorManager()
+	if err := newManager.InitializeAll(model.Adapters); err != nil {
+		return err
 	}
 
 	// Update model
 	r.model = model
 
-	// Create new executor
-	r.executor = executor.NewExecutor(model, connectorsMap)
+	// Create new executor with the new manager
+	r.executor = executor.NewExecutor(model, newManager)
 
-	// Update connectors map
-	r.connectors = connectorsMap
+	// Update connector manager
+	r.connectorManager = newManager
 
 	// Update handlers
 	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
@@ -318,15 +297,9 @@ func (r *Runtime) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Close all connectors
-	log.Debugf("Closing %d connector(s)...", len(r.connectors))
-	for name, conn := range r.connectors {
-		log.Debugf("  Closing connector '%s'...", name)
-		if err := conn.Close(); err != nil {
-			log.Printf("Error closing connector '%s': %v", name, err)
-		} else {
-			log.Debugf("  Connector '%s' closed", name)
-		}
+	// Close all connectors in parallel
+	if err := r.connectorManager.CloseAll(); err != nil {
+		log.Warnf("Errors closing connectors: %v", err)
 	}
 
 	// Shutdown HTTP server

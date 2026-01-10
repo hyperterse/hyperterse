@@ -11,7 +11,6 @@ import (
 // RedisConnector implements the Connector interface for Redis
 type RedisConnector struct {
 	client *redis.Client
-	ctx    context.Context
 }
 
 // NewRedisConnector creates a new Redis connector
@@ -23,23 +22,21 @@ func NewRedisConnector(connectionString string) (*RedisConnector, error) {
 	}
 
 	client := redis.NewClient(opt)
-	ctx := context.Background()
 
 	// Test the connection
-	if err := client.Ping(ctx).Err(); err != nil {
+	if err := client.Ping(context.Background()).Err(); err != nil {
 		client.Close()
 		return nil, fmt.Errorf("failed to ping redis: %w", err)
 	}
 
 	return &RedisConnector{
 		client: client,
-		ctx:    ctx,
 	}, nil
 }
 
-// Execute executes a Redis command
+// Execute executes a Redis command with context support
 // The statement should be a Redis command like "GET key" or "SET key value"
-func (r *RedisConnector) Execute(statement string, params map[string]interface{}) ([]map[string]interface{}, error) {
+func (r *RedisConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
 	// Split statement into command and args
 	parts := strings.Fields(statement)
 	if len(parts) == 0 {
@@ -60,19 +57,19 @@ func (r *RedisConnector) Execute(statement string, params map[string]interface{}
 	}
 
 	// Convert args to []interface{}
-	cmdArgs := make([]interface{}, len(args))
+	cmdArgs := make([]any, len(args))
 	for i, arg := range args {
 		cmdArgs[i] = arg
 	}
 
-	// Execute command
-	cmd := r.client.Do(r.ctx, append([]interface{}{command}, cmdArgs...)...)
+	// Execute command with provided context
+	cmd := r.client.Do(ctx, append([]any{command}, cmdArgs...)...)
 	if cmd.Err() != nil {
 		return nil, fmt.Errorf("redis command failed: %w", cmd.Err())
 	}
 
 	// Format result as map
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	val, err := cmd.Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get result: %w", err)
@@ -82,11 +79,11 @@ func (r *RedisConnector) Execute(statement string, params map[string]interface{}
 	switch v := val.(type) {
 	case string:
 		result["value"] = v
-	case []interface{}:
+	case []any:
 		result["values"] = v
-	case map[interface{}]interface{}:
+	case map[any]any:
 		// Convert to map[string]interface{}
-		strMap := make(map[string]interface{})
+		strMap := make(map[string]any)
 		for k, v := range v {
 			strMap[fmt.Sprintf("%v", k)] = v
 		}
@@ -95,7 +92,7 @@ func (r *RedisConnector) Execute(statement string, params map[string]interface{}
 		result["value"] = v
 	}
 
-	return []map[string]interface{}{result}, nil
+	return []map[string]any{result}, nil
 }
 
 // Close closes the Redis connection
@@ -105,4 +102,3 @@ func (r *RedisConnector) Close() error {
 	}
 	return nil
 }
-

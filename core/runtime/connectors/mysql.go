@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -32,9 +33,9 @@ func NewMySQLConnector(connectionString string) (*MySQLConnector, error) {
 	return &MySQLConnector{db: db}, nil
 }
 
-// Execute executes a SQL statement against MySQL
-func (m *MySQLConnector) Execute(statement string, params map[string]interface{}) ([]map[string]interface{}, error) {
-	rows, err := m.db.Query(statement)
+// Execute executes a SQL statement against MySQL with context support
+func (m *MySQLConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
+	rows, err := m.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -47,11 +48,11 @@ func (m *MySQLConnector) Execute(statement string, params map[string]interface{}
 	}
 
 	// Build result slice
-	var results []map[string]interface{}
+	var results []map[string]any
 	for rows.Next() {
 		// Create slice to hold values
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
@@ -62,7 +63,7 @@ func (m *MySQLConnector) Execute(statement string, params map[string]interface{}
 		}
 
 		// Create map for this row
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for i, col := range columns {
 			val := values[i]
 			// Convert []byte to string for better JSON serialization
@@ -90,4 +91,3 @@ func (m *MySQLConnector) Close() error {
 	}
 	return nil
 }
-

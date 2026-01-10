@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hyperterse/hyperterse/core/logger"
@@ -11,20 +12,21 @@ import (
 
 // Executor executes queries against database connectors
 type Executor struct {
-	connectors map[string]connectors.Connector
-	model      *hyperterse.Model
+	connectorManager *connectors.ConnectorManager
+	model            *hyperterse.Model
 }
 
 // NewExecutor creates a new query executor
-func NewExecutor(model *hyperterse.Model, connectorsMap map[string]connectors.Connector) *Executor {
+func NewExecutor(model *hyperterse.Model, manager *connectors.ConnectorManager) *Executor {
 	return &Executor{
-		connectors: connectorsMap,
-		model:      model,
+		connectorManager: manager,
+		model:            model,
 	}
 }
 
-// ExecuteQuery executes a query by name with the provided inputs
-func (e *Executor) ExecuteQuery(queryName string, userInputs map[string]interface{}) ([]map[string]interface{}, error) {
+// ExecuteQuery executes a query by name with the provided inputs and context.
+// The context allows for request cancellation and timeout propagation.
+func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInputs map[string]any) ([]map[string]any, error) {
 	// Find the query definition
 	var query *hyperterse.Query
 	for _, q := range e.model.Queries {
@@ -57,7 +59,7 @@ func (e *Executor) ExecuteQuery(queryName string, userInputs map[string]interfac
 
 	// Use the first adapter (supporting multiple adapters can be added later)
 	adapterName := query.Use[0]
-	conn, exists := e.connectors[adapterName]
+	conn, exists := e.connectorManager.Get(adapterName)
 	if !exists {
 		return nil, fmt.Errorf("adapter '%s' not found", adapterName)
 	}
@@ -74,13 +76,13 @@ func (e *Executor) ExecuteQuery(queryName string, userInputs map[string]interfac
 	// Log query execution details
 	log := logger.New("runtime:executor")
 	if adapter != nil {
-		log.Multiline([]interface{}{"Executing query", "name: '" + queryName + "'", "use: " + adapterName, "connector: " + adapter.Connector.String(), "statement: " + finalStatement})
+		log.Multiline([]any{"Executing query", "name: '" + queryName + "'", "use: " + adapterName, "connector: " + adapter.Connector.String(), "statement: " + finalStatement})
 	} else {
-		log.Multiline([]interface{}{"Executing query", "name: '" + queryName + "'", "use: " + adapterName, "connector: <unknown>", "statement: " + finalStatement})
+		log.Multiline([]any{"Executing query", "name: '" + queryName + "'", "use: " + adapterName, "connector: <unknown>", "statement: " + finalStatement})
 	}
 
-	// Execute the query
-	results, err := conn.Execute(finalStatement, validatedInputs)
+	// Execute the query with context for cancellation support
+	results, err := conn.Execute(ctx, finalStatement, validatedInputs)
 	if err != nil {
 		return nil, fmt.Errorf("query execution failed: %w", err)
 	}

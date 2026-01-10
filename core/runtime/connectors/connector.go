@@ -1,19 +1,23 @@
 package connectors
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hyperterse/hyperterse/core/proto/connectors"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 )
 
-// Connector defines the interface for database connectors
+// Connector defines the interface for database connectors.
+// All connectors implementing this interface automatically benefit from
+// parallel initialization and shutdown via ConnectorManager.
 type Connector interface {
-	// Execute executes a statement against the database
+	// Execute executes a statement against the database with context support.
+	// The context allows for cancellation and timeout propagation from HTTP requests.
 	// statement: The SQL or command string to execute
 	// params: Map of parameter names to values for substitution
 	// Returns: Slice of maps representing rows, where each map is column name -> value
-	Execute(statement string, params map[string]interface{}) ([]map[string]interface{}, error)
+	Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error)
 
 	// Close closes the connector and releases resources
 	Close() error

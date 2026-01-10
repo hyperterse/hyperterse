@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -32,13 +33,13 @@ func NewPostgresConnector(connectionString string) (*PostgresConnector, error) {
 	return &PostgresConnector{db: db}, nil
 }
 
-// Execute executes a SQL statement against PostgreSQL
-func (p *PostgresConnector) Execute(statement string, params map[string]interface{}) ([]map[string]interface{}, error) {
+// Execute executes a SQL statement against PostgreSQL with context support
+func (p *PostgresConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
 	// Convert params map to ordered slice for parameterized queries
 	// For now, we'll use direct substitution since the statement already has {{ inputs.x }} format
 	// In production, this should be converted to parameterized queries
 
-	rows, err := p.db.Query(statement)
+	rows, err := p.db.QueryContext(ctx, statement)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
@@ -51,11 +52,11 @@ func (p *PostgresConnector) Execute(statement string, params map[string]interfac
 	}
 
 	// Build result slice
-	var results []map[string]interface{}
+	var results []map[string]any
 	for rows.Next() {
 		// Create slice to hold values
-		values := make([]interface{}, len(columns))
-		valuePtrs := make([]interface{}, len(columns))
+		values := make([]any, len(columns))
+		valuePtrs := make([]any, len(columns))
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
@@ -66,7 +67,7 @@ func (p *PostgresConnector) Execute(statement string, params map[string]interfac
 		}
 
 		// Create map for this row
-		rowMap := make(map[string]interface{})
+		rowMap := make(map[string]any)
 		for i, col := range columns {
 			val := values[i]
 			// Convert []byte to string for better JSON serialization
@@ -94,4 +95,3 @@ func (p *PostgresConnector) Close() error {
 	}
 	return nil
 }
-

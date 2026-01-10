@@ -23,12 +23,12 @@ func NewQueryServiceHandler(exec *executor.Executor) *QueryServiceHandler {
 	}
 }
 
-// ExecuteQuery executes a query
+// ExecuteQuery executes a query with context propagation for cancellation support
 func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.ExecuteQueryRequest) (*runtime.ExecuteQueryResponse, error) {
 	// Parse inputs from JSON strings
-	inputs := make(map[string]interface{})
+	inputs := make(map[string]any)
 	for key, valueJSON := range req.Inputs {
-		var value interface{}
+		var value any
 		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
 			// If unmarshaling fails, treat as string
 			value = valueJSON
@@ -36,8 +36,8 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 		inputs[key] = value
 	}
 
-	// Execute the query
-	results, err := h.executor.ExecuteQuery(req.QueryName, inputs)
+	// Execute the query with context for cancellation support
+	results, err := h.executor.ExecuteQuery(ctx, req.QueryName, inputs)
 	if err != nil {
 		logger.New("runtime").PrintError("Query execution failed", err)
 		return &runtime.ExecuteQueryResponse{
@@ -55,7 +55,7 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 			// Convert value to JSON string
 			valueJSON, err := json.Marshal(value)
 			if err != nil {
-				valueJSON = []byte(fmt.Sprintf("%v", value))
+				valueJSON = fmt.Appendf(nil, "%v", value)
 			}
 			fields[key] = string(valueJSON)
 		}
@@ -113,12 +113,12 @@ func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListTool
 	}, nil
 }
 
-// CallTool executes a tool (query) by name
+// CallTool executes a tool (query) by name with context propagation
 func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolRequest) (*runtime.CallToolResponse, error) {
 	// Parse arguments from JSON strings
-	inputs := make(map[string]interface{})
+	inputs := make(map[string]any)
 	for key, valueJSON := range req.Arguments {
-		var value interface{}
+		var value any
 		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
 			// If unmarshaling fails, treat as string
 			value = valueJSON
@@ -126,8 +126,8 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 		inputs[key] = value
 	}
 
-	// Execute the query
-	results, err := h.executor.ExecuteQuery(req.Name, inputs)
+	// Execute the query with context for cancellation support
+	results, err := h.executor.ExecuteQuery(ctx, req.Name, inputs)
 	if err != nil {
 		logger.New("runtime").PrintError("Tool execution failed", err)
 		errorJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
