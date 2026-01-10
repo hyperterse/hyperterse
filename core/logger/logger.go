@@ -200,7 +200,7 @@ func (l *Logger) PrintValidationErrors(errors []string) {
 	header = l.bold(header)
 
 	// Build formatted error lines
-	formattedErrors := make([]interface{}, len(errors))
+	formattedErrors := make([]any, len(errors))
 	for i, err := range errors {
 		// Use bullet point instead of number, no color formatting
 		errorLine := "- " + err
@@ -208,7 +208,7 @@ func (l *Logger) PrintValidationErrors(errors []string) {
 	}
 
 	// Use Multiline: header on first line with prefix, errors on subsequent lines without prefix
-	args := make([]interface{}, 0, len(formattedErrors)+1)
+	args := make([]any, 0, len(formattedErrors)+1)
 	args = append(args, header)
 	args = append(args, formattedErrors...)
 	l.Multiline(args)
@@ -250,7 +250,7 @@ func (l *Logger) PrintSuccess(message string) {
 
 // Printf is a convenience method that wraps fmt.Printf with prefix
 // Logs at INFO level by default
-func (l *Logger) Printf(format string, args ...interface{}) {
+func (l *Logger) Printf(format string, args ...any) {
 	if !l.shouldLog(LogLevelInfo) {
 		return
 	}
@@ -261,7 +261,7 @@ func (l *Logger) Printf(format string, args ...interface{}) {
 
 // Println is a convenience method that wraps fmt.Println with prefix
 // Logs at INFO level by default
-func (l *Logger) Println(args ...interface{}) {
+func (l *Logger) Println(args ...any) {
 	if !l.shouldLog(LogLevelInfo) {
 		return
 	}
@@ -270,7 +270,7 @@ func (l *Logger) Println(args ...interface{}) {
 }
 
 // Debugf logs at DEBUG level
-func (l *Logger) Debugf(format string, args ...interface{}) {
+func (l *Logger) Debugf(format string, args ...any) {
 	if !l.shouldLog(LogLevelDebug) {
 		return
 	}
@@ -280,7 +280,7 @@ func (l *Logger) Debugf(format string, args ...interface{}) {
 }
 
 // Debugln logs at DEBUG level
-func (l *Logger) Debugln(args ...interface{}) {
+func (l *Logger) Debugln(args ...any) {
 	if !l.shouldLog(LogLevelDebug) {
 		return
 	}
@@ -289,7 +289,7 @@ func (l *Logger) Debugln(args ...interface{}) {
 }
 
 // Warnf logs at WARN level
-func (l *Logger) Warnf(format string, args ...interface{}) {
+func (l *Logger) Warnf(format string, args ...any) {
 	if !l.shouldLog(LogLevelWarn) {
 		return
 	}
@@ -299,7 +299,7 @@ func (l *Logger) Warnf(format string, args ...interface{}) {
 }
 
 // Warnln logs at WARN level
-func (l *Logger) Warnln(args ...interface{}) {
+func (l *Logger) Warnln(args ...any) {
 	if !l.shouldLog(LogLevelWarn) {
 		return
 	}
@@ -311,7 +311,7 @@ func (l *Logger) Warnln(args ...interface{}) {
 // - The first element is printed on the same line as the prefix
 // - Elements 2 to N are printed on new lines WITHOUT the prefix
 // Logs at INFO level by default
-func (l *Logger) Multiline(lines []interface{}) {
+func (l *Logger) Multiline(lines []any) {
 	if !l.shouldLog(LogLevelInfo) {
 		return
 	}

@@ -14,22 +14,22 @@ type JSONRPCRequest struct {
 	JSONRPC string          `json:"jsonrpc"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params,omitempty"`
-	ID      interface{}     `json:"id,omitempty"`
+	ID      any             `json:"id,omitempty"`
 }
 
 // JSONRPCResponse represents a JSON-RPC 2.0 response
 type JSONRPCResponse struct {
-	JSONRPC string          `json:"jsonrpc"`
-	Result  interface{}     `json:"result,omitempty"`
-	Error   *JSONRPCError   `json:"error,omitempty"`
-	ID      interface{}     `json:"id,omitempty"`
+	JSONRPC string        `json:"jsonrpc"`
+	Result  any           `json:"result,omitempty"`
+	Error   *JSONRPCError `json:"error,omitempty"`
+	ID      any           `json:"id,omitempty"`
 }
 
 // JSONRPCError represents a JSON-RPC 2.0 error
 type JSONRPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // JSON-RPC 2.0 error codes
@@ -38,7 +38,7 @@ const (
 	JSONRPCInvalidRequest = -32600
 	JSONRPCMethodNotFound = -32601
 	JSONRPCInvalidParams  = -32602
-	JSONRPCInternalError   = -32603
+	JSONRPCInternalError  = -32603
 )
 
 // HandleJSONRPC handles JSON-RPC 2.0 requests for MCP protocol
@@ -71,7 +71,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 	}
 
 	// Route to appropriate handler based on method
-	var result interface{}
+	var result any
 	var jsonrpcErr *JSONRPCError
 
 	switch req.Method {
@@ -99,25 +99,25 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 			}
 		} else {
 			// Convert to MCP tools format
-			tools := make([]map[string]interface{}, len(resp.Tools))
+			tools := make([]map[string]any, len(resp.Tools))
 			for i, tool := range resp.Tools {
-				toolMap := map[string]interface{}{
+				toolMap := map[string]any{
 					"name":        tool.Name,
 					"description": tool.Description,
 				}
-				
+
 				// Convert inputs to MCP format
 				if len(tool.Inputs) > 0 {
-					inputsSchema := map[string]interface{}{
+					inputsSchema := map[string]any{
 						"type":       "object",
-						"properties": make(map[string]interface{}),
+						"properties": make(map[string]any),
 						"required":   []string{},
 					}
-					properties := inputsSchema["properties"].(map[string]interface{})
+					properties := inputsSchema["properties"].(map[string]any)
 					required := inputsSchema["required"].([]string)
 
 					for name, input := range tool.Inputs {
-						prop := map[string]interface{}{
+						prop := map[string]any{
 							"type":        input.Type,
 							"description": input.Description,
 						}
@@ -125,7 +125,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 							prop["default"] = input.DefaultValue
 						}
 						properties[name] = prop
-						
+
 						if !input.Optional {
 							required = append(required, name)
 						}
@@ -133,10 +133,10 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 					inputsSchema["required"] = required
 					toolMap["inputSchema"] = inputsSchema
 				}
-				
+
 				tools[i] = toolMap
 			}
-			result = map[string]interface{}{
+			result = map[string]any{
 				"tools": tools,
 			}
 		}
@@ -144,8 +144,8 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 	case "tools/call":
 		// Parse params for tools/call
 		var params struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments"`
 		}
 		if err := json.Unmarshal(req.Params, &params); err != nil {
 			jsonrpcErr = &JSONRPCError{
@@ -198,14 +198,14 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		} else {
 			// Return MCP content format
 			// MCP expects content as an array of content parts
-			content := []map[string]interface{}{
+			content := []map[string]any{
 				{
 					"type": "text",
 					"text": resp.Content,
 				},
 			}
 
-			result = map[string]interface{}{
+			result = map[string]any{
 				"content": content,
 				"isError": resp.IsError,
 			}
@@ -232,4 +232,3 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 
 	return json.Marshal(response)
 }
-

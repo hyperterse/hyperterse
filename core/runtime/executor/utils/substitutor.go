@@ -13,7 +13,7 @@ var (
 )
 
 // SubstituteInputs replaces {{ inputs.fieldName }} placeholders in the statement with actual values
-func SubstituteInputs(statement string, inputs map[string]interface{}) (string, error) {
+func SubstituteInputs(statement string, inputs map[string]any) (string, error) {
 	result := statement
 
 	// Find all template placeholders
@@ -50,7 +50,7 @@ func SubstituteInputs(statement string, inputs map[string]interface{}) (string, 
 }
 
 // formatValueForSQL formats a value appropriately for SQL substitution
-func formatValueForSQL(value interface{}) string {
+func formatValueForSQL(value any) string {
 	switch v := value.(type) {
 	case string:
 		// Escape single quotes and wrap in quotes
@@ -114,7 +114,7 @@ func ValidateAllInputsReferenced(statement string, inputNames []string) error {
 }
 
 // Helper function to convert value to string for substitution (used for non-SQL contexts)
-func valueToString(value interface{}) string {
+func valueToString(value any) string {
 	switch v := value.(type) {
 	case string:
 		return v
@@ -150,4 +150,3 @@ func valueToString(value interface{}) string {
 		return fmt.Sprintf("%v", v)
 	}
 }
-

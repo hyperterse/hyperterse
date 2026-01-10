@@ -17,7 +17,7 @@ func ParseYAML(data []byte) (*hyperterse.Model, error) {
 
 // ParseYAMLWithConfig parses YAML content into a protobuf Model with ServerConfig
 func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
@@ -25,7 +25,7 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 	model := &hyperterse.Model{}
 
 	// Parse server configuration
-	if serverRaw, ok := raw["server"].(map[string]interface{}); ok {
+	if serverRaw, ok := raw["server"].(map[string]any); ok {
 		serverConfig := &hyperterse.ServerConfig{}
 
 		// Parse port
@@ -52,9 +52,9 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 	}
 
 	// Parse adapters - now a map where keys are names
-	if adaptersRaw, ok := raw["adapters"].(map[string]interface{}); ok {
+	if adaptersRaw, ok := raw["adapters"].(map[string]any); ok {
 		for adapterName, adapterRaw := range adaptersRaw {
-			adapterMap, ok := adapterRaw.(map[string]interface{})
+			adapterMap, ok := adapterRaw.(map[string]any)
 			if !ok {
 				return nil, fmt.Errorf("invalid adapter structure for '%s'", adapterName)
 			}
@@ -74,7 +74,7 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 				adapter.ConnectionString = connStr
 			}
 			// Parse optional connector-specific options
-			if optionsRaw, ok := adapterMap["options"].(map[string]interface{}); ok {
+			if optionsRaw, ok := adapterMap["options"].(map[string]any); ok {
 				adapter.Options = &hyperterse.AdapterOptions{
 					Options: make(map[string]string),
 				}
@@ -93,9 +93,9 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 	}
 
 	// Parse queries - now a map where keys are names
-	if queriesRaw, ok := raw["queries"].(map[string]interface{}); ok {
+	if queriesRaw, ok := raw["queries"].(map[string]any); ok {
 		for queryName, queryRaw := range queriesRaw {
-			queryMap, ok := queryRaw.(map[string]interface{})
+			queryMap, ok := queryRaw.(map[string]any)
 			if !ok {
 				return nil, fmt.Errorf("invalid query structure for '%s'", queryName)
 			}
@@ -115,7 +115,7 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 				switch v := useRaw.(type) {
 				case string:
 					query.Use = []string{v}
-				case []interface{}:
+				case []any:
 					for _, item := range v {
 						if str, ok := item.(string); ok {
 							query.Use = append(query.Use, str)
@@ -125,9 +125,9 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 			}
 
 			// Parse inputs - now a map where keys are names
-			if inputsRaw, ok := queryMap["inputs"].(map[string]interface{}); ok {
+			if inputsRaw, ok := queryMap["inputs"].(map[string]any); ok {
 				for inputName, inputRaw := range inputsRaw {
-					inputMap, ok := inputRaw.(map[string]interface{})
+					inputMap, ok := inputRaw.(map[string]any)
 					if !ok {
 						return nil, fmt.Errorf("invalid input structure for '%s' in query '%s'", inputName, queryName)
 					}
@@ -160,9 +160,9 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 			}
 
 			// Parse data - now a map where keys are names
-			if dataRaw, ok := queryMap["data"].(map[string]interface{}); ok {
+			if dataRaw, ok := queryMap["data"].(map[string]any); ok {
 				for dataName, dataRaw := range dataRaw {
-					dataMap, ok := dataRaw.(map[string]interface{})
+					dataMap, ok := dataRaw.(map[string]any)
 					if !ok {
 						return nil, fmt.Errorf("invalid data structure for '%s' in query '%s'", dataName, queryName)
 					}

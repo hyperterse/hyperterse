@@ -14,34 +14,34 @@ import (
 // GenerateOpenAPISpec generates a complete OpenAPI 3.0 specification using libopenapi
 func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error) {
 	// Build the OpenAPI spec as a map structure
-	spec := map[string]interface{}{
+	spec := map[string]any{
 		"openapi": "3.0.0",
-		"info": map[string]interface{}{
+		"info": map[string]any{
 			"title":       "Hyperterse Runtime API",
 			"version":     "1.0.0",
 			"description": "REST API for executing database queries. Each query has its own dedicated endpoint.",
 		},
-		"servers": []map[string]interface{}{
+		"servers": []map[string]any{
 			{
 				"url":         baseURL,
 				"description": "Hyperterse Runtime Server",
 			},
 		},
-		"paths": make(map[string]interface{}),
+		"paths": make(map[string]any),
 	}
 
-	paths := spec["paths"].(map[string]interface{})
+	paths := spec["paths"].(map[string]any)
 
 	// Generate endpoint for each query
 	for _, query := range model.Queries {
 		endpointPath := "/query/" + query.Name
 
 		// Build request body schema from inputs
-		properties := make(map[string]interface{})
+		properties := make(map[string]any)
 		required := []string{}
 
 		for _, input := range query.Inputs {
-			prop := map[string]interface{}{
+			prop := map[string]any{
 				"type":        mapProtoTypeToOpenAPIType(input.Type.String()),
 				"description": input.Description,
 			}
@@ -62,7 +62,7 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 			}
 		}
 
-		requestBodySchema := map[string]interface{}{
+		requestBodySchema := map[string]any{
 			"type":       "object",
 			"properties": properties,
 		}
@@ -72,22 +72,22 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 		}
 
 		// Build response schema
-		responseSchema := map[string]interface{}{
+		responseSchema := map[string]any{
 			"type": "object",
-			"properties": map[string]interface{}{
-				"success": map[string]interface{}{
+			"properties": map[string]any{
+				"success": map[string]any{
 					"type":    "boolean",
 					"example": true,
 				},
-				"error": map[string]interface{}{
+				"error": map[string]any{
 					"type":    "string",
 					"example": "",
 				},
-				"results": map[string]interface{}{
+				"results": map[string]any{
 					"type": "array",
-					"items": map[string]interface{}{
+					"items": map[string]any{
 						"type": "object",
-						"additionalProperties": map[string]interface{}{
+						"additionalProperties": map[string]any{
 							"type": "string",
 						},
 					},
@@ -96,43 +96,43 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 		}
 
 		// Add endpoint definition
-		paths[endpointPath] = map[string]interface{}{
-			"post": map[string]interface{}{
+		paths[endpointPath] = map[string]any{
+			"post": map[string]any{
 				"summary":     query.Description,
 				"description": fmt.Sprintf("Execute the '%s' query. %s", query.Name, query.Description),
 				"operationId": "execute" + toPascalCase(query.Name),
-				"requestBody": map[string]interface{}{
+				"requestBody": map[string]any{
 					"required": true,
-					"content": map[string]interface{}{
-						"application/json": map[string]interface{}{
+					"content": map[string]any{
+						"application/json": map[string]any{
 							"schema": requestBodySchema,
 						},
 					},
 				},
-				"responses": map[string]interface{}{
-					"200": map[string]interface{}{
+				"responses": map[string]any{
+					"200": map[string]any{
 						"description": "Query executed successfully",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
+						"content": map[string]any{
+							"application/json": map[string]any{
 								"schema": responseSchema,
 							},
 						},
 					},
-					"400": map[string]interface{}{
+					"400": map[string]any{
 						"description": "Bad request - invalid input parameters",
-						"content": map[string]interface{}{
-							"application/json": map[string]interface{}{
-								"schema": map[string]interface{}{
+						"content": map[string]any{
+							"application/json": map[string]any{
+								"schema": map[string]any{
 									"type": "object",
-									"properties": map[string]interface{}{
-										"success": map[string]interface{}{"type": "boolean", "example": false},
-										"error":   map[string]interface{}{"type": "string", "example": "validation error"},
+									"properties": map[string]any{
+										"success": map[string]any{"type": "boolean", "example": false},
+										"error":   map[string]any{"type": "string", "example": "validation error"},
 									},
 								},
 							},
 						},
 					},
-					"500": map[string]interface{}{
+					"500": map[string]any{
 						"description": "Internal server error",
 					},
 				},
@@ -141,56 +141,56 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 	}
 
 	// Add MCP JSON-RPC 2.0 endpoint
-	paths["/mcp"] = map[string]interface{}{
-		"post": map[string]interface{}{
+	paths["/mcp"] = map[string]any{
+		"post": map[string]any{
 			"summary":     "MCP JSON-RPC 2.0 endpoint",
 			"description": "Model Context Protocol endpoint using JSON-RPC 2.0. Supports methods: tools/list, tools/call",
 			"operationId": "mcpJSONRPC",
-			"requestBody": map[string]interface{}{
+			"requestBody": map[string]any{
 				"required": true,
-				"content": map[string]interface{}{
-					"application/json": map[string]interface{}{
-						"schema": map[string]interface{}{
+				"content": map[string]any{
+					"application/json": map[string]any{
+						"schema": map[string]any{
 							"type": "object",
-							"properties": map[string]interface{}{
-								"jsonrpc": map[string]interface{}{
+							"properties": map[string]any{
+								"jsonrpc": map[string]any{
 									"type":        "string",
 									"description": "JSON-RPC version (must be '2.0')",
 									"enum":        []string{"2.0"},
 								},
-								"method": map[string]interface{}{
+								"method": map[string]any{
 									"type":        "string",
 									"description": "RPC method name (e.g., 'tools/list', 'tools/call')",
 									"enum":        []string{"tools/list", "tools/call"},
 								},
-								"params": map[string]interface{}{
+								"params": map[string]any{
 									"type":        "object",
 									"description": "Method parameters (required for tools/call, optional for tools/list)",
 								},
-								"id": map[string]interface{}{
-									"type":        []interface{}{"string", "number", "null"},
+								"id": map[string]any{
+									"type":        []any{"string", "number", "null"},
 									"description": "Request ID for matching responses",
 								},
 							},
 							"required": []string{"jsonrpc", "method"},
 						},
-						"examples": map[string]interface{}{
-							"tools/list": map[string]interface{}{
+						"examples": map[string]any{
+							"tools/list": map[string]any{
 								"summary": "List all available tools",
-								"value": map[string]interface{}{
+								"value": map[string]any{
 									"jsonrpc": "2.0",
 									"method":  "tools/list",
 									"id":      1,
 								},
 							},
-							"tools/call": map[string]interface{}{
+							"tools/call": map[string]any{
 								"summary": "Call a tool",
-								"value": map[string]interface{}{
+								"value": map[string]any{
 									"jsonrpc": "2.0",
 									"method":  "tools/call",
-									"params": map[string]interface{}{
+									"params": map[string]any{
 										"name":      "get-user-by-id",
-										"arguments": map[string]interface{}{"userId": "123"},
+										"arguments": map[string]any{"userId": "123"},
 									},
 									"id": 1,
 								},
@@ -199,38 +199,38 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 					},
 				},
 			},
-			"responses": map[string]interface{}{
-				"200": map[string]interface{}{
+			"responses": map[string]any{
+				"200": map[string]any{
 					"description": "JSON-RPC 2.0 response",
-					"content": map[string]interface{}{
-						"application/json": map[string]interface{}{
-							"schema": map[string]interface{}{
+					"content": map[string]any{
+						"application/json": map[string]any{
+							"schema": map[string]any{
 								"type": "object",
-								"properties": map[string]interface{}{
-									"jsonrpc": map[string]interface{}{
+								"properties": map[string]any{
+									"jsonrpc": map[string]any{
 										"type":        "string",
 										"description": "JSON-RPC version",
 									},
-									"result": map[string]interface{}{
+									"result": map[string]any{
 										"type":        "object",
 										"description": "Method result (present on success)",
 									},
-									"error": map[string]interface{}{
+									"error": map[string]any{
 										"type":        "object",
 										"description": "Error object (present on failure)",
-										"properties": map[string]interface{}{
-											"code": map[string]interface{}{
+										"properties": map[string]any{
+											"code": map[string]any{
 												"type":        "integer",
 												"description": "Error code",
 											},
-											"message": map[string]interface{}{
+											"message": map[string]any{
 												"type":        "string",
 												"description": "Error message",
 											},
 										},
 									},
-									"id": map[string]interface{}{
-										"type":        []interface{}{"string", "number", "null"},
+									"id": map[string]any{
+										"type":        []any{"string", "number", "null"},
 										"description": "Request ID matching the request",
 									},
 								},
@@ -242,17 +242,17 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 		},
 	}
 
-	paths["/llms.txt"] = map[string]interface{}{
-		"get": map[string]interface{}{
+	paths["/llms.txt"] = map[string]any{
+		"get": map[string]any{
 			"summary":     "Get LLM documentation",
 			"description": "Returns markdown documentation for LLMs describing all endpoints and queries",
 			"operationId": "getLLMDocumentation",
-			"responses": map[string]interface{}{
-				"200": map[string]interface{}{
+			"responses": map[string]any{
+				"200": map[string]any{
 					"description": "Markdown documentation",
-					"content": map[string]interface{}{
-						"text/markdown": map[string]interface{}{
-							"schema": map[string]interface{}{
+					"content": map[string]any{
+						"text/markdown": map[string]any{
+							"schema": map[string]any{
 								"type": "string",
 							},
 						},
@@ -302,7 +302,7 @@ func GenerateOpenAPISpecHandler(model *hyperterse.Model, baseURL string) http.Ha
 		w.WriteHeader(http.StatusOK)
 
 		// Pretty print the JSON
-		var spec map[string]interface{}
+		var spec map[string]any
 		if err := json.Unmarshal(specJSON, &spec); err != nil {
 			http.Error(w, "Failed to format spec", http.StatusInternalServerError)
 			return
@@ -334,7 +334,7 @@ func mapProtoTypeToOpenAPIType(protoType string) string {
 }
 
 // getExampleValueForOpenAPI returns an example value for OpenAPI spec
-func getExampleValueForOpenAPI(typ string) interface{} {
+func getExampleValueForOpenAPI(typ string) any {
 	switch typ {
 	case "string":
 		return "example"
@@ -354,7 +354,7 @@ func getExampleValueForOpenAPI(typ string) interface{} {
 }
 
 // parseDefaultValue parses a default value string to the appropriate type
-func parseDefaultValue(valueStr, typ string) interface{} {
+func parseDefaultValue(valueStr, typ string) any {
 	switch typ {
 	case "int":
 		if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {

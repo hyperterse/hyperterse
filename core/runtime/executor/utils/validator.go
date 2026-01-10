@@ -21,8 +21,8 @@ func (e *ValidationError) Error() string {
 }
 
 // ValidateInputs validates user-provided inputs against query input definitions
-func ValidateInputs(query *hyperterse.Query, userInputs map[string]interface{}) (map[string]interface{}, error) {
-	validated := make(map[string]interface{})
+func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[string]any, error) {
+	validated := make(map[string]any)
 	queryInputMap := make(map[string]*hyperterse.Input)
 
 	// Build map of query inputs for quick lookup
@@ -87,7 +87,7 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]interface{}) 
 }
 
 // convertAndValidateValue converts a value to the expected type and validates it
-func convertAndValidateValue(value interface{}, expectedType string) (interface{}, error) {
+func convertAndValidateValue(value any, expectedType string) (any, error) {
 	switch expectedType {
 	case "string":
 		return convertToString(value)
@@ -106,7 +106,7 @@ func convertAndValidateValue(value interface{}, expectedType string) (interface{
 	}
 }
 
-func convertToString(value interface{}) (string, error) {
+func convertToString(value any) (string, error) {
 	switch v := value.(type) {
 	case string:
 		return v, nil
@@ -117,7 +117,7 @@ func convertToString(value interface{}) (string, error) {
 	}
 }
 
-func convertToInt(value interface{}) (int64, error) {
+func convertToInt(value any) (int64, error) {
 	switch v := value.(type) {
 	case int:
 		return int64(v), nil
@@ -163,7 +163,7 @@ func convertToInt(value interface{}) (int64, error) {
 	}
 }
 
-func convertToFloat(value interface{}) (float64, error) {
+func convertToFloat(value any) (float64, error) {
 	switch v := value.(type) {
 	case float32:
 		return float64(v), nil
@@ -206,7 +206,7 @@ func convertToFloat(value interface{}) (float64, error) {
 	}
 }
 
-func convertToBoolean(value interface{}) (bool, error) {
+func convertToBoolean(value any) (bool, error) {
 	switch v := value.(type) {
 	case bool:
 		return v, nil
@@ -227,7 +227,7 @@ func convertToBoolean(value interface{}) (bool, error) {
 	}
 }
 
-func convertToDatetime(value interface{}) (string, error) {
+func convertToDatetime(value any) (string, error) {
 	switch v := value.(type) {
 	case string:
 		// Try to parse as RFC3339
