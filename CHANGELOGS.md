@@ -1,3 +1,37 @@
+# v1.0.0-alpha.2
+
+Timestamp: 2026-01-16 16:34:06 UTC
+
+🚀 **Portable Deployment & Runtime Enhancements**
+
+This release introduces the export command for creating portable deployment scripts and adds support for running from inline configuration strings.
+
+## ✨ Features & Enhancements
+
+### Export Command
+
+- **Portable Scripts** — New `export` command generates self-contained bash scripts with embedded configuration and binary
+- **Zero Dependencies** — Generated scripts can run in any environment without requiring hyperterse to be installed
+- **Simple Deployment** — Export your config and binary as a single executable script: `hyperterse export -f config.yaml -o dist`
+
+### Runtime Configuration
+
+- **Inline Configuration** — Added `--source`/`-s` flag to run command for providing configuration as a string instead of a file
+- **Flexible Input** — Run hyperterse with `hyperterse run --source "yaml: content"` for dynamic configuration
+
+### Query Execution
+
+- **Execution Context** — Implemented execution context for better query management
+- **Parallelization** — Added support for parallel query execution
+
+## 🔧 Improvements
+
+- **Type System** — Modernized internal type system for better maintainability
+
+---
+
+_This is an alpha release of Hyperterse. We welcome feedback and contributions!_
+
 # v1.0.0-alpha.1
 
 Timestamp: 2026-01-10 11:20:55 UTC
