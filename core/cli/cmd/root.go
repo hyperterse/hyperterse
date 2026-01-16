@@ -9,6 +9,7 @@ import (
 
 var (
 	configFile string
+	source     string
 	port       string
 	logLevel   int
 	verbose    bool
@@ -54,6 +55,7 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.hyperterse, .yaml, or .yml)")
+	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
 
 	// Add flags that run command uses (for backward compatibility when using root command)
 	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
@@ -65,8 +67,8 @@ func init() {
 
 	// Make root command run the server (backward compatibility)
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		if configFile == "" {
-			return fmt.Errorf("please provide a file path using -f or --file")
+		if configFile == "" && source == "" {
+			return fmt.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
 		}
 		return runServer(cmd, args)
 	}

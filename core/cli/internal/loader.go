@@ -37,6 +37,15 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 	return model, nil
 }
 
+// LoadConfigFromString loads and parses a configuration from a YAML string, returning the model
+func LoadConfigFromString(yamlContent string) (*hyperterse.Model, error) {
+	model, err := parser.ParseYAMLWithConfig([]byte(yamlContent))
+	if err != nil {
+		return nil, fmt.Errorf("config error: %w", err)
+	}
+	return model, nil
+}
+
 // ResolvePort resolves the port from CLI flag, config file, env var, or default
 func ResolvePort(cliPort string, model *hyperterse.Model) string {
 	if cliPort != "" {

@@ -7,6 +7,7 @@ import (
 	"github.com/hyperterse/hyperterse/core/cli/internal"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/parser"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime"
 	"github.com/spf13/cobra"
 )
@@ -27,6 +28,7 @@ func init() {
 	runCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
 	runCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging (sets log level to DEBUG)")
+	runCmd.Flags().StringVarP(&source, "source", "s", "", "YAML configuration as a string (alternative to --file)")
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -39,7 +41,21 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 // PrepareRuntime loads config, validates, and creates a runtime ready to start
 func PrepareRuntime() (*runtime.Runtime, error) {
-	model, err := internal.LoadConfig(configFile)
+	var model *hyperterse.Model
+	var err error
+
+	// Load from source string if provided, otherwise from file
+	if source != "" {
+		if configFile != "" {
+			return nil, fmt.Errorf("cannot specify both --file and --source flags")
+		}
+		model, err = internal.LoadConfigFromString(source)
+	} else {
+		if configFile == "" {
+			return nil, fmt.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
+		}
+		model, err = internal.LoadConfig(configFile)
+	}
 	if err != nil {
 		return nil, err
 	}
