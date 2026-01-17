@@ -14,8 +14,8 @@ build: generate ## Build the project
 
 run: build ## Build and run the server (requires CONFIG_FILE env var or -file flag)
 	@if [ -z "$(CONFIG_FILE)" ]; then \
-		echo "Usage: make run CONFIG_FILE=path/to/config.yaml"; \
-		echo "   or: ./hyperterse -file path/to/config.yaml"; \
+		echo "Usage: make run CONFIG_FILE=path/to/config.terse"; \
+		echo "   or: ./hyperterse -file path/to/config.terse"; \
 	else \
 		./hyperterse -file $(CONFIG_FILE); \
 	fi

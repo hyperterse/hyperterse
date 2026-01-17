@@ -36,7 +36,6 @@
 | 📖 **LLM Documentation** | Auto-generated markdown documentation at `GET /llms.txt` |
 | 🔒 **Security First** | Connection strings and raw SQL never exposed to clients |
 | 🔄 **Hot Reload** | Development mode with automatic reload on configuration changes |
-| 🎨 **Multiple Config Formats** | Support for YAML (`.yaml`, `.yml`) and DSL (`.terse`, `.hyperterse`) |
 | 📦 **Portable Deployment** | Export self-contained scripts with embedded configuration |
 
 ---

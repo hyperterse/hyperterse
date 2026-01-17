@@ -338,7 +338,7 @@ Each query automatically becomes a REST endpoint:
 
 ### 8. Development Mode with Hot Reload
 
-- **Command**: `hyperterse dev -f config.yaml`
+- **Command**: `hyperterse dev -f config.terse`
 - **Auto-reload**: Watches configuration file for changes
 - **Debounced**: 500ms delay to handle rapid file saves
 - **Graceful**: Maintains server uptime during reloads
@@ -351,7 +351,7 @@ Each query automatically becomes a REST endpoint:
 
 Hyperterse supports two configuration formats:
 
-#### YAML Format (`.yaml`, `.yml`)
+#### Terse format (`.terse`)
 
 ```yaml
 # Optional server configuration
@@ -465,7 +465,7 @@ server:
 
 | Flag     | Short | Description                                              |
 | -------- | ----- | -------------------------------------------------------- |
-| `--file` | `-f`  | Path to configuration file (.hyperterse, .yaml, or .yml) |
+| `--file` | `-f`  | Path to configuration file (.terse) |
 
 ### Commands
 
@@ -474,9 +474,9 @@ server:
 Run the Hyperterse server.
 
 ```bash
-hyperterse -f config.yaml
+hyperterse -f config.terse
 # or
-hyperterse run -f config.yaml
+hyperterse run -f config.terse
 ```
 
 **Flags:**
@@ -492,7 +492,7 @@ hyperterse run -f config.yaml
 Run the server in development mode with hot reload.
 
 ```bash
-hyperterse dev -f config.yaml
+hyperterse dev -f config.terse
 ```
 
 The server will automatically reload when the configuration file changes.
@@ -504,8 +504,8 @@ The server will automatically reload when the configuration file changes.
 Generate an llms.txt documentation file.
 
 ```bash
-hyperterse generate llms -f config.yaml
-hyperterse generate llms -f config.yaml -o docs/llms.txt --base-url https://api.example.com
+hyperterse generate llms -f config.terse
+hyperterse generate llms -f config.terse -o docs/llms.txt --base-url https://api.example.com
 ```
 
 **Flags:**
@@ -520,8 +520,8 @@ hyperterse generate llms -f config.yaml -o docs/llms.txt --base-url https://api.
 Generate an Agent Skills compatible archive (.zip) for AI platforms.
 
 ```bash
-hyperterse generate skills -f config.yaml
-hyperterse generate skills -f config.yaml -o my-skill.zip --name my-api-skill
+hyperterse generate skills -f config.terse
+hyperterse generate skills -f config.terse -o my-skill.zip --name my-api-skill
 ```
 
 **Flags:**
@@ -760,16 +760,16 @@ go build -o dist/hyperterse
 
 ```bash
 # Run with YAML config
-./dist/hyperterse -f config.yaml
+./dist/hyperterse -f config.terse
 
 # Run with custom port
-./dist/hyperterse -f config.yaml -p 3000
+./dist/hyperterse -f config.terse -p 3000
 
 # Run with verbose logging
-./dist/hyperterse -f config.yaml -v
+./dist/hyperterse -f config.terse -v
 
 # Development mode with hot reload
-./dist/hyperterse dev -f config.yaml
+./dist/hyperterse dev -f config.terse
 ```
 
 ### Using Make
@@ -785,7 +785,7 @@ make setup
 make build
 
 # Build and run with a config file
-make run CONFIG_FILE=config.yaml
+make run CONFIG_FILE=config.terse
 ```
 
 ### Testing
@@ -804,7 +804,7 @@ go test ./core/runtime/...
 ### Development Workflow
 
 1. **Define Queries**: Create/update YAML or DSL configuration
-2. **Run Dev Mode**: `hyperterse dev -f config.yaml` for hot reload
+2. **Run Dev Mode**: `hyperterse dev -f config.terse` for hot reload
 3. **Test**: Use `curl` or HTTP client to test endpoints
 4. **Documentation**: Check `/docs` and `/llms.txt` for generated docs
 5. **Iterate**: Edit configuration, server reloads automatically
@@ -815,9 +815,9 @@ Development mode (`dev` command) includes built-in hot reloading:
 
 ```bash
 # Start dev server
-./dist/hyperterse dev -f config.yaml
+./dist/hyperterse dev -f config.terse
 
-# Edit config.yaml - server reloads automatically
+# Edit config.terse - server reloads automatically
 ```
 
 For source code changes, use `air` for hot reloading:
@@ -921,10 +921,10 @@ Use the `--log-level` flag or `-v` for verbose output:
 
 ```bash
 # Debug level logging
-./dist/hyperterse -f config.yaml --log-level 4
+./dist/hyperterse -f config.terse --log-level 4
 
 # or use verbose shortcut
-./dist/hyperterse -f config.yaml -v
+./dist/hyperterse -f config.terse -v
 ```
 
 Log levels:
