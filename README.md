@@ -4,7 +4,7 @@
 
 **Transform database queries into RESTful APIs and AI tools**
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Examples](#-examples) • [Contributing](#-contributing)
+[Website](https://hyperterse.com) • [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Examples](#-examples) • [Contributing](#-contributing)
 
 </div>
 
@@ -16,11 +16,20 @@
 
 ### 🎯 Perfect For
 
-- **AI/LLM Integration** - Make database queries available to AI assistants via MCP protocol
+**AI & LLM Applications:**
+- **AI Agents & Assistants** - Enable AI assistants to query databases safely via MCP protocol without exposing raw SQL
+- **LLM Tool Calling** - Expose database operations as tools that LLMs can discover and invoke autonomously
+- **RAG Systems** - Power Retrieval Augmented Generation workflows with structured database queries as context
+- **Conversational AI** - Build chatbots and virtual assistants that can access and query business data in real-time
+- **AI-Powered Analytics** - Let LLMs generate insights by querying your data through controlled, validated endpoints
+- **Multi-Agent Systems** - Provide shared database access to multiple AI agents with consistent, secure query interfaces
+- **Natural Language to SQL** - Bridge the gap between natural language and database queries through AI tool calling
+- **AI Dashboards** - Create intelligent dashboards where AI can dynamically query and visualize data
+
+**Traditional Use Cases:**
 - **API Gateway for Databases** - Quickly expose database queries as REST APIs without boilerplate
 - **Microservices** - Create lightweight query services without full ORM overhead
 - **Rapid Prototyping** - Define queries in configuration files and immediately have working APIs
-- **Data Access Layers** - Build secure, documented data APIs with automatic validation
 
 ## 🌟 Features
 
@@ -39,6 +48,8 @@
 ## 🚀 Quick Start
 
 ### Installation
+
+Get started in seconds with our one-line installer:
 
 ```bash
 curl -fsSL https://hyperterse.com/install | bash
@@ -481,6 +492,7 @@ Found a bug? Have a feature request? Please [open an issue](https://github.com/h
 
 ## 🤝 Support
 
+- **🌐 Website**: [hyperterse.com](https://hyperterse.com) - Learn more about Hyperterse
 - **📚 Documentation**: [Full Documentation](https://docs.hyperterse.com) | [CLI Reference](https://docs.hyperterse.com/cli)
 - **🐛 Issues**: [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
 - **💬 Discussions**: [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
@@ -492,6 +504,6 @@ Found a bug? Have a feature request? Please [open an issue](https://github.com/h
 
 **Made with ❤️ by the Hyperterse team**
 
-[⭐ Star us on GitHub](https://github.com/hyperterse/hyperterse) • [📖 Read the Docs](https://docs.hyperterse.com) • [🐛 Report a Bug](https://github.com/hyperterse/hyperterse/issues)
+[🌐 Visit Website](https://hyperterse.com) • [⭐ Star us on GitHub](https://github.com/hyperterse/hyperterse) • [📖 Read the Docs](https://docs.hyperterse.com) • [🐛 Report a Bug](https://github.com/hyperterse/hyperterse/issues)
 
 </div>
