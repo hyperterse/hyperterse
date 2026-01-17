@@ -1,68 +1,105 @@
 <div align="center">
 
-# 🚀 Hyperterse
+# Hyperterse
 
-**Transform database queries into RESTful APIs and AI tools**
+**A declarative interface between your data and modern software.**
 
-[Website](https://hyperterse.com) • [Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Examples](#-examples) • [Contributing](#-contributing)
+Turn database queries into stable APIs and AI-ready tools—without exposing SQL, writing boilerplate, or coupling your application to your database.
+
+[Website](https://hyperterse.com) • [Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [Contributing](#contributing)
 
 </div>
 
 ---
 
-## ✨ What is Hyperterse?
+## What is Hyperterse?
 
-**Hyperterse** is a high-performance runtime server that transforms your database queries into RESTful API endpoints and MCP (Model Context Protocol) tools. Define queries in a simple configuration file, and Hyperterse automatically generates individual endpoints with full OpenAPI documentation, input validation, and AI integration.
+Hyperterse is a high-performance runtime server that transforms database queries into REST endpoints and MCP (Model Context Protocol) tools.
 
-### 🎯 Perfect For
+You describe your queries once, in a simple configuration file. Hyperterse does the rest:
 
-**AI & LLM Applications:**
-- **AI Agents & Assistants** - Enable AI assistants to query databases safely via MCP protocol without exposing raw SQL
-- **LLM Tool Calling** - Expose database operations as tools that LLMs can discover and invoke autonomously
-- **RAG Systems** - Power Retrieval Augmented Generation workflows with structured database queries as context
-- **Conversational AI** - Build chatbots and virtual assistants that can access and query business data in real-time
-- **AI-Powered Analytics** - Let LLMs generate insights by querying your data through controlled, validated endpoints
-- **Multi-Agent Systems** - Provide shared database access to multiple AI agents with consistent, secure query interfaces
-- **Natural Language to SQL** - Bridge the gap between natural language and database queries through AI tool calling
-- **AI Dashboards** - Create intelligent dashboards where AI can dynamically query and visualize data
+* Generates individual, typed endpoints
+* Validates inputs automatically
+* Produces OpenAPI documentation
+* Exposes queries safely to AI systems
 
-**Traditional Use Cases:**
-- **API Gateway for Databases** - Quickly expose database queries as REST APIs without boilerplate
-- **Microservices** - Create lightweight query services without full ORM overhead
-- **Rapid Prototyping** - Define queries in configuration files and immediately have working APIs
+No ORMs. No boilerplate. No exposed SQL.
 
-## 🌟 Features
+---
 
-| Feature | Description |
-|---------|-------------|
-| 🚀 **Automatic Endpoint Generation** | Each query becomes its own REST endpoint at `POST /query/{query-name}` |
-| 📚 **OpenAPI 3.0 Compliant** | Full OpenAPI specification with Swagger documentation at `GET /docs` |
-| 🔧 **MCP Protocol Support** | Expose queries as MCP tools for AI assistants via JSON-RPC 2.0 |
-| 🗄️ **Multi-Database Support** | PostgreSQL, MySQL, and Redis connectors out of the box |
-| ✅ **Input Validation** | Automatic type checking and validation for all query inputs |
-| 📖 **LLM Documentation** | Auto-generated markdown documentation at `GET /llms.txt` |
-| 🔒 **Security First** | Connection strings and raw SQL never exposed to clients |
-| 🔄 **Hot Reload** | Development mode with automatic reload on configuration changes |
-| 📦 **Portable Deployment** | Export self-contained scripts with embedded configuration |
+## Designed for Modern Systems
 
-## 🚀 Quick Start
+### AI & LLM Applications
 
-### Installation
+Hyperterse is built with AI in mind.
 
-Get started in seconds with our one-line installer:
+* **AI agents and assistants** - Safely query databases through MCP without exposing raw SQL.
+* **LLM tool calling** - Let models discover and invoke database operations autonomously.
+* **Retrieval-augmented generation (RAG)** - Use structured database queries as reliable context.
+* **Conversational interfaces** - Power chatbots that access live business data.
+* **AI-driven analytics** - Enable models to generate insights through validated queries.
+* **Multi-agent systems** - Share consistent database access across agents.
+* **Natural language to SQL pipelines** - Bridge human input and databases using tool calls.
+* **AI dashboards** - Query and visualize data dynamically.
+
+### Traditional Use Cases
+
+* **Database-backed APIs** without boilerplate
+* **Lightweight microservices** without ORM overhead
+* **Rapid prototyping** with configuration-first workflows
+
+---
+
+## Features
+
+| | |
+|--- | --- |
+| **Declarative Data Interfaces** | Define the shape and intent of data access once, and let Hyperterse handle execution, validation, and exposure. |
+| **Agent-Ready by Design** | Connect your data to AI agents through discoverable, callable tools—without exposing SQL, schemas, or credentials. |
+| **Zero-Boilerplate APIs** | Turn queries into production-ready APIs with typed inputs, predictable outputs, and built-in documentation. |
+| **Single Source of Truth** | Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools from one configuration file. |
+| **Security as a Baseline** | Keep raw SQL, connection strings, and internal errors fully contained within the runtime. |
+| **Database Independence** | Work across PostgreSQL, MySQL, and Redis using a consistent, unified interface. |
+| **Fast Iteration** | Update queries and schemas with immediate feedback during development. |
+| **Portable Deployment** | Ship a self-contained runtime that moves cleanly from local development to production. |
+| **Built to Scale** | Support everything from prototypes to multi-agent systems without changing your architecture. |
+<!--
+
+|                                   |                                         |
+| --------------------------------- | --------------------------------------- |
+| **Automatic endpoint generation** | Each query becomes `POST /query/{name}` |
+| **OpenAPI 3.0 support**           | Swagger UI available at `/docs`         |
+| **MCP protocol support**          | JSON-RPC 2.0 tools for AI assistants    |
+| **Multiple databases**            | PostgreSQL, MySQL, Redis                |
+| **Input validation**              | Strong typing and validation by default |
+| **LLM-friendly docs**             | Auto-generated at `/llms.txt`           |
+| **Secure by design**              | No exposed SQL or credentials           |
+| **Hot reload**                    | Instant feedback during development     |
+| **Portable exports**              | Ship self-contained deployments         | -->
+
+---
+
+## Quick Start
+
+### Install
+
+Install Hyperterse with a single command:
 
 ```bash
 curl -fsSL https://hyperterse.com/install | bash
 ```
 
-**Supported Platforms:**
-- Linux (amd64, arm64, arm)
-- macOS (amd64 Intel, arm64 Apple Silicon)
-- Windows (amd64, arm64)
+**Supported platforms**
+
+* Linux (amd64, arm64, arm)
+* macOS (Intel, Apple Silicon)
+* Windows (amd64, arm64)
+
+---
 
 ### Your First Query
 
-1. **Create a configuration file** (`config.terse`):
+Create a configuration file:
 
 ```yaml
 adapters:
@@ -84,13 +121,13 @@ queries:
         description: "User email address"
 ```
 
-2. **Start the server**:
+Start the server:
 
 ```bash
 hyperterse run -f config.terse
 ```
 
-3. **Execute your query**:
+Call the endpoint:
 
 ```bash
 curl -X POST http://localhost:8080/query/get-user \
@@ -98,7 +135,7 @@ curl -X POST http://localhost:8080/query/get-user \
   -d '{"email": "user@example.com"}'
 ```
 
-**Response:**
+Response:
 
 ```json
 {
@@ -115,24 +152,35 @@ curl -X POST http://localhost:8080/query/get-user \
 }
 ```
 
-## 📖 Documentation
+---
 
-- **[Full Documentation](https://docs.hyperterse.com)** - Comprehensive guide covering all features
-- **[CLI Reference](https://docs.hyperterse.com/cli)** - Complete API documentation
-- **[Configuration Guide](https://docs.hyperterse.com/configuration)** - Detailed configuration reference
-- **[Guides](https://docs.hyperterse.com/guides)** - Guides to help you get started with real world use cases
+## Documentation
 
-### Quick Links
+* **Full documentation**
+  [https://docs.hyperterse.com](https://docs.hyperterse.com)
 
-- **OpenAPI Spec**: `GET http://localhost:8080/docs`
-- **LLM Documentation**: `GET http://localhost:8080/llms.txt`
-- **MCP Endpoint**: `POST http://localhost:8080/mcp`
+* **CLI reference**
+  [https://docs.hyperterse.com/cli](https://docs.hyperterse.com/cli)
 
-## 💡 Examples
+* **Configuration guide**
+  [https://docs.hyperterse.com/configuration](https://docs.hyperterse.com/configuration)
 
-### Example 1: Using MCP Protocol
+* **Practical guides**
+  [https://docs.hyperterse.com/guides](https://docs.hyperterse.com/guides)
 
-**List available tools:**
+### Runtime Endpoints
+
+* OpenAPI: `GET /docs`
+* LLM docs: `GET /llms.txt`
+* MCP: `POST /mcp`
+
+---
+
+## Examples
+
+### MCP Protocol
+
+List available tools:
 
 ```bash
 curl -X POST http://localhost:8080/mcp \
@@ -144,7 +192,7 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-**Execute a tool:**
+Invoke a tool:
 
 ```bash
 curl -X POST http://localhost:8080/mcp \
@@ -162,14 +210,11 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-### Example 2: User Management
+---
+
+### User Management
 
 ```yaml
-adapters:
-  user_db:
-    connector: postgres
-    connection_string: "postgresql://user:pass@localhost:5432/users"
-
 queries:
   get-user-by-id:
     use: user_db
@@ -178,332 +223,150 @@ queries:
       SELECT id, name, email, created_at
       FROM users
       WHERE id = {{ inputs.userId }}
-    inputs:
-      userId:
-        type: int
-        description: "Unique user identifier"
-
-  search-users:
-    use: user_db
-    description: "Search users with pagination"
-    statement: |
-      SELECT id, name, email
-      FROM users
-      WHERE name ILIKE {{ inputs.searchTerm }}
-      ORDER BY created_at DESC
-      LIMIT {{ inputs.limit }}
-      OFFSET {{ inputs.offset }}
-    inputs:
-      searchTerm:
-        type: string
-        description: "Search term for user names"
-      limit:
-        type: int
-        description: "Maximum number of results"
-        optional: true
-        default: "20"
-      offset:
-        type: int
-        description: "Number of results to skip"
-        optional: true
-        default: "0"
 ```
 
-### Example 3: Analytics Queries
+---
+
+### Analytics
 
 ```yaml
-adapters:
-  analytics:
-    connector: mysql
-    connection_string: "user:pass@tcp(localhost:3306)/analytics"
-
 queries:
   daily-stats:
-    use: analytics
-    description: "Get daily statistics for a date range"
+    description: "Daily statistics over a date range"
     statement: |
       SELECT
-        DATE(created_at) as date,
-        COUNT(*) as total_events,
-        COUNT(DISTINCT user_id) as unique_users
+        DATE(created_at) AS date,
+        COUNT(*) AS total_events,
+        COUNT(DISTINCT user_id) AS unique_users
       FROM events
       WHERE created_at BETWEEN {{ inputs.startDate }} AND {{ inputs.endDate }}
       GROUP BY DATE(created_at)
       ORDER BY date DESC
-    inputs:
-      startDate:
-        type: datetime
-        description: "Start date (ISO 8601 format)"
-      endDate:
-        type: datetime
-        description: "End date (ISO 8601 format)"
 ```
 
-## 🛠️ CLI Commands
+---
 
-### Run Server
+## CLI
+
+Run:
 
 ```bash
-# Start server with config file
 hyperterse run -f config.terse
-
-# Custom port
-hyperterse run -f config.terse -p 3000
-
-# Verbose logging
-hyperterse run -f config.terse -v
 ```
 
-### Development Mode
+Development mode (hot reload):
 
 ```bash
-# Hot reload on config changes
 hyperterse dev -f config.terse
 ```
 
-### Generate Documentation
+Generate artifacts:
 
 ```bash
-# Generate LLM documentation
-hyperterse generate llms -f config.terse -o docs/llms.txt
-
-# Generate Agent Skills archive
-hyperterse generate skills -f config.terse -o my-skill.zip
+hyperterse generate llms -f config.terse
+hyperterse generate skills -f config.terse
 ```
 
-### Initialize Project
+Initialize:
 
 ```bash
-# Create a new configuration file
-hyperterse init -o config.terse
+hyperterse init
 ```
 
-### Upgrade
+Upgrade:
 
 ```bash
-# Check for and install updates
 hyperterse upgrade
-
-# Upgrade to latest including pre-releases
-hyperterse upgrade --prerelease
 ```
 
-### Export
+Export:
 
 ```bash
-# Create portable deployment script
 hyperterse export -f config.terse -o dist
 ```
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
-### Supported Data Types
+### Supported Types
 
-- `string` - Text values
-- `int` - Integer numbers (64-bit)
-- `float` - Floating-point numbers (64-bit)
-- `boolean` - True/false values
-- `uuid` - UUID strings
-- `datetime` - ISO 8601 datetime strings (RFC3339)
+`string`, `int`, `float`, `boolean`, `uuid`, `datetime`
 
-### Template Variables
-
-Use `{{ inputs.parameterName }}` in your SQL statements:
+### Templates
 
 ```sql
-SELECT * FROM products
-WHERE category = {{ inputs.category }}
-AND price <= {{ inputs.maxPrice }}
-ORDER BY created_at DESC
-LIMIT {{ inputs.limit }}
+WHERE price <= {{ inputs.maxPrice }}
 ```
 
 ### Optional Inputs
 
 ```yaml
-inputs:
-  limit:
-    type: int
-    description: "Maximum number of results"
-    optional: true
-    default: "20"
+optional: true
+default: "20"
 ```
 
 ### Multiple Databases
 
-```yaml
-adapters:
-  production_db:
-    connector: postgres
-    connection_string: "postgresql://user:pass@prod-host:5432/prod_db"
+Hyperterse supports multiple adapters in a single configuration.
 
-  analytics_db:
-    connector: mysql
-    connection_string: "user:pass@tcp(analytics-host:3306)/analytics"
+---
 
-queries:
-  cross-db-query:
-    use:
-      - production_db
-      - analytics_db
-    description: "Query spanning multiple databases"
-    statement: |
-      SELECT * FROM production_db.users
-      UNION ALL
-      SELECT * FROM analytics_db.users
+## Security
+
+* Credentials are never exposed
+* SQL is never returned to clients
+* Inputs are validated and escaped
+* Errors are sanitized by default
+
+For production deployments, place Hyperterse behind a reverse proxy for authentication, rate limiting, and TLS.
+
+---
+
+## Development
+
+Requirements:
+
+* Go 1.25.1+
+* `protoc`
+* `protoc-gen-go`
+
+Setup:
+
+```bash
+make setup
+make build
+go test ./...
 ```
 
 ---
 
-## 🔒 Security
+## Contributing
 
-- ✅ **Connection strings** are never exposed in API responses or documentation
-- ✅ **Raw SQL statements** are not included in MCP tool descriptions
-- ✅ **Input validation** prevents SQL injection through type checking and parameterization
-- ✅ **Error messages** do not leak sensitive database information
-- ✅ **Proper escaping** of all input values before SQL execution
+Contributions are welcome.
 
-> **Note**: For production deployments, use a reverse proxy (nginx, Traefik, etc.) for authentication, rate limiting, and SSL termination.
+1. Fork the repository
+2. Create a feature branch
+3. Add tests
+4. Open a pull request
 
-## 🏗️ Architecture
+Follow standard Go formatting and keep changes focused.
 
-```
-┌─────────────┐
-│   Client    │
-│  (HTTP/MCP) │
-└──────┬──────┘
-       │
-       ▼
-┌──────────────────────────────────────┐
-│       Hyperterse Runtime Server      │
-│  ┌────────────────────────────────┐  │
-│  │   HTTP Server (Port 8080)      │  │
-│  │  - Query Endpoints             │  │
-│  │  - MCP JSON-RPC 2.0 Endpoint   │  │
-│  │  - Documentation Endpoints     │  │
-│  └──────────────┬─────────────────┘  │
-│                 │                    │
-│  ┌──────────────▼─────────────────┐  │
-│  │      Query Executor            │  │
-│  │  - Input Validation            │  │
-│  │  - Template Substitution       │  │
-│  │  - Query Execution             │  │
-│  └──────────────┬─────────────────┘  │
-│                 │                    │
-│  ┌──────────────▼─────────────────┐  │
-│  │    Connector Layer             │  │
-│  │  - PostgreSQL Connector        │  │
-│  │  - MySQL Connector             │  │
-│  │  - Redis Connector             │  │
-│  └──────────────┬─────────────────┘  │
-└─────────────────┼────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-        ▼          ▼          ▼
-   ┌────────┐ ┌────────┐ ┌────────┐
-   │Postgres│ │ MySQL  │ │ Redis  │
-   └────────┘ └────────┘ └────────┘
-```
+---
 
-## 🧪 Development
+## Support
 
-### Prerequisites
-
-- Go 1.25.1 or later
-- `protoc` (Protocol Buffers compiler)
-- `protoc-gen-go` (Go protobuf plugin)
-
-### Setup
-
-```bash
-# Clone repository
-git clone https://github.com/hyperterse/hyperterse.git
-cd hyperterse
-
-# Complete setup (installs dependencies, generates code)
-make setup
-
-# Build project
-make build
-
-# Run tests
-go test ./...
-```
-
-### Available Make Targets
-
-```bash
-make help        # Show all available targets
-make setup       # Complete setup (install deps, generate code)
-make generate    # Generate protobuf files only
-make build       # Generate code and build the project
-make run         # Build and run (requires CONFIG_FILE env var)
-```
-
-### Hot Reloading
-
-For development with hot reloading:
-
-```bash
-# Install air (hot reload tool)
-go install github.com/air-verse/air@latest
-
-# Run with air
-air
-```
-
-Or use the built-in dev mode:
-
-```bash
-hyperterse dev -f config.terse
-```
-
-## 📝 Contributing
-
-We welcome contributions! Here's how you can help:
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Make your changes**
-4. **Add tests** for new functionality
-5. **Ensure all tests pass** (`go test ./...`)
-6. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-7. **Push to the branch** (`git push origin feature/amazing-feature`)
-8. **Open a Pull Request**
-
-### Code Style
-
-- Follow Go standard formatting (`go fmt`)
-- Use meaningful variable names
-- Add comments for exported functions
-- Keep functions focused and small
-- Write tests for new features
-
-### Reporting Issues
-
-Found a bug? Have a feature request? Please [open an issue](https://github.com/hyperterse/hyperterse/issues) with:
-- Clear description of the problem
-- Steps to reproduce
-- Expected vs actual behavior
-- Environment details (OS, Go version, etc.)
-
-## 🤝 Support
-
-- **🌐 Website**: [hyperterse.com](https://hyperterse.com) - Learn more about Hyperterse
-- **📚 Documentation**: [Full Documentation](https://docs.hyperterse.com) | [CLI Reference](https://docs.hyperterse.com/cli)
-- **🐛 Issues**: [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
-- **📦 Releases**: [GitHub Releases](https://github.com/hyperterse/hyperterse/releases)
+* Website: [https://hyperterse.com](https://hyperterse.com)
+* Docs: [https://docs.hyperterse.com](https://docs.hyperterse.com)
+* Issues: [https://github.com/hyperterse/hyperterse/issues](https://github.com/hyperterse/hyperterse/issues)
+* Discussions: [https://github.com/hyperterse/hyperterse/discussions](https://github.com/hyperterse/hyperterse/discussions)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by the Hyperterse team**
+Made with care by the Hyperterse team.
 
-[🌐 Visit Website](https://hyperterse.com) • [⭐ Star us on GitHub](https://github.com/hyperterse/hyperterse) • [📖 Read the Docs](https://docs.hyperterse.com) • [🐛 Report a Bug](https://github.com/hyperterse/hyperterse/issues)
+[Website](https://hyperterse.com) • [GitHub](https://github.com/hyperterse/hyperterse) • [Docs](https://docs.hyperterse.com)
 
 </div>
