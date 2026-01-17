@@ -54,6 +54,13 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Current version: %s\n", currentVersion)
 
+	// Auto-detect if current version is a prerelease and include prereleases automatically
+	// unless explicitly disabled by user
+	if !upgradePrerelease && isPrereleaseVersion(currentVersion) {
+		upgradePrerelease = true
+		fmt.Printf("Current version is a prerelease, including prereleases in search\n")
+	}
+
 	// Determine target major version
 	var targetMajorVersion int
 	if upgradeMajor != "" {
@@ -95,6 +102,7 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	}
 
 	if latestVersion == "" {
+		// No releases found for the target major version
 		return fmt.Errorf("no releases found for major version %d", targetMajorVersion)
 	}
 
@@ -172,6 +180,13 @@ func getVersionFromGit() (string, error) {
 	return version, nil
 }
 
+func isPrereleaseVersion(version string) bool {
+	// Remove 'v' prefix if present
+	version = strings.TrimPrefix(version, "v")
+	// Check if version contains a prerelease suffix (e.g., 1.0.0-alpha.1, 1.0.0-beta.1)
+	return strings.Contains(version, "-")
+}
+
 func parseMajorVersion(version string) (int, error) {
 	// Remove 'v' prefix if present
 	version = strings.TrimPrefix(version, "v")
@@ -220,6 +235,93 @@ func fetchReleases() ([]Release, error) {
 	return releases, nil
 }
 
+func versionExistsInReleases(releases []Release, version string) bool {
+	version = strings.TrimPrefix(version, "v")
+	for _, release := range releases {
+		releaseVersion := strings.TrimPrefix(release.TagName, "v")
+		if releaseVersion == version {
+			return true
+		}
+	}
+	return false
+}
+
+// comparePrereleaseSuffixes compares two prerelease suffixes according to SemVer rules
+// Returns: -1 if a < b, 0 if a == b, 1 if a > b
+func comparePrereleaseSuffixes(a, b string) int {
+	if a == b {
+		return 0
+	}
+	if a == "" {
+		return -1 // Empty is older than any prerelease
+	}
+	if b == "" {
+		return 1 // Any prerelease is newer than empty
+	}
+
+	// Split by dots to get individual identifiers
+	aParts := strings.Split(a, ".")
+	bParts := strings.Split(b, ".")
+
+	// Compare each identifier
+	maxLen := len(aParts)
+	if len(bParts) > maxLen {
+		maxLen = len(bParts)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var aPart, bPart string
+		if i < len(aParts) {
+			aPart = aParts[i]
+		}
+		if i < len(bParts) {
+			bPart = bParts[i]
+		}
+
+		// If one is missing, the longer one is newer (if all previous match)
+		if aPart == "" {
+			return -1
+		}
+		if bPart == "" {
+			return 1
+		}
+
+		// Try to parse as numbers
+		var aVal, bVal int
+		_, aErr := fmt.Sscanf(aPart, "%d", &aVal)
+		_, bErr := fmt.Sscanf(bPart, "%d", &bVal)
+
+		// Both are numeric - compare numerically
+		if aErr == nil && bErr == nil {
+			if aVal < bVal {
+				return -1
+			}
+			if aVal > bVal {
+				return 1
+			}
+			continue
+		}
+
+		// Numeric identifiers come before string identifiers
+		if aErr == nil {
+			return -1
+		}
+		if bErr == nil {
+			return 1
+		}
+
+		// Both are strings - compare lexicographically
+		if aPart < bPart {
+			return -1
+		}
+		if aPart > bPart {
+			return 1
+		}
+	}
+
+	return 0
+}
+
 func findLatestInMajorVersion(releases []Release, majorVersion int, includePrerelease bool) (string, error) {
 	var latestVersion string
 	var latestMinor, latestPatch int = -1, -1
@@ -243,8 +345,23 @@ func findLatestInMajorVersion(releases []Release, majorVersion int, includePrere
 			continue
 		}
 
+		// Debug: log that we found a matching release
+		// fmt.Printf("DEBUG: Found release %s (prerelease: %v, major: %d)\n", version, release.Prerelease, major)
+
 		// Parse full version
-		parts := strings.Split(version, ".")
+		// First, separate base version from prerelease suffix (e.g., "1.0.0-alpha.0" -> "1.0.0" and "alpha.0")
+		var baseVersion string
+		var prereleaseSuffix string
+		if strings.Contains(version, "-") {
+			versionParts := strings.SplitN(version, "-", 2)
+			baseVersion = versionParts[0]
+			prereleaseSuffix = versionParts[1]
+		} else {
+			baseVersion = version
+		}
+
+		// Parse base version (e.g., "1.0.0")
+		parts := strings.Split(baseVersion, ".")
 		if len(parts) < 3 {
 			continue
 		}
@@ -254,16 +371,7 @@ func findLatestInMajorVersion(releases []Release, majorVersion int, includePrere
 			continue
 		}
 
-		// Handle patch version that might have prerelease suffix
-		patchPart := parts[2]
-		var prereleaseSuffix string
-		if strings.Contains(patchPart, "-") {
-			prereleaseParts := strings.SplitN(patchPart, "-", 2)
-			patchPart = prereleaseParts[0]
-			prereleaseSuffix = prereleaseParts[1]
-		}
-
-		if _, err := fmt.Sscanf(patchPart, "%d", &patch); err != nil {
+		if _, err := fmt.Sscanf(parts[2], "%d", &patch); err != nil {
 			continue
 		}
 
@@ -282,18 +390,38 @@ func findLatestInMajorVersion(releases []Release, majorVersion int, includePrere
 		}
 
 		// If current is prerelease and latest is stable, skip (stable always wins)
-		if isCurrentPrerelease && !isLatestPrerelease {
+		// But only if we already have a stable version (latestMinor != -1)
+		if isCurrentPrerelease && !isLatestPrerelease && latestMinor != -1 {
 			continue
 		}
 
 		// Both are same type (both stable or both prerelease)
 		// Compare by version numbers first
-		versionIsNewer := minor > latestMinor ||
+		// If latestMinor is -1, this is the first version, so always select it
+		versionIsNewer := latestMinor == -1 || minor > latestMinor ||
 			(minor == latestMinor && patch > latestPatch)
 
 		// If version numbers are equal and both are prereleases, compare prerelease suffixes
-		if versionIsNewer ||
-			(minor == latestMinor && patch == latestPatch && isCurrentPrerelease && isLatestPrerelease && prereleaseSuffix > latestPrerelease) {
+		prereleaseSuffixIsNewer := false
+		if isCurrentPrerelease {
+			if latestMinor == -1 {
+				// First version ever - select it
+				prereleaseSuffixIsNewer = true
+			} else if minor == latestMinor && patch == latestPatch {
+				// Same version numbers, compare prerelease suffixes
+				if latestPrerelease == "" {
+					// We have a stable version already, prerelease can't be newer
+					prereleaseSuffixIsNewer = false
+				} else {
+					// Compare prerelease suffixes using SemVer comparison rules
+					// Returns 1 if prereleaseSuffix > latestPrerelease
+					prereleaseSuffixIsNewer = comparePrereleaseSuffixes(prereleaseSuffix, latestPrerelease) > 0
+				}
+			}
+		}
+
+		shouldUpdate := versionIsNewer || prereleaseSuffixIsNewer
+		if shouldUpdate {
 			latestMinor = minor
 			latestPatch = patch
 			if isCurrentPrerelease {
