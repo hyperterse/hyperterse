@@ -93,8 +93,7 @@ bump_version() {
             elif [[ "$PRERELEASE" =~ ^${prerelease_tag}$ ]]; then
                 PRERELEASE="${prerelease_tag}.1"
             else
-                # New prerelease tag
-                PATCH=$((PATCH + 1))
+                # New prerelease tag - don't bump version numbers, only change prerelease
                 PRERELEASE="${prerelease_tag}.1"
             fi
             ;;
