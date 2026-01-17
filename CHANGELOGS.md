@@ -1,3 +1,52 @@
+# v1.0.0-beta.1
+
+Timestamp: 2026-01-17 19:57:23 UTC
+
+🛠️ **Developer Tools & Configuration Improvements**
+
+This release introduces new CLI commands for easier project setup and updates, along with improved configuration file handling and validation.
+
+## ✨ Features & Enhancements
+
+### Upgrade Command
+
+- **Automatic Updates** — New `upgrade` command checks for and installs the latest version of hyperterse
+- **Version Management** — Version is now baked into the binary for update checking
+- **Major Version Control** — Upgrade within the same major version by default, or use `--major` to upgrade across major versions
+- **Pre-release Support** — Use `--prerelease` flag to include pre-releases when checking for updates
+- **Smart Detection** — Automatically detects current version from binary, git, or fallback methods
+
+### Init Command
+
+- **Quick Start** — New `init` command creates a new `.terse` configuration file with sample adapter and query
+- **Template Generation** — Generates a complete, ready-to-use configuration template
+- **Custom Output** — Specify output file with `-o` or `--output` flag (defaults to `config.terse`)
+
+### Configuration File Format
+
+- **New Extension** — Configuration files now use `.terse` extension instead of `.yaml`/`.yml`
+- **JSON Schema** — Added JSON schema validation for `.terse` files (`schema/terse.schema.json`)
+- **IDE Support** — VS Code associations for `.terse` files with schema validation
+- **Schema Generation** — New script to generate JSON schema from proto definitions (`scripts/generate_schema/`)
+
+### Installation
+
+- **Installer Script** — Added standalone installer script (`install`) for easier installation
+- **Version Selection** — Installer supports installing specific versions or latest release
+- **Local Binary Installation** — Support for installing from local binary files
+- **Path Management** — Automatic PATH configuration for shell environments
+
+## 🔧 Improvements
+
+- **Build System** — Enhanced build scripts to support version baking and schema generation
+- **Documentation** — Updated documentation and examples to use `.terse` extension
+- **Export Command** — Updated export command to use `.terse` extension
+- **Versioning** — Fixed versioning script to not bump patch version when creating prereleases
+
+> _This is a beta release of Hyperterse. We welcome feedback and contributions!_
+
+---
+
 # v1.0.0-alpha.2
 
 Timestamp: 2026-01-16 16:34:06 UTC
@@ -28,9 +77,10 @@ This release introduces the export command for creating portable deployment scri
 
 - **Type System** — Modernized internal type system for better maintainability
 
----
 
-_This is an alpha release of Hyperterse. We welcome feedback and contributions!_
+> _This is an alpha release of Hyperterse. We welcome feedback and contributions!_
+
+---
 
 # v1.0.0-alpha.1
 
@@ -65,9 +115,9 @@ This release focuses on improving the development workflow with graceful server 
 - Ignore system files
 - Updated project documentation
 
----
+> _This is an alpha release of Hyperterse. We welcome feedback and contributions!_
 
-_This is an alpha release of Hyperterse. We welcome feedback and contributions!_
+---
 
 # v1.0.0-alpha.0
 
@@ -152,6 +202,4 @@ Or download binary directly for your platform below.
 - [README](https://github.com/hyperterse/hyperterse#readme)
 - [Full Documentation](https://github.com/hyperterse/hyperterse/blob/main/HYPERTERSE.md)
 
----
-
-_This is the first public alpha release of Hyperterse. We welcome feedback and contributions!_
+> _This is the first public alpha release of Hyperterse. We welcome feedback and contributions!_
