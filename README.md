@@ -16,13 +16,11 @@
 
 ### 🎯 Perfect For
 
-- **API Gateway for Databases** - Quickly expose database queries as REST APIs without boilerplate
 - **AI/LLM Integration** - Make database queries available to AI assistants via MCP protocol
+- **API Gateway for Databases** - Quickly expose database queries as REST APIs without boilerplate
 - **Microservices** - Create lightweight query services without full ORM overhead
 - **Rapid Prototyping** - Define queries in configuration files and immediately have working APIs
 - **Data Access Layers** - Build secure, documented data APIs with automatic validation
-
----
 
 ## 🌟 Features
 
@@ -37,8 +35,6 @@
 | 🔒 **Security First** | Connection strings and raw SQL never exposed to clients |
 | 🔄 **Hot Reload** | Development mode with automatic reload on configuration changes |
 | 📦 **Portable Deployment** | Export self-contained scripts with embedded configuration |
-
----
 
 ## 🚀 Quick Start
 
@@ -108,15 +104,12 @@ curl -X POST http://localhost:8080/query/get-user \
 }
 ```
 
----
-
 ## 📖 Documentation
 
-- **[Full Documentation](HYPERTERSE.md)** - Comprehensive guide covering all features
-- **[API Reference](HYPERTERSE.md#api-reference)** - Complete API documentation
-- **[Configuration Guide](HYPERTERSE.md#configuration)** - Detailed configuration reference
-- **[CLI Reference](HYPERTERSE.md#cli-reference)** - All available commands and flags
-- **[Examples](#-examples)** - Real-world usage examples below
+- **[Full Documentation](https://docs.hyperterse.com)** - Comprehensive guide covering all features
+- **[CLI Reference](https://docs.hyperterse.com/cli)** - Complete API documentation
+- **[Configuration Guide](https://docs.hyperterse.com/configuration)** - Detailed configuration reference
+- **[Guides](https://docs.hyperterse.com/guides)** - Guides to help you get started with real world use cases
 
 ### Quick Links
 
@@ -124,11 +117,41 @@ curl -X POST http://localhost:8080/query/get-user \
 - **LLM Documentation**: `GET http://localhost:8080/llms.txt`
 - **MCP Endpoint**: `POST http://localhost:8080/mcp`
 
----
-
 ## 💡 Examples
 
-### Example 1: User Management
+### Example 1: Using MCP Protocol
+
+**List available tools:**
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "id": 1
+  }'
+```
+
+**Execute a tool:**
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "get-user-by-id",
+      "arguments": {
+        "userId": "123"
+      }
+    },
+    "id": 1
+  }'
+```
+
+### Example 2: User Management
 
 ```yaml
 adapters:
@@ -175,7 +198,7 @@ queries:
         default: "0"
 ```
 
-### Example 2: Analytics Queries
+### Example 3: Analytics Queries
 
 ```yaml
 adapters:
@@ -204,40 +227,6 @@ queries:
         type: datetime
         description: "End date (ISO 8601 format)"
 ```
-
-### Example 3: Using MCP Protocol
-
-**List available tools:**
-
-```bash
-curl -X POST http://localhost:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/list",
-    "id": 1
-  }'
-```
-
-**Execute a tool:**
-
-```bash
-curl -X POST http://localhost:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "get-user-by-id",
-      "arguments": {
-        "userId": "123"
-      }
-    },
-    "id": 1
-  }'
-```
-
----
 
 ## 🛠️ CLI Commands
 
@@ -367,8 +356,6 @@ queries:
 
 > **Note**: For production deployments, use a reverse proxy (nginx, Traefik, etc.) for authentication, rate limiting, and SSL termination.
 
----
-
 ## 🏗️ Architecture
 
 ```
@@ -409,8 +396,6 @@ queries:
    │Postgres│ │ MySQL  │ │ Redis  │
    └────────┘ └────────┘ └────────┘
 ```
-
----
 
 ## 🧪 Development
 
@@ -465,8 +450,6 @@ Or use the built-in dev mode:
 hyperterse dev -f config.terse
 ```
 
----
-
 ## 📝 Contributing
 
 We welcome contributions! Here's how you can help:
@@ -496,11 +479,9 @@ Found a bug? Have a feature request? Please [open an issue](https://github.com/h
 - Expected vs actual behavior
 - Environment details (OS, Go version, etc.)
 
----
-
 ## 🤝 Support
 
-- **📚 Documentation**: [Full Documentation](HYPERTERSE.md) | [API Reference](HYPERTERSE.md#api-reference)
+- **📚 Documentation**: [Full Documentation](https://docs.hyperterse.com) | [CLI Reference](https://docs.hyperterse.com/cli)
 - **🐛 Issues**: [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
 - **💬 Discussions**: [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
 - **📦 Releases**: [GitHub Releases](https://github.com/hyperterse/hyperterse/releases)
@@ -511,6 +492,6 @@ Found a bug? Have a feature request? Please [open an issue](https://github.com/h
 
 **Made with ❤️ by the Hyperterse team**
 
-[⭐ Star us on GitHub](https://github.com/hyperterse/hyperterse) • [📖 Read the Docs](HYPERTERSE.md) • [🐛 Report a Bug](https://github.com/hyperterse/hyperterse/issues)
+[⭐ Star us on GitHub](https://github.com/hyperterse/hyperterse) • [📖 Read the Docs](https://docs.hyperterse.com) • [🐛 Report a Bug](https://github.com/hyperterse/hyperterse/issues)
 
 </div>
