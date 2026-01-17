@@ -1,3 +1,25 @@
+# v1.0.0-beta.2
+
+Timestamp: 2026-01-17 21:28:32 UTC
+
+🐛 **Bug Fixes & Documentation Updates**
+
+This release fixes critical issues with the upgrade command and completes the migration away from YAML references.
+
+## 🐛 Bug Fixes
+
+- **Upgrade Command** — Fixed upgrade command not working correctly, improving version detection and update functionality
+
+## 🔧 Improvements
+
+- **Documentation** — Updated README with improved examples and clearer instructions
+- **Configuration References** — Removed all remaining YAML references throughout the codebase, completing the migration to `.terse` extension
+- **Build Configuration** — Updated build scripts and configuration files to use `.terse` extension consistently
+
+> _This is a beta release of Hyperterse. We welcome feedback and contributions!_
+
+---
+
 # v1.0.0-beta.1
 
 Timestamp: 2026-01-17 19:57:23 UTC
