@@ -16,18 +16,6 @@ if [ -z "$GOOS" ] || [ -z "$GOARCH" ]; then
     exit 1
 fi
 
-mkdir -p "${OUTPUT_DIR}"
-
-# Build binary name
-output_name="hyperterse-${GOOS}-${GOARCH}"
-if [ "$GOOS" = "windows" ]; then
-    output_name="${output_name}.exe"
-fi
-
-echo "Building ${output_name} for ${GOOS}/${GOARCH}..."
-
-# Build the binary
-CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -trimpath -ldflags="-s -w" -o "${OUTPUT_DIR}/${output_name}" .
-
-echo "✓ Built ${output_name}"
+# Use build.sh script for building
+make build "$GOOS" "$GOARCH" "$OUTPUT_DIR" "hyperterse"
 

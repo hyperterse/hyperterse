@@ -3,9 +3,23 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
+
+// version stores the version string, set via SetVersion()
+var version = "dev"
+
+// SetVersion sets the version string (called from main.init())
+func SetVersion(v string) {
+	version = v
+}
+
+// GetVersion returns the current version string
+func GetVersion() string {
+	return version
+}
 
 var (
 	configFile string
@@ -54,6 +68,7 @@ func Execute() error {
 }
 
 func init() {
+	// Persistent flags are optional - not required for help, version, upgrade, or init commands
 	rootCmd.PersistentFlags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.terse)")
 	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
 
@@ -62,14 +77,45 @@ func init() {
 	rootCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging (sets log level to DEBUG)")
 
+	// Add version flag
+	rootCmd.Flags().Bool("version", false, "Print version information")
+
 	// Add hidden completion command for install.sh
 	rootCmd.AddCommand(completionCmd)
 
 	// Make root command run the server (backward compatibility)
+	// Only require config flags when actually running the server, not for help/version
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		// Check for --version flag first (before checking for config)
+		if versionFlag, _ := cmd.Flags().GetBool("version"); versionFlag {
+			printVersion()
+			return nil
+		}
+
+		// Only require config when actually running the server
 		if configFile == "" && source == "" {
-			return fmt.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
+			// If no subcommand and no flags, show help instead of error
+			return cmd.Help()
 		}
 		return runServer(cmd, args)
 	}
+}
+
+func printVersion() {
+	v := GetVersion()
+	if v == "dev" {
+		// Try to get version from build info
+		if info, ok := debug.ReadBuildInfo(); ok {
+			// Check for vcs.revision or other version info
+			for _, setting := range info.Settings {
+				if setting.Key == "vcs.revision" && len(setting.Value) >= 7 {
+					v = setting.Value[:7]
+				}
+			}
+			if v == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+				v = info.Main.Version
+			}
+		}
+	}
+	fmt.Println(v)
 }

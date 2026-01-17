@@ -10,9 +10,7 @@ generate: ## Generate protobuf code using protoc
 	@./scripts/generate-proto.sh
 
 build: generate ## Build the project
-	@echo "Building hyperterse..."
-	go build -mod=mod -o dist/hyperterse
-	@echo "✓ Build complete"
+	@./scripts/build.sh
 
 run: build ## Build and run the server (requires CONFIG_FILE env var or -file flag)
 	@if [ -z "$(CONFIG_FILE)" ]; then \
