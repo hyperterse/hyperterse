@@ -20,7 +20,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 	var model *hyperterse.Model
 
 	// Determine parser based on file extension
-	if strings.HasSuffix(filePath, ".yaml") || strings.HasSuffix(filePath, ".yml") {
+	if strings.HasSuffix(filePath, ".terse") {
 		model, err = parser.ParseYAMLWithConfig(content)
 		if err != nil {
 			return nil, fmt.Errorf("config error: %w", err)

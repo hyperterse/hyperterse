@@ -27,7 +27,7 @@ without requiring the hyperterse binary to be installed separately.`,
 func init() {
 	rootCmd.AddCommand(exportCmd)
 
-	exportCmd.Flags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.yaml or .yml)")
+	exportCmd.Flags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.terse)")
 	exportCmd.Flags().StringVarP(&exportOutputDir, "output", "o", "dist", "Output directory for the script file")
 	exportCmd.MarkFlagRequired("file")
 }
@@ -124,17 +124,17 @@ trap "rm -rf $TMPDIR" EXIT
 
 # Decode config (try -d first, fallback to -D for older macOS)
 if echo "dGVzdA==" | base64 -d >/dev/null 2>&1; then
-	echo "$CONFIG_B64" | base64 -d > "$TMPDIR/config.yaml"
+	echo "$CONFIG_B64" | base64 -d > "$TMPDIR/config.terse"
 	echo "$BINARY_B64" | base64 -d > "$TMPDIR/hyperterse"
 else
-	echo "$CONFIG_B64" | base64 -D > "$TMPDIR/config.yaml"
+	echo "$CONFIG_B64" | base64 -D > "$TMPDIR/config.terse"
 	echo "$BINARY_B64" | base64 -D > "$TMPDIR/hyperterse"
 fi
 
 chmod +x "$TMPDIR/hyperterse"
 
 # Run hyperterse with the embedded config
-"$TMPDIR/hyperterse" run --file "$TMPDIR/config.yaml" "$@"
+"$TMPDIR/hyperterse" run --file "$TMPDIR/config.terse" "$@"
 `
 
 	return script

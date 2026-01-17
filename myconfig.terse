@@ -16,12 +16,3 @@ queries:
     description: "Get a user by id"
     statement: |
       SELECT * FROM users WHERE id = {{ inputs.userId }}
-    inputs:
-      userId:
-        type: string
-        description: "The id of the user"
-    data:
-      userId:
-        type: int
-        description: "The id of the user"
-        map_to: user.id

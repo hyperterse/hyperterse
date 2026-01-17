@@ -30,5 +30,9 @@ echo "🔨 Generating types..."
 mkdir -p core/types
 go run scripts/generate_types/script.go proto/connectors/connectors.proto proto/primitives/primitives.proto
 
+# Generate JSON schema for .terse files
+echo "🔨 Generating JSON schema..."
+go run scripts/generate_schema/script.go proto/connectors/connectors.proto proto/primitives/primitives.proto
+
 echo "✓ Protobuf generation complete"
 

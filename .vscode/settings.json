@@ -26,5 +26,11 @@
     "**/.env.local": true,
     "./tmp": true
   },
-  "explorer.excludeGitIgnore": false
+  "explorer.excludeGitIgnore": false,
+  "yaml.schemas": {
+    "./schema/terse.schema.json": "**/*.terse"
+  },
+  "files.associations": {
+    "*.terse": "yaml"
+  }
 }

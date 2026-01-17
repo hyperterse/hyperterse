@@ -1,0 +1,175 @@
+{
+  "$comment": "Cross-reference validations: (1) The 'use' field in queries must reference valid adapter names defined in 'adapters'. (2) Statement input references ({{ inputs.x }}) must match defined inputs. These validations are performed by core/parser/validator.go. Standard JSON Schema Draft 07 doesn't support dynamic cross-references, but some validators (e.g., AJV with $data) can validate this.",
+  "$id": "https://hyperterse.dev/schema/terse.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "JSON schema for Hyperterse .terse configuration files. Matches validations from core/parser/validator.go",
+  "properties": {
+    "adapters": {
+      "additionalProperties": false,
+      "description": "Adapter configurations (required, must have at least one entry)",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "additionalProperties": false,
+          "properties": {
+            "connection_string": {
+              "description": "Database connection string (required)",
+              "minLength": 1,
+              "type": "string"
+            },
+            "connector": {
+              "description": "Connector type (required)",
+              "enum": [
+                "postgres",
+                "redis",
+                "mysql"
+              ],
+              "type": "string"
+            },
+            "options": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Connector-specific options",
+              "type": "object"
+            }
+          },
+          "required": [
+            "connector",
+            "connection_string"
+          ],
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "queries": {
+      "additionalProperties": false,
+      "description": "Query definitions (required, must have at least one entry)",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": {
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "description": "Query description (required)",
+              "minLength": 1,
+              "type": "string"
+            },
+            "inputs": {
+              "additionalProperties": false,
+              "description": "Input parameter definitions",
+              "patternProperties": {
+                "^[a-z][a-z0-9_-]*$": {
+                  "additionalProperties": false,
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "optional": {
+                            "const": true
+                          }
+                        }
+                      },
+                      "then": {
+                        "required": [
+                          "default"
+                        ]
+                      }
+                    }
+                  ],
+                  "properties": {
+                    "default": {
+                      "description": "Default value (required if optional=true, stored as string, parsed at runtime)",
+                      "type": "string"
+                    },
+                    "description": {
+                      "description": "Input description",
+                      "type": "string"
+                    },
+                    "optional": {
+                      "description": "Whether the input is optional",
+                      "type": "boolean"
+                    },
+                    "type": {
+                      "description": "Input type (required)",
+                      "enum": [
+                        "string",
+                        "int",
+                        "float",
+                        "boolean",
+                        "uuid",
+                        "datetime"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
+            "statement": {
+              "description": "SQL or command string (required)",
+              "minLength": 1,
+              "type": "string"
+            },
+            "use": {
+              "description": "References to adapter names (required, must reference valid adapters)",
+              "oneOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              ]
+            }
+          },
+          "required": [
+            "use",
+            "description",
+            "statement"
+          ],
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "server": {
+      "additionalProperties": false,
+      "description": "Optional server configuration",
+      "properties": {
+        "log_level": {
+          "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
+          "maximum": 4,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "port": {
+          "description": "Server port (default: 8080)",
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "adapters",
+    "queries"
+  ],
+  "title": "Hyperterse Configuration Schema",
+  "type": "object"
+}
