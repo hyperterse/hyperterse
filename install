@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+set -euo pipefail
+APP=hyperterse
+
+MUTED='\033[0;2m'
+RED='\033[0;31m'
+ORANGE='\033[38;5;214m'
+NC='\033[0m' # No Color
+
+usage() {
+    cat <<EOF
+Hyperterse Installer
+
+Usage: install [options]
+
+Options:
+    -h, --help              Display this help message
+    -v, --version <version> Install a specific version (e.g., v1.0.0)
+    -b, --binary <path>     Install from a local binary instead of downloading
+        --prerelease        Include pre-releases when fetching latest version
+        --no-modify-path    Don't modify shell config files (.zshrc, .bashrc, etc.)
+
+Examples:
+    curl -fsSL https://hyperterse.com/install.sh | bash
+    curl -fsSL https://hyperterse.com/install.sh | bash -s -- --prerelease
+    curl -fsSL https://hyperterse.com/install.sh | bash -s -- --version v1.0.0
+    ./install --binary /path/to/hyperterse
+EOF
+}
+
+requested_version=${VERSION:-}
+no_modify_path=false
+binary_path=""
+include_prerelease=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -v|--version)
+            if [[ -n "${2:-}" ]]; then
+                requested_version="$2"
+                shift 2
+            else
+                echo -e "${RED}Error: --version requires a version argument${NC}"
+                exit 1
+            fi
+            ;;
+        -b|--binary)
+            if [[ -n "${2:-}" ]]; then
+                binary_path="$2"
+                shift 2
+            else
+                echo -e "${RED}Error: --binary requires a path argument${NC}"
+                exit 1
+            fi
+            ;;
+        --prerelease)
+            include_prerelease=true
+            shift
+            ;;
+        --no-modify-path)
+            no_modify_path=true
+            shift
+            ;;
+        *)
+            echo -e "${ORANGE}Warning: Unknown option '$1'${NC}" >&2
+            shift
+            ;;
+    esac
+done
+
+INSTALL_DIR=$HOME/.local/bin
+mkdir -p "$INSTALL_DIR"
+
+# If --binary is provided, skip all download/detection logic
+if [ -n "$binary_path" ]; then
+    if [ ! -f "$binary_path" ]; then
+        echo -e "${RED}Error: Binary not found at ${binary_path}${NC}"
+        exit 1
+    fi
+    specific_version="local"
+else
+    raw_os=$(uname -s)
+    os=$(echo "$raw_os" | tr '[:upper:]' '[:lower:]')
+    case "$raw_os" in
+      Darwin*) os="darwin" ;;
+      Linux*) os="linux" ;;
+      *)
+        echo -e "${RED}Unsupported OS: $raw_os${NC}"
+        exit 1
+        ;;
+    esac
+
+    arch=$(uname -m)
+    if [[ "$arch" == "aarch64" ]]; then
+      arch="arm64"
+    fi
+    if [[ "$arch" == "x86_64" ]]; then
+      arch="amd64"
+    fi
+
+    if [ "$os" = "darwin" ] && [ "$arch" = "amd64" ]; then
+      rosetta_flag=$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)
+      if [ "$rosetta_flag" = "1" ]; then
+        arch="arm64"
+      fi
+    fi
+
+    combo="$os-$arch"
+    case "$combo" in
+      linux-amd64|linux-arm64|darwin-amd64|darwin-arm64)
+        ;;
+      *)
+        echo -e "${RED}Unsupported OS/Arch: $os/$arch${NC}"
+        exit 1
+        ;;
+    esac
+
+    binary_name="$APP-$os-$arch"
+
+    if [ -z "$requested_version" ]; then
+        # Use /releases endpoint if --prerelease flag is set, otherwise use /releases/latest
+        if [ "$include_prerelease" = "true" ]; then
+            api_response=$(curl -s https://api.github.com/repos/hyperterse/hyperterse/releases)
+            # Get the first release (latest, including pre-releases)
+            # The API returns an array, extract the first tag_name field
+            specific_version=$(echo "$api_response" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+            if [[ -n "$specific_version" ]]; then
+                url="https://github.com/hyperterse/hyperterse/releases/download/$specific_version/$binary_name"
+            fi
+        else
+            api_response=$(curl -s https://api.github.com/repos/hyperterse/hyperterse/releases/latest)
+            specific_version=$(echo "$api_response" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+            url="https://github.com/hyperterse/hyperterse/releases/latest/download/$binary_name"
+        fi
+
+        # Check if API returned an error or if tag_name is missing
+        if echo "$api_response" | grep -q '"message"'; then
+            echo -e "${RED}Failed to fetch version information${NC}"
+            echo -e "${MUTED}GitHub API error: $(echo "$api_response" | sed -n 's/.*"message": *"\([^"]*\)".*/\1/p')${NC}"
+            echo -e "${MUTED}Make sure releases exist at: https://github.com/hyperterse/hyperterse/releases${NC}"
+            exit 1
+        fi
+
+        if [[ -z "$specific_version" ]]; then
+            echo -e "${RED}Failed to fetch version information${NC}"
+            echo -e "${MUTED}No releases found. Make sure releases exist at: https://github.com/hyperterse/hyperterse/releases${NC}"
+            if [ "$include_prerelease" = "true" ]; then
+                echo -e "${MUTED}Try without --prerelease flag if you only want stable releases.${NC}"
+            fi
+            exit 1
+        fi
+    else
+        # Strip leading 'v' if present for consistency, but keep it in URL
+        version_tag="$requested_version"
+        if [[ "$version_tag" != v* ]]; then
+            version_tag="v$version_tag"
+        fi
+        url="https://github.com/hyperterse/hyperterse/releases/download/$version_tag/$binary_name"
+        specific_version="$requested_version"
+
+        # Verify the release exists before downloading
+        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "https://github.com/hyperterse/hyperterse/releases/tag/$version_tag")
+        if [ "$http_status" = "404" ]; then
+            echo -e "${RED}Error: Release $version_tag not found${NC}"
+            echo -e "${MUTED}Available releases: https://github.com/hyperterse/hyperterse/releases${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+print_message() {
+    local level=$1
+    local message=$2
+    local color=""
+
+    case $level in
+        info) color="${NC}" ;;
+        warning) color="${NC}" ;;
+        error) color="${RED}" ;;
+    esac
+
+    echo -e "${color}${message}${NC}"
+}
+
+check_version() {
+    if command -v hyperterse >/dev/null 2>&1; then
+        hyperterse_path=$(which hyperterse)
+
+        ## Check the installed version
+        installed_version=$(hyperterse --version 2>/dev/null || echo "")
+
+        if [[ "$installed_version" != "$specific_version" ]]; then
+            print_message info "${MUTED}Installed version: ${NC}$installed_version."
+        else
+            print_message info "${MUTED}Version ${NC}$specific_version${MUTED} already installed"
+            exit 0
+        fi
+    fi
+}
+
+download_and_install() {
+    print_message info "\n${MUTED}Installing ${NC}hyperterse ${MUTED}version: ${NC}$specific_version"
+    
+    if curl -fsSL "$url" -o "$INSTALL_DIR/hyperterse"; then
+        chmod 755 "$INSTALL_DIR/hyperterse"
+        print_message info "${MUTED}Successfully installed ${NC}hyperterse ${MUTED}to ${NC}$INSTALL_DIR/hyperterse"
+    else
+        echo -e "${RED}Failed to download Hyperterse binary${NC}"
+        echo -e "${MUTED}URL: $url${NC}"
+        exit 1
+    fi
+}
+
+install_from_binary() {
+    print_message info "\n${MUTED}Installing ${NC}hyperterse ${MUTED}from: ${NC}$binary_path"
+    cp "$binary_path" "$INSTALL_DIR/hyperterse"
+    chmod 755 "$INSTALL_DIR/hyperterse"
+}
+
+if [ -n "$binary_path" ]; then
+    install_from_binary
+else
+    check_version
+    download_and_install
+fi
+
+add_to_path() {
+    local config_file=$1
+    local command=$2
+
+    if grep -Fxq "$command" "$config_file"; then
+        print_message info "Command already exists in $config_file, skipping write."
+    elif [[ -w $config_file ]]; then
+        echo -e "\n# hyperterse" >> "$config_file"
+        echo "$command" >> "$config_file"
+        print_message info "${MUTED}Successfully added ${NC}hyperterse ${MUTED}to \$PATH in ${NC}$config_file"
+    else
+        print_message warning "Manually add the directory to $config_file (or similar):"
+        print_message info "  $command"
+    fi
+}
+
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+
+current_shell=$(basename "$SHELL")
+case $current_shell in
+    fish)
+        config_files="$HOME/.config/fish/config.fish"
+    ;;
+    zsh)
+        config_files="${ZDOTDIR:-$HOME}/.zshrc ${ZDOTDIR:-$HOME}/.zshenv $XDG_CONFIG_HOME/zsh/.zshrc $XDG_CONFIG_HOME/zsh/.zshenv"
+    ;;
+    bash)
+        config_files="$HOME/.bashrc $HOME/.bash_profile $HOME/.profile $XDG_CONFIG_HOME/bash/.bashrc $XDG_CONFIG_HOME/bash/.bash_profile"
+    ;;
+    ash)
+        config_files="$HOME/.ashrc $HOME/.profile /etc/profile"
+    ;;
+    sh)
+        config_files="$HOME/.ashrc $HOME/.profile /etc/profile"
+    ;;
+    *)
+        # Default case if none of the above matches
+        config_files="$HOME/.bashrc $HOME/.bash_profile $XDG_CONFIG_HOME/bash/.bashrc $XDG_CONFIG_HOME/bash/.bash_profile"
+    ;;
+esac
+
+if [[ "$no_modify_path" != "true" ]]; then
+    config_file=""
+    for file in $config_files; do
+        if [[ -f $file ]]; then
+            config_file=$file
+            break
+        fi
+    done
+
+    if [[ -z $config_file ]]; then
+        print_message warning "No config file found for $current_shell. You may need to manually add to PATH:"
+        print_message info "  export PATH=$INSTALL_DIR:\$PATH"
+    elif [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+        case $current_shell in
+            fish)
+                add_to_path "$config_file" "fish_add_path $INSTALL_DIR"
+            ;;
+            zsh)
+                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            ;;
+            bash)
+                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            ;;
+            ash)
+                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            ;;
+            sh)
+                add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+            ;;
+            *)
+                export PATH=$INSTALL_DIR:$PATH
+                print_message warning "Manually add the directory to $config_file (or similar):"
+                print_message info "  export PATH=$INSTALL_DIR:\$PATH"
+            ;;
+        esac
+    fi
+fi
+
+if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
+    echo "$INSTALL_DIR" >> $GITHUB_PATH
+    print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
+fi
+
+echo -e ""
+echo -e "${MUTED}Hyperterse installed successfully!${NC}"
+echo -e ""
+echo -e "${MUTED}To get started:${NC}"
+echo -e ""
+echo -e "hyperterse init  ${MUTED}# Create a configuration file${NC}"
+echo -e "hyperterse --help  ${MUTED}# See available commands${NC}"
+echo -e ""
+echo -e "${MUTED}For more information visit ${NC}https://hyperterse.com"
+echo -e ""
