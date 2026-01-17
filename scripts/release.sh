@@ -17,5 +17,5 @@ if [ -z "$GOOS" ] || [ -z "$GOARCH" ]; then
 fi
 
 # Use build.sh script for building
-make build "$GOOS" "$GOARCH" "$OUTPUT_DIR" "hyperterse"
+./scripts/build.sh "$GOOS" "$GOARCH" "$OUTPUT_DIR" "hyperterse"
 
