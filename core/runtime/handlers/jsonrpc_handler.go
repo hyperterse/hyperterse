@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/proto/runtime"
@@ -41,6 +42,34 @@ const (
 	JSONRPCInternalError  = -32603
 )
 
+// parseDefaultValueForMCP parses a default value string to the appropriate JSON type
+// This ensures default values are properly typed in the MCP tool schema (e.g., strings are quoted, numbers are numeric)
+func parseDefaultValueForMCP(valueStr, typ string) any {
+	switch typ {
+	case "int":
+		if val, err := strconv.ParseInt(valueStr, 10, 64); err == nil {
+			return val
+		}
+		// If parsing fails, return as string (fallback)
+		return valueStr
+	case "float":
+		if val, err := strconv.ParseFloat(valueStr, 64); err == nil {
+			return val
+		}
+		return valueStr
+	case "boolean":
+		if val, err := strconv.ParseBool(valueStr); err == nil {
+			return val
+		}
+		return valueStr
+	default:
+		// For string types (string, uuid, datetime), return as-is
+		// The value should already be a valid string (quoted or unquoted)
+		// When JSON marshaled, it will be properly quoted
+		return valueStr
+	}
+}
+
 // HandleJSONRPC handles JSON-RPC 2.0 requests for MCP protocol
 func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBody []byte) ([]byte, error) {
 	var req JSONRPCRequest
@@ -75,6 +104,60 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 	var jsonrpcErr *JSONRPCError
 
 	switch req.Method {
+	case "initialize":
+		// Parse params for initialize
+		// According to MCP spec, protocolVersion, capabilities, and clientInfo are required
+		var params struct {
+			ProtocolVersion string         `json:"protocolVersion"`
+			Capabilities    map[string]any `json:"capabilities"`
+			ClientInfo      struct {
+				Name    string `json:"name"`
+				Version string `json:"version"`
+			} `json:"clientInfo"`
+		}
+
+		// Handle params - they may be null, missing, or present
+		if len(req.Params) == 0 || string(req.Params) == "null" {
+			// Some clients might send null or omit params - we'll use defaults
+			// Default to Streamable HTTP version (2025-03-26)
+			params.ProtocolVersion = "2025-03-26"
+			params.Capabilities = make(map[string]any)
+		} else {
+			if err := json.Unmarshal(req.Params, &params); err != nil {
+				jsonrpcErr = &JSONRPCError{
+					Code:    JSONRPCInvalidParams,
+					Message: "Invalid params",
+					Data:    err.Error(),
+				}
+				break
+			}
+
+			// Validate protocolVersion if provided
+			// Support both 2025-03-26 (Streamable HTTP) and 2024-11-05 (legacy)
+			// According to MCP spec, if client requests unsupported version,
+			// server should respond with a version it supports (not error)
+		}
+
+		// Use requested version if supported, otherwise default to latest supported version
+		protocolVersion := params.ProtocolVersion
+		if protocolVersion == "" || (protocolVersion != "2025-03-26" && protocolVersion != "2024-11-05") {
+			// Client didn't specify version or requested unsupported version
+			// Respond with latest supported version (per MCP spec)
+			protocolVersion = "2025-03-26" // Default to Streamable HTTP version
+		}
+
+		// Return server capabilities
+		result = map[string]any{
+			"protocolVersion": protocolVersion,
+			"capabilities": map[string]any{
+				"tools": map[string]any{},
+			},
+			"serverInfo": map[string]any{
+				"name":    "hyperterse",
+				"version": "1.0.0",
+			},
+		}
+
 	case "tools/list":
 		// Parse params (should be empty or null for tools/list)
 		var params struct{}
@@ -107,12 +190,14 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 				}
 
 				// Convert inputs to MCP format
+				// inputSchema must always be present as an object (even if empty)
+				inputsSchema := map[string]any{
+					"type":       "object",
+					"properties": make(map[string]any),
+					"required":   []string{},
+				}
+
 				if len(tool.Inputs) > 0 {
-					inputsSchema := map[string]any{
-						"type":       "object",
-						"properties": make(map[string]any),
-						"required":   []string{},
-					}
 					properties := inputsSchema["properties"].(map[string]any)
 					required := inputsSchema["required"].([]string)
 
@@ -122,7 +207,11 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 							"description": input.Description,
 						}
 						if input.DefaultValue != "" {
-							prop["default"] = input.DefaultValue
+							// Parse default value according to type to ensure valid JSON
+							// This prevents issues where unquoted strings like "pending" become invalid JSON
+							// input.Type is already a string like "int", "string", etc. (from PrimitiveEnumToString)
+							parsedDefault := parseDefaultValueForMCP(input.DefaultValue, input.Type)
+							prop["default"] = parsedDefault
 						}
 						properties[name] = prop
 
@@ -131,8 +220,10 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 						}
 					}
 					inputsSchema["required"] = required
-					toolMap["inputSchema"] = inputsSchema
 				}
+
+				// Always include inputSchema (required by MCP spec)
+				toolMap["inputSchema"] = inputsSchema
 
 				tools[i] = toolMap
 			}
@@ -165,8 +256,12 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		}
 
 		// Convert arguments to map[string]string (JSON-encoded)
+		// Each value must be properly JSON-encoded to preserve types (especially strings)
 		arguments := make(map[string]string)
 		for key, value := range params.Arguments {
+			// Always use json.Marshal to ensure proper JSON encoding
+			// This will correctly quote strings: "pending" -> "\"pending\""
+			// and handle all other types (int, float, bool, null, etc.) correctly
 			valueJSON, err := json.Marshal(value)
 			if err != nil {
 				jsonrpcErr = &JSONRPCError{
@@ -176,6 +271,8 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 				}
 				break
 			}
+			// Store as JSON-encoded string (e.g., "\"pending\"" for string "pending")
+			// This ensures type information is preserved when later unmarshaled
 			arguments[key] = string(valueJSON)
 		}
 		if jsonrpcErr != nil {
@@ -211,6 +308,15 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 			}
 		}
 
+	case "initialized":
+		// This is a notification (no response expected if no ID)
+		// According to MCP spec, after initialize response, client sends initialized notification
+		// If it has an ID, respond with empty result (some clients might send it as a request)
+		if req.ID != nil {
+			result = map[string]any{}
+		}
+		// If no ID, it's a true notification - don't set result, response builder will handle it
+
 	default:
 		jsonrpcErr = &JSONRPCError{
 			Code:    JSONRPCMethodNotFound,
@@ -219,6 +325,8 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 	}
 
 	// Build response
+	// For JSON-RPC notifications (no ID), we still send a response for HTTP transport
+	// but it should be minimal
 	response := JSONRPCResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
@@ -226,9 +334,14 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 
 	if jsonrpcErr != nil {
 		response.Error = jsonrpcErr
-	} else {
+	} else if result != nil {
+		// Only set result if it's not nil (handles notifications without results)
 		response.Result = result
+	} else if req.ID != nil {
+		// Request with ID but no result - send empty result
+		response.Result = map[string]any{}
 	}
+	// If no ID and no result, it's a true notification - send minimal response
 
 	return json.Marshal(response)
 }

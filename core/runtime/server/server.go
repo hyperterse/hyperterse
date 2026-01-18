@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -30,6 +33,8 @@ type Runtime struct {
 	mux              *http.ServeMux
 	queryHandler     *handlers.QueryServiceHandler
 	mcpHandler       *handlers.MCPServiceHandler
+	shutdownCtx      context.Context
+	shutdownCancel   context.CancelFunc
 }
 
 // NewRuntime creates a new runtime instance
@@ -54,11 +59,15 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 	// Create executor with connector manager
 	exec := executor.NewExecutor(model, manager)
 
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+
 	return &Runtime{
 		model:            model,
 		executor:         exec,
 		connectorManager: manager,
 		port:             port,
+		shutdownCtx:      shutdownCtx,
+		shutdownCancel:   shutdownCancel,
 	}, nil
 }
 
@@ -89,7 +98,7 @@ func (r *Runtime) StartAsync() error {
 		Addr:         ":" + r.port,
 		Handler:      r.mux,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 0, // Disable write timeout for SSE connections (they're long-lived)
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -114,33 +123,196 @@ func (r *Runtime) registerRoutes() {
 	var utilityRoutes []string
 	var queryRoutes []string
 
-	// Register MCP JSON-RPC 2.0 endpoint
-	// MCP uses JSON-RPC 2.0 messages over HTTP POST
+	// Register MCP endpoint - Streamable HTTP transport (replaces deprecated SSE transport)
+	// MCP Streamable HTTP: POST for client messages, GET for server-initiated messages
 	r.mux.HandleFunc("/mcp", func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		// Set CORS headers for cross-origin requests
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID")
+
+		// Handle preflight OPTIONS request
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// Read request body
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
-			return
-		}
+		switch req.Method {
+		case http.MethodPost:
+			// Streamable HTTP: Client sends JSON-RPC messages via POST
+			// Server responds with either JSON or SSE stream depending on operation
 
-		// Handle JSON-RPC request
-		responseBody, err := handlers.HandleJSONRPC(req.Context(), r.mcpHandler, body)
-		if err != nil {
-			http.Error(w, "Failed to process JSON-RPC request", http.StatusInternalServerError)
-			return
-		}
+			// Validate protocol version header (optional but recommended)
+			protocolVersion := req.Header.Get("MCP-Protocol-Version")
+			if protocolVersion == "" {
+				protocolVersion = "2025-03-26" // Default version
+			}
+			// Accept both Streamable HTTP and legacy versions
+			if protocolVersion != "2025-03-26" && protocolVersion != "2024-11-05" {
+				// Log warning but don't reject - some clients might not send this header
+				logger.New("runtime").Warnf("Unsupported protocol version: %s, defaulting to 2025-03-26", protocolVersion)
+				protocolVersion = "2025-03-26"
+			}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(responseBody)
+			// Read request body
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				http.Error(w, "Failed to read request body", http.StatusBadRequest)
+				return
+			}
+
+			if len(body) == 0 {
+				http.Error(w, "Empty request body", http.StatusBadRequest)
+				return
+			}
+
+			// Parse request to check if it's a notification (no ID) and method type
+			var jsonReq map[string]any
+			isNotification := false
+			var requestID any
+			var methodName string
+			if err := json.Unmarshal(body, &jsonReq); err != nil {
+				// Invalid JSON - return parse error
+				errorResponse := map[string]any{
+					"jsonrpc": "2.0",
+					"error": map[string]any{
+						"code":    -32700,
+						"message": "Parse error",
+					},
+					"id": nil,
+				}
+				errorJSON, _ := json.Marshal(errorResponse)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write(errorJSON)
+				return
+			}
+
+			// Extract request details
+			id, hasID := jsonReq["id"]
+			isNotification = !hasID || id == nil
+			if hasID {
+				requestID = id
+			}
+			if method, ok := jsonReq["method"].(string); ok {
+				methodName = method
+			}
+
+			// Handle initialize - generate and set session ID BEFORE processing
+			if methodName == "initialize" {
+				// Generate session ID for initialize
+				sessionID := generateSessionID()
+				w.Header().Set("Mcp-Session-Id", sessionID)
+			}
+
+			// Handle JSON-RPC request
+			responseBody, err := handlers.HandleJSONRPC(req.Context(), r.mcpHandler, body)
+			if err != nil {
+				// Return valid JSON-RPC error response
+				errorResponse := map[string]any{
+					"jsonrpc": "2.0",
+					"error": map[string]any{
+						"code":    -32603,
+						"message": "Internal error",
+						"data":    err.Error(),
+					},
+					"id": requestID,
+				}
+				errorJSON, _ := json.Marshal(errorResponse)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write(errorJSON)
+				return
+			}
+
+			// For notifications (no ID), respond with 202 Accepted (no body)
+			if isNotification {
+				w.WriteHeader(http.StatusAccepted)
+				return
+			}
+
+			// For requests (with ID), respond with JSON
+			// Note: Can be extended to support SSE streaming for long-running operations
+			// by checking Accept header for "text/event-stream" and responding accordingly
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if len(responseBody) > 0 {
+				w.Write(responseBody)
+			} else {
+				// Empty response - send minimal JSON-RPC response
+				emptyResponse := map[string]any{
+					"jsonrpc": "2.0",
+					"id":      requestID,
+				}
+				emptyJSON, _ := json.Marshal(emptyResponse)
+				w.Write(emptyJSON)
+			}
+
+		case http.MethodGet:
+			// Streamable HTTP: GET for receiving server-initiated messages (notifications/requests)
+			// Check if client accepts SSE (header may contain multiple values)
+			acceptHeader := req.Header.Get("Accept")
+			if !strings.Contains(acceptHeader, "text/event-stream") {
+				http.Error(w, "Accept header must include 'text/event-stream'", http.StatusBadRequest)
+				return
+			}
+
+			// Set SSE headers
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("X-Accel-Buffering", "no") // Disable buffering for nginx
+
+			// Flush headers immediately
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+
+			// Keep the connection alive and send periodic keep-alive messages
+			// Server can send JSON-RPC notifications/requests over this stream
+			// Use 10 second interval to stay well within the 15 second write timeout
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+
+			// No endpoint event needed for Streamable HTTP (that was SSE-specific)
+			// Server can send notifications/requests as needed
+
+			// Keep connection alive with periodic keep-alive messages
+			// Also listen for server shutdown to close connections gracefully
+			for {
+				select {
+				case <-req.Context().Done():
+					// Client disconnected
+					return
+				case <-r.shutdownCtx.Done():
+					// Server is shutting down, close connection gracefully
+					return
+				case <-ticker.C:
+					// Send keep-alive comment
+					fmt.Fprintf(w, ": keep-alive\n\n")
+					if flusher, ok := w.(http.Flusher); ok {
+						flusher.Flush()
+					}
+				}
+			}
+
+		case http.MethodDelete:
+			// Streamable HTTP: DELETE for session termination
+			sessionID := req.Header.Get("Mcp-Session-Id")
+			if sessionID == "" {
+				http.Error(w, "Missing Mcp-Session-Id header", http.StatusBadRequest)
+				return
+			}
+			// Session termination (can be extended to actually manage sessions)
+			w.WriteHeader(http.StatusOK)
+
+		default:
+			http.Error(w, "Method not allowed. Only GET, POST, and DELETE requests are supported.", http.StatusMethodNotAllowed)
+		}
 	})
-	utilityRoutes = append(utilityRoutes, "POST /mcp (JSON-RPC 2.0)")
+	utilityRoutes = append(utilityRoutes, "POST /mcp (Streamable HTTP - JSON-RPC requests)")
+	utilityRoutes = append(utilityRoutes, "GET /mcp (Streamable HTTP - server-initiated messages)")
+	utilityRoutes = append(utilityRoutes, "DELETE /mcp (Streamable HTTP - session termination)")
 
 	// LLM documentation endpoint
 	r.mux.HandleFunc("/llms.txt", handlers.LLMTxtHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
@@ -294,7 +466,16 @@ func (r *Runtime) Stop() error {
 	log.Println("Shutting down server...")
 	log.Debugln("Initiating graceful shutdown...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// Signal shutdown to all SSE connections and other long-lived handlers
+	if r.shutdownCancel != nil {
+		r.shutdownCancel()
+	}
+
+	// Give connections a moment to close gracefully
+	time.Sleep(500 * time.Millisecond)
+
+	// Create shutdown context with longer timeout for SSE connections
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Close all connectors in parallel
@@ -307,6 +488,10 @@ func (r *Runtime) Stop() error {
 		log.Debugln("Shutting down HTTP server...")
 		if err := r.server.Shutdown(ctx); err != nil {
 			log.Printf("Error shutting down HTTP server: %v", err)
+			// If graceful shutdown fails, force close
+			if closeErr := r.server.Close(); closeErr != nil {
+				log.Printf("Error force closing HTTP server: %v", closeErr)
+			}
 			return err
 		}
 		log.Debugln("HTTP server stopped")
@@ -327,4 +512,11 @@ func (s *queryServiceServer) ExecuteQuery(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// generateSessionID generates a secure session ID for MCP sessions
+func generateSessionID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)
 }

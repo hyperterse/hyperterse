@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/proto/runtime"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
+	"github.com/hyperterse/hyperterse/core/types"
 )
 
 // QueryServiceHandler implements the QueryService
@@ -94,7 +96,7 @@ func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListTool
 		toolInputs := make(map[string]*runtime.ToolInput)
 		for _, input := range query.Inputs {
 			toolInputs[input.Name] = &runtime.ToolInput{
-				Type:         input.Type.String(),
+				Type:         types.PrimitiveEnumToString(input.Type),
 				Description:  input.Description,
 				Optional:     input.Optional,
 				DefaultValue: input.DefaultValue,
@@ -116,12 +118,28 @@ func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListTool
 // CallTool executes a tool (query) by name with context propagation
 func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolRequest) (*runtime.CallToolResponse, error) {
 	// Parse arguments from JSON strings
+	// Arguments are stored as JSON-encoded strings (e.g., "\"pending\"" for string "pending")
 	inputs := make(map[string]any)
 	for key, valueJSON := range req.Arguments {
 		var value any
+		// Try to unmarshal the JSON-encoded value
 		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
-			// If unmarshaling fails, treat as string
-			value = valueJSON
+			// If unmarshaling fails, the valueJSON might be a raw string
+			// Try to unquote it if it looks like a JSON string
+			trimmed := strings.TrimSpace(valueJSON)
+			if len(trimmed) >= 2 && trimmed[0] == '"' && trimmed[len(trimmed)-1] == '"' {
+				// It's a JSON string, try to unmarshal it properly
+				var strValue string
+				if err := json.Unmarshal([]byte(trimmed), &strValue); err == nil {
+					value = strValue
+				} else {
+					// Fallback: remove quotes manually
+					value = trimmed[1 : len(trimmed)-1]
+				}
+			} else {
+				// Not a JSON string, use as-is
+				value = valueJSON
+			}
 		}
 		inputs[key] = value
 	}

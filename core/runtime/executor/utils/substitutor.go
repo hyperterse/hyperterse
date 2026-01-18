@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -13,8 +14,15 @@ var (
 )
 
 // SubstituteInputs replaces {{ inputs.fieldName }} placeholders in the statement with actual values
-func SubstituteInputs(statement string, inputs map[string]any) (string, error) {
+// inputTypes is an optional map of field name to type (e.g., "datetime") for proper formatting
+func SubstituteInputs(statement string, inputs map[string]any, inputTypes ...map[string]string) (string, error) {
 	result := statement
+
+	// Build type map if provided
+	typeMap := make(map[string]string)
+	if len(inputTypes) > 0 && inputTypes[0] != nil {
+		typeMap = inputTypes[0]
+	}
 
 	// Find all template placeholders
 	matches := templatePattern.FindAllStringSubmatch(statement, -1)
@@ -39,8 +47,11 @@ func SubstituteInputs(statement string, inputs map[string]any) (string, error) {
 			return "", fmt.Errorf("input '%s' not found for substitution", fieldName)
 		}
 
+		// Get the type if available
+		inputType := typeMap[fieldName]
+
 		// Format the value based on its type
-		formattedValue := formatValueForSQL(value)
+		formattedValue := formatValueForSQL(value, inputType)
 
 		// Replace all occurrences of this placeholder
 		result = strings.ReplaceAll(result, placeholder, formattedValue)
@@ -50,9 +61,14 @@ func SubstituteInputs(statement string, inputs map[string]any) (string, error) {
 }
 
 // formatValueForSQL formats a value appropriately for SQL substitution
-func formatValueForSQL(value any) string {
+// inputType is optional and helps format datetime values correctly for PostgreSQL
+func formatValueForSQL(value any, inputType string) string {
 	switch v := value.(type) {
 	case string:
+		// If it's a datetime type, normalize to PostgreSQL-compatible format
+		if inputType == "datetime" {
+			return formatDatetimeForPostgreSQL(v)
+		}
 		// Escape single quotes and wrap in quotes
 		escaped := strings.ReplaceAll(v, "'", "''")
 		return fmt.Sprintf("'%s'", escaped)
@@ -75,6 +91,37 @@ func formatValueForSQL(value any) string {
 		escaped := strings.ReplaceAll(str, "'", "''")
 		return fmt.Sprintf("'%s'", escaped)
 	}
+}
+
+// formatDatetimeForPostgreSQL formats a datetime string for PostgreSQL
+// Converts RFC3339 and other formats to PostgreSQL's preferred timestamp format
+func formatDatetimeForPostgreSQL(datetimeStr string) string {
+	// Try to parse the datetime string
+	formats := []string{
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, datetimeStr); err == nil {
+			// Format as PostgreSQL timestamp: 'YYYY-MM-DD HH:MM:SS'
+			// PostgreSQL can parse this format reliably
+			pgFormat := t.Format("2006-01-02 15:04:05")
+			// If it's just a date (no time component), return date only
+			if format == "2006-01-02" || (t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 && t.Nanosecond() == 0) {
+				pgFormat = t.Format("2006-01-02")
+			}
+			return fmt.Sprintf("'%s'", pgFormat)
+		}
+	}
+
+	// If parsing fails, return as-is (will be validated earlier)
+	escaped := strings.ReplaceAll(datetimeStr, "'", "''")
+	return fmt.Sprintf("'%s'", escaped)
 }
 
 // ExtractInputReferences extracts all input field names referenced in a statement

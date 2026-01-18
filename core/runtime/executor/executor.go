@@ -46,8 +46,14 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 		return nil, fmt.Errorf("input validation failed: %w", err)
 	}
 
+	// Build input type map for proper formatting
+	inputTypeMap := make(map[string]string)
+	for _, input := range query.Inputs {
+		inputTypeMap[input.Name] = input.Type.String()
+	}
+
 	// Substitute inputs in statement
-	finalStatement, err := utils.SubstituteInputs(query.Statement, validatedInputs)
+	finalStatement, err := utils.SubstituteInputs(query.Statement, validatedInputs, inputTypeMap)
 	if err != nil {
 		return nil, fmt.Errorf("template substitution failed: %w", err)
 	}

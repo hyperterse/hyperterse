@@ -140,12 +140,42 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 		}
 	}
 
-	// Add MCP JSON-RPC 2.0 endpoint
+	// Add MCP endpoint - Streamable HTTP transport
 	paths["/mcp"] = map[string]any{
 		"post": map[string]any{
-			"summary":     "MCP JSON-RPC 2.0 endpoint",
-			"description": "Model Context Protocol endpoint using JSON-RPC 2.0. Supports methods: tools/list, tools/call",
-			"operationId": "mcpJSONRPC",
+			"summary":     "MCP Streamable HTTP endpoint",
+			"description": "Model Context Protocol endpoint using Streamable HTTP transport. Client sends JSON-RPC 2.0 messages via POST. Server responds with JSON or SSE stream. Requires MCP-Protocol-Version header.",
+			"operationId": "mcpStreamableHTTP",
+			"parameters": []map[string]any{
+				{
+					"name":        "MCP-Protocol-Version",
+					"in":          "header",
+					"required":    false,
+					"description": "MCP protocol version (defaults to 2025-03-26)",
+					"schema": map[string]any{
+						"type":    "string",
+						"default": "2025-03-26",
+					},
+				},
+				{
+					"name":        "Mcp-Session-Id",
+					"in":          "header",
+					"required":    false,
+					"description": "Session ID (returned after initialize, required for subsequent requests)",
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+				{
+					"name":        "Accept",
+					"in":          "header",
+					"required":    false,
+					"description": "Must include 'application/json' and optionally 'text/event-stream'",
+					"schema": map[string]any{
+						"type": "string",
+					},
+				},
+			},
 			"requestBody": map[string]any{
 				"required": true,
 				"content": map[string]any{
@@ -160,83 +190,69 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 								},
 								"method": map[string]any{
 									"type":        "string",
-									"description": "RPC method name (e.g., 'tools/list', 'tools/call')",
-									"enum":        []string{"tools/list", "tools/call"},
+									"description": "RPC method name",
 								},
 								"params": map[string]any{
 									"type":        "object",
-									"description": "Method parameters (required for tools/call, optional for tools/list)",
+									"description": "Method parameters",
 								},
 								"id": map[string]any{
 									"type":        []any{"string", "number", "null"},
-									"description": "Request ID for matching responses",
+									"description": "Request ID (null or omitted for notifications)",
 								},
 							},
 							"required": []string{"jsonrpc", "method"},
-						},
-						"examples": map[string]any{
-							"tools/list": map[string]any{
-								"summary": "List all available tools",
-								"value": map[string]any{
-									"jsonrpc": "2.0",
-									"method":  "tools/list",
-									"id":      1,
-								},
-							},
-							"tools/call": map[string]any{
-								"summary": "Call a tool",
-								"value": map[string]any{
-									"jsonrpc": "2.0",
-									"method":  "tools/call",
-									"params": map[string]any{
-										"name":      "get-user-by-id",
-										"arguments": map[string]any{"userId": "123"},
-									},
-									"id": 1,
-								},
-							},
 						},
 					},
 				},
 			},
 			"responses": map[string]any{
 				"200": map[string]any{
-					"description": "JSON-RPC 2.0 response",
+					"description": "JSON-RPC response (for requests with ID)",
 					"content": map[string]any{
 						"application/json": map[string]any{
 							"schema": map[string]any{
 								"type": "object",
-								"properties": map[string]any{
-									"jsonrpc": map[string]any{
-										"type":        "string",
-										"description": "JSON-RPC version",
-									},
-									"result": map[string]any{
-										"type":        "object",
-										"description": "Method result (present on success)",
-									},
-									"error": map[string]any{
-										"type":        "object",
-										"description": "Error object (present on failure)",
-										"properties": map[string]any{
-											"code": map[string]any{
-												"type":        "integer",
-												"description": "Error code",
-											},
-											"message": map[string]any{
-												"type":        "string",
-												"description": "Error message",
-											},
-										},
-									},
-									"id": map[string]any{
-										"type":        []any{"string", "number", "null"},
-										"description": "Request ID matching the request",
-									},
-								},
 							},
 						},
 					},
+				},
+				"202": map[string]any{
+					"description": "Accepted (for notifications without ID)",
+				},
+			},
+		},
+		"get": map[string]any{
+			"summary":     "MCP Streamable HTTP - Server-initiated messages",
+			"description": "Model Context Protocol Streamable HTTP endpoint for receiving server-initiated JSON-RPC notifications and requests via SSE. Requires Accept: text/event-stream header.",
+			"operationId": "mcpSSEStream",
+			"parameters": []map[string]any{
+				{
+					"name":        "Accept",
+					"in":          "header",
+					"required":    true,
+					"description": "Must be 'text/event-stream'",
+					"schema": map[string]any{
+						"type":    "string",
+						"enum":    []string{"text/event-stream"},
+						"default": "text/event-stream",
+					},
+				},
+			},
+			"responses": map[string]any{
+				"200": map[string]any{
+					"description": "SSE stream established",
+					"content": map[string]any{
+						"text/event-stream": map[string]any{
+							"schema": map[string]any{
+								"type":        "string",
+								"description": "Server-Sent Events stream",
+							},
+						},
+					},
+				},
+				"405": map[string]any{
+					"description": "Method not allowed (SSE not supported or missing Accept header)",
 				},
 			},
 		},

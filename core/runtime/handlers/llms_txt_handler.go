@@ -36,7 +36,9 @@ func GenerateLLMDocumentation(model *hyperterse.Model, baseURL string) string {
 	}
 
 	sb.WriteString("#### Utility Endpoints\n\n")
-	sb.WriteString("- **POST** `/mcp` - MCP JSON-RPC 2.0 endpoint (supports `tools/list` and `tools/call` methods)\n")
+	sb.WriteString("- **POST** `/mcp` - MCP Streamable HTTP endpoint for JSON-RPC 2.0 requests (requires `MCP-Protocol-Version` header)\n")
+	sb.WriteString("- **GET** `/mcp` - MCP Streamable HTTP endpoint for receiving server-initiated messages via SSE (requires `Accept: text/event-stream` header)\n")
+	sb.WriteString("- **DELETE** `/mcp` - MCP Streamable HTTP endpoint for session termination (requires `Mcp-Session-Id` header)\n")
 	sb.WriteString("- **GET** `/llms.txt` - This documentation\n")
 	sb.WriteString("- **GET** `/docs` - OpenAPI 3.0 specification\n\n")
 
@@ -173,17 +175,19 @@ func GenerateLLMDocumentation(model *hyperterse.Model, baseURL string) string {
 		sb.WriteString("```\n\n")
 	}
 
-	sb.WriteString("### Using MCP Protocol (JSON-RPC 2.0)\n\n")
-	sb.WriteString("The MCP protocol uses JSON-RPC 2.0 messages over HTTP POST. All requests go to `/mcp`.\n\n")
+	sb.WriteString("### Using MCP Protocol (Streamable HTTP Transport)\n\n")
+	sb.WriteString("The MCP protocol uses Streamable HTTP transport for JSON-RPC 2.0 messages.\n")
+	sb.WriteString("Client sends JSON-RPC requests via POST to `/mcp`, server responds with JSON or SSE stream.\n")
+	sb.WriteString("Server-initiated messages are received via GET request to `/mcp` (SSE stream).\n\n")
 	sb.WriteString("```bash\n")
-	sb.WriteString("# List all tools (tools/list method)\n")
+	sb.WriteString("# Send initialize request\n")
 	sb.WriteString("curl -X POST http://localhost:8080/mcp \\\n")
 	sb.WriteString("  -H \"Content-Type: application/json\" \\\n")
-	sb.WriteString("  -d '{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}'\n\n")
-	sb.WriteString("# Execute a tool (tools/call method)\n")
-	sb.WriteString("curl -X POST http://localhost:8080/mcp \\\n")
-	sb.WriteString("  -H \"Content-Type: application/json\" \\\n")
-	sb.WriteString("  -d '{\"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"params\": {\"name\": \"get-user-by-id\", \"arguments\": {\"userId\": \"123\"}}, \"id\": 1}'\n")
+	sb.WriteString("  -H \"MCP-Protocol-Version: 2025-03-26\" \\\n")
+	sb.WriteString("  -H \"Accept: application/json, text/event-stream\" \\\n")
+	sb.WriteString("  -d '{\"jsonrpc\": \"2.0\", \"method\": \"initialize\", \"params\": {\"protocolVersion\": \"2025-03-26\", \"capabilities\": {}, \"clientInfo\": {\"name\": \"client\", \"version\": \"1.0.0\"}}, \"id\": 1}'\n\n")
+	sb.WriteString("# Open SSE stream for server-initiated messages\n")
+	sb.WriteString("curl -N -H \"Accept: text/event-stream\" http://localhost:8080/mcp\n")
 	sb.WriteString("```\n\n")
 
 	return sb.String()
