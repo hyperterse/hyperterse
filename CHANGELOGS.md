@@ -1,3 +1,38 @@
+# v1.0.0-beta.3
+
+Timestamp: 2026-01-18 21:00:06 UTC
+
+🚀 **MCP Protocol Enhancement: Streamable HTTP Support**
+
+This release enhances the MCP (Model Context Protocol) implementation with full Streamable HTTP transport support, replacing the deprecated SSE-only transport and providing a more robust, standards-compliant interface for AI integrations.
+
+## ✨ Features & Enhancements
+
+### MCP Streamable HTTP Transport
+
+- **Modern Transport Protocol** — Implemented Streamable HTTP transport for MCP protocol, replacing deprecated SSE-only transport
+- **Dual-Method Support** — POST endpoint for client-initiated JSON-RPC messages, GET endpoint for server-initiated messages via SSE
+- **Protocol Version Support** — Added `MCP-Protocol-Version` header support (defaults to `2025-03-26`, also supports legacy `2024-11-05`)
+- **Session Management** — Implemented `Mcp-Session-Id` header for session tracking across requests
+- **Flexible Response Format** — Server responds with JSON for standard requests or SSE stream when appropriate
+- **CORS Support** — Added comprehensive CORS headers for cross-origin requests
+- **OpenAPI Documentation** — Updated OpenAPI spec to document Streamable HTTP endpoints and headers
+
+### Protocol Improvements
+
+- **JSON-RPC 2.0 Compliance** — Enhanced JSON-RPC error handling with proper error codes and messages
+- **Request Validation** — Improved request parsing and validation with proper error responses
+- **Backward Compatibility** — Maintains support for legacy protocol versions while defaulting to latest
+
+## 🔧 Improvements
+
+- **Documentation** — Updated README and LLM documentation with Streamable HTTP examples and usage instructions
+- **Error Handling** — Enhanced error responses to follow JSON-RPC 2.0 specification
+
+> _This is a beta release of Hyperterse. We welcome feedback and contributions!_
+
+---
+
 # v1.0.0-beta.2
 
 Timestamp: 2026-01-17 21:28:32 UTC
