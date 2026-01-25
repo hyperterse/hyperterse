@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -14,7 +15,28 @@ type MySQLConnector struct {
 }
 
 // NewMySQLConnector creates a new MySQL connector
-func NewMySQLConnector(connectionString string) (*MySQLConnector, error) {
+func NewMySQLConnector(connectionString string, options map[string]string) (*MySQLConnector, error) {
+	// Append all options to connection string if provided
+	if options != nil && len(options) > 0 {
+		// Parse the connection string
+		parsedURL, err := url.Parse(connectionString)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse mysql connection string: %w", err)
+		}
+
+		// Get existing query parameters
+		query := parsedURL.Query()
+
+		// Append all options directly to query parameters
+		for key, value := range options {
+			query.Set(key, value)
+		}
+
+		// Rebuild connection string with updated query parameters
+		parsedURL.RawQuery = query.Encode()
+		connectionString = parsedURL.String()
+	}
+
 	db, err := sql.Open("mysql", connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open mysql connection: %w", err)
@@ -25,10 +47,6 @@ func NewMySQLConnector(connectionString string) (*MySQLConnector, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to ping mysql database: %w", err)
 	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
 
 	return &MySQLConnector{db: db}, nil
 }

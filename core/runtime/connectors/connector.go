@@ -37,13 +37,18 @@ func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 		return nil, fmt.Errorf("adapter '%s': %w", adapter.Name, err)
 	}
 
+	var options map[string]string
+	if adapter.Options != nil {
+		options = adapter.Options.Options
+	}
+
 	switch adapter.Connector {
 	case connectors.Connector_CONNECTOR_POSTGRES:
-		return NewPostgresConnector(connectionString)
+		return NewPostgresConnector(connectionString, options)
 	case connectors.Connector_CONNECTOR_MYSQL:
-		return NewMySQLConnector(connectionString)
+		return NewMySQLConnector(connectionString, options)
 	case connectors.Connector_CONNECTOR_REDIS:
-		return NewRedisConnector(connectionString)
+		return NewRedisConnector(connectionString, adapter.Options)
 	case connectors.Connector_CONNECTOR_UNSPECIFIED:
 		return nil, fmt.Errorf("adapter '%s' has unspecified connector type", adapter.Name)
 	default:

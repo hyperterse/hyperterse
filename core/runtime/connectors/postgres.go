@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -14,7 +16,45 @@ type PostgresConnector struct {
 }
 
 // NewPostgresConnector creates a new PostgreSQL connector
-func NewPostgresConnector(connectionString string) (*PostgresConnector, error) {
+func NewPostgresConnector(connectionString string, options map[string]string) (*PostgresConnector, error) {
+	// Append all options to connection string if provided
+	if options != nil && len(options) > 0 {
+		// Check if connection string is URL format (starts with postgres:// or postgresql://)
+		if strings.HasPrefix(connectionString, "postgres://") || strings.HasPrefix(connectionString, "postgresql://") {
+			// Parse the URL format connection string
+			parsedURL, err := url.Parse(connectionString)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse postgres connection string: %w", err)
+			}
+
+			// Get existing query parameters
+			query := parsedURL.Query()
+
+			// Append all options directly to query parameters
+			for key, value := range options {
+				query.Set(key, value)
+			}
+
+			// Rebuild connection string with updated query parameters
+			parsedURL.RawQuery = query.Encode()
+			connectionString = parsedURL.String()
+		} else {
+			// Handle key-value format connection string (e.g., "host=localhost port=5432 ...")
+			// Append all options as key-value pairs
+			var parts []string
+			for key, value := range options {
+				parts = append(parts, fmt.Sprintf("%s=%s", key, value))
+			}
+			if len(parts) > 0 {
+				// Append to existing connection string
+				if !strings.HasSuffix(connectionString, " ") {
+					connectionString += " "
+				}
+				connectionString += strings.Join(parts, " ")
+			}
+		}
+	}
+
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
@@ -25,10 +65,6 @@ func NewPostgresConnector(connectionString string) (*PostgresConnector, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to ping postgres database: %w", err)
 	}
-
-	// Configure connection pool
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
 
 	return &PostgresConnector{db: db}, nil
 }

@@ -167,7 +167,17 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 								"type":        "object",
 								"description": "Connector-specific options",
 								"additionalProperties": map[string]interface{}{
-									"type": "string",
+									"oneOf": []map[string]interface{}{
+										{
+											"type": "string",
+										},
+										{
+											"type": "boolean",
+										},
+										{
+											"type": "number",
+										},
+									},
 								},
 							},
 						},

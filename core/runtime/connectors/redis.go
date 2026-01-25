@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -14,12 +15,18 @@ type RedisConnector struct {
 }
 
 // NewRedisConnector creates a new Redis connector
-func NewRedisConnector(connectionString string) (*RedisConnector, error) {
+func NewRedisConnector(connectionString string, options *hyperterse.AdapterOptions) (*RedisConnector, error) {
 	// Parse connection string (format: redis://user:password@host:port/db)
 	opt, err := redis.ParseURL(connectionString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse redis connection string: %w", err)
 	}
+
+	// Apply options directly if provided
+	// The Redis client will use the options from the parsed URL,
+	// and any additional options can be applied here if needed
+	// For now, we pass the options object directly without mapping
+	_ = options // options can be used directly if needed in the future
 
 	client := redis.NewClient(opt)
 
