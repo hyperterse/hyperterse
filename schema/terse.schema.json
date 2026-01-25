@@ -20,11 +20,7 @@
             },
             "connector": {
               "description": "Connector type (required)",
-              "enum": [
-                "postgres",
-                "redis",
-                "mysql"
-              ],
+              "enum": ["postgres", "redis", "mysql"],
               "type": "string"
             },
             "options": {
@@ -35,10 +31,7 @@
               "type": "object"
             }
           },
-          "required": [
-            "connector",
-            "connection_string"
-          ],
+          "required": ["connector", "connection_string"],
           "type": "object"
         }
       },
@@ -73,16 +66,85 @@
                         }
                       },
                       "then": {
-                        "required": [
-                          "default"
-                        ]
+                        "required": ["default"]
+                      }
+                    },
+                    {
+                      "if": {
+                        "properties": {
+                          "type": {
+                            "enum": ["string", "datetime"]
+                          }
+                        },
+                        "required": ["type"]
+                      },
+                      "then": {
+                        "properties": {
+                          "default": {
+                            "description": "Default value (required if optional=true)",
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "properties": {
+                          "type": {
+                            "const": "int"
+                          }
+                        },
+                        "required": ["type"]
+                      },
+                      "then": {
+                        "properties": {
+                          "default": {
+                            "description": "Default value (required if optional=true)",
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "properties": {
+                          "type": {
+                            "const": "float"
+                          }
+                        },
+                        "required": ["type"]
+                      },
+                      "then": {
+                        "properties": {
+                          "default": {
+                            "description": "Default value (required if optional=true)",
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "properties": {
+                          "type": {
+                            "const": "boolean"
+                          }
+                        },
+                        "required": ["type"]
+                      },
+                      "then": {
+                        "properties": {
+                          "default": {
+                            "description": "Default value (required if optional=true)",
+                            "type": "boolean"
+                          }
+                        }
                       }
                     }
                   ],
                   "properties": {
                     "default": {
-                      "description": "Default value (required if optional=true, stored as string, parsed at runtime)",
-                      "type": "string"
+                      "description": "Default value (required if optional=true, type depends on input type)"
                     },
                     "description": {
                       "description": "Input description",
@@ -94,19 +156,11 @@
                     },
                     "type": {
                       "description": "Input type (required)",
-                      "enum": [
-                        "string",
-                        "int",
-                        "float",
-                        "boolean",
-                        "datetime"
-                      ],
+                      "enum": ["string", "int", "float", "boolean", "datetime"],
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "type"
-                  ],
+                  "required": ["type"],
                   "type": "object"
                 }
               },
@@ -135,11 +189,7 @@
               ]
             }
           },
-          "required": [
-            "use",
-            "description",
-            "statement"
-          ],
+          "required": ["use", "description", "statement"],
           "type": "object"
         }
       },
@@ -165,10 +215,7 @@
       "type": "object"
     }
   },
-  "required": [
-    "adapters",
-    "queries"
-  ],
+  "required": ["adapters", "queries"],
   "title": "Hyperterse Configuration Schema",
   "type": "object"
 }
