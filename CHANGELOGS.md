@@ -1,3 +1,40 @@
+# v1.0.0-beta.4
+
+Timestamp: 2026-01-25 08:34:13 UTC
+
+🔐 **Security & Configuration Enhancements**
+
+This release introduces environment variable substitution, improves security by parsing environment variables at runtime, and enhances adapter flexibility with raw option passthrough.
+
+## ✨ Features & Enhancements
+
+### Environment Variable Substitution
+
+- **Runtime Variable Support** — Added support for environment variable substitution in configuration files
+- **Security Improvement** — Environment variables are parsed at runtime for better security and are not shipped in export scripts
+- **Flexible Configuration** — Use environment variables in your `.terse` configuration files for sensitive values
+
+### Adapter Improvements
+
+- **Raw Options Passthrough** — Adapters now pass raw options directly to underlying connectors, providing more flexibility and control
+
+### Response & Error Handling
+
+- **Enhanced Response Structure** — Improved response structure and error handling in server routes for better API consistency
+- **Better Error Messages** — More descriptive error responses for improved debugging experience
+
+## 🔧 Improvements
+
+### Validation & Schema
+
+- **Flexible Naming** — Refactored validation patterns in parser and schema to allow names starting with any letter case
+- **Removed UUID References** — Removed UUID references from validation and handler files, updating related comments and schema accordingly
+- **Enhanced Type Descriptions** — Enhanced default value descriptions for various types to clarify requirements in JSON schema
+
+> _This is a beta release of Hyperterse. We welcome feedback and contributions!_
+
+---
+
 # v1.0.0-beta.3
 
 Timestamp: 2026-01-18 21:00:06 UTC
@@ -133,7 +170,6 @@ This release introduces the export command for creating portable deployment scri
 ## 🔧 Improvements
 
 - **Type System** — Modernized internal type system for better maintainability
-
 
 > _This is an alpha release of Hyperterse. We welcome feedback and contributions!_
 
