@@ -329,15 +329,27 @@ func (r *Runtime) registerRoutes() {
 
 		r.mux.HandleFunc(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
 			return func(w http.ResponseWriter, req *http.Request) {
+				// Helper function to return error in documented format
+				writeErrorResponse := func(w http.ResponseWriter, statusCode int, errorMsg string) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(statusCode)
+					responseJSON := map[string]any{
+						"success": false,
+						"error":   errorMsg,
+						"results": []any{},
+					}
+					json.NewEncoder(w).Encode(responseJSON)
+				}
+
 				if req.Method != http.MethodPost {
-					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+					writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 					return
 				}
 
 				// Parse JSON body
 				var requestBody map[string]any
 				if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
-					http.Error(w, "Invalid JSON", http.StatusBadRequest)
+					writeErrorResponse(w, http.StatusBadRequest, "Invalid JSON")
 					return
 				}
 
@@ -355,7 +367,7 @@ func (r *Runtime) registerRoutes() {
 				}
 				resp, err := queryService.ExecuteQuery(req.Context(), connect.NewRequest(reqProto))
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 					return
 				}
 

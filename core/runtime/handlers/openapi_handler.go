@@ -127,6 +127,10 @@ func GenerateOpenAPISpec(model *hyperterse.Model, baseURL string) ([]byte, error
 									"properties": map[string]any{
 										"success": map[string]any{"type": "boolean", "example": false},
 										"error":   map[string]any{"type": "string", "example": "validation error"},
+										"results": map[string]any{
+											"type":    "array",
+											"example": []any{},
+										},
 									},
 								},
 							},
