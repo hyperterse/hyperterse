@@ -1,0 +1,94 @@
+---
+title: Introduction
+description: The interface between production databases and AI agents. Define queries once, get a high-performant engine that is reliable, interpretable, and structured.
+---
+
+import { Card, CardGrid, TabItem, Tabs } from '@astrojs/starlight/components'
+
+# Connect your data to your agents
+
+Hyperterse is a high-performance runtime server that transforms database queries into **REST endpoints** and **MCP tools**. Define queries in a configuration file—Hyperterse handles execution, validation, documentation, and AI integration.
+
+<Tabs>
+  <TabItem label="curl">
+    
+    ```bash 
+    curl -fsSL https://hyperterse.com/install | bash 
+    ```
+
+  </TabItem>
+</Tabs>
+
+## Why Hyperterse?
+
+<CardGrid>
+  <Card title="Agent-ready by design" icon="zap">
+    Connect your data to AI agents through discoverable, callable tools—without
+    exposing SQL, schemas, or credentials.
+    <a href="/concepts">Learn more →</a>
+  </Card>
+  <Card title="Zero-boilerplate APIs" icon="code">
+    Turn queries into production-ready APIs with typed inputs, predictable
+    outputs, and built-in documentation.
+    <a href="/getting-started/quickstart">Get started →</a>
+  </Card>
+  <Card title="Single source of truth" icon="file-text">
+    Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools
+    from one configuration file.
+    <a href="/reference/configuration">View docs →</a>
+  </Card>
+  <Card title="Database independence" icon="database">
+    Work across PostgreSQL, MySQL, and Redis using a consistent, unified
+    interface.
+    <a href="/databases">Explore →</a>
+  </Card>
+</CardGrid>
+
+## How it works
+
+Define your queries once in a simple configuration file:
+
+```yaml title="config.terse"
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: 'postgresql://user:pass@host:5432/db'
+
+queries:
+  get-user:
+    use: production_db
+    description: 'Retrieve a user by email address'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      WHERE email = {{ inputs.email }}
+    inputs:
+      email:
+        type: string
+        description: 'User email address'
+```
+
+Run the server:
+
+```bash
+hyperterse run -f config.terse
+```
+
+Call your query via REST or MCP:
+
+```bash
+curl -X POST http://localhost:8080/query/get-user \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+```
+
+## What's included
+
+| Feature               | Description                             |
+| --------------------- | --------------------------------------- |
+| **REST Endpoints**    | Each query becomes `POST /query/{name}` |
+| **MCP Protocol**      | JSON-RPC 2.0 tools at `POST /mcp`       |
+| **OpenAPI Docs**      | Auto-generated at `GET /docs`           |
+| **LLM Documentation** | AI-friendly docs at `GET /llms.txt`     |
+| **Input Validation**  | Strong typing and validation by default |
+| **Hot Reload**        | Instant feedback during development     |

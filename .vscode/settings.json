@@ -16,6 +16,11 @@
     "editor.defaultFormatter": "golang.go",
     "editor.formatOnSaveMode": "file"
   },
+  "[mdx]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 100
+  },
   "files.exclude": {
     "**/.git": true,
     "**/.hg": true,

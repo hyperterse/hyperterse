@@ -1,0 +1,233 @@
+---
+title: Common issues
+description: Solutions for common Hyperterse problems.
+icon: AlertCircle
+---
+
+## Connection issues
+
+<details>
+<summary><strong>Connection refused</strong></summary>
+**Symptoms:**
+```
+ERROR failed to ping postgres database: connection refused
+```
+
+**Solutions:**
+1. Verify database is running
+2. Check host and port in connection string
+3. Ensure firewall allows connection
+4. Test with database client:
+   ```bash
+   psql -h localhost -U user -d database
+   ```
+</details>
+
+<details>
+<summary><strong>Authentication failed</strong></summary>
+**Symptoms:**
+```
+ERROR password authentication failed for user
+```
+
+**Solutions:**
+1. Verify username and password
+2. Check database user permissions
+3. Ensure pg_hba.conf allows your connection method
+4. Reset password if needed
+</details>
+
+<details>
+<summary><strong>SSL/TLS errors</strong></summary>
+**Symptoms:**
+```
+ERROR SSL is not enabled on the server
+```
+
+**Solutions:**
+- For development: `?sslmode=disable`
+- For production: `?sslmode=require`
+- Verify server SSL configuration
+</details>
+
+<details>
+<summary><strong>Connection timeout</strong></summary>
+**Symptoms:**
+```
+ERROR connection timed out
+```
+
+**Solutions:**
+1. Check network connectivity
+2. Verify firewall rules
+3. Increase timeout: `?connect_timeout=30`
+4. Check if database is overloaded
+</details>
+
+## Validation errors
+
+<details>
+<summary><strong>Required input missing</strong></summary>
+**Symptoms:**
+```json
+{
+  "success": false,
+  "error": "validation error for field 'userId': required input 'userId' is missing"
+}
+```
+
+**Solutions:**
+1. Include all required inputs in request
+2. Check spelling of input names
+3. Verify JSON structure is correct
+</details>
+
+<details>
+<summary><strong>Type mismatch</strong></summary>
+**Symptoms:**
+```json
+{
+  "error": "validation error for field 'userId': expected int, got string"
+}
+```
+
+**Solutions:**
+1. Match input types to schema
+2. Send numbers as numbers, not strings
+3. Use ISO 8601 for datetime
+</details>
+
+<details>
+<summary><strong>Unknown input field</strong></summary>
+**Symptoms:**
+```json
+{
+  "error": "validation error: unknown input field 'extraField' provided"
+}
+```
+
+**Solutions:**
+1. Only send defined inputs
+2. Check for typos
+3. Update query if new input is needed
+</details>
+
+## Configuration errors
+
+<details>
+<summary><strong>Invalid configuration file</strong></summary>
+**Symptoms:**
+```
+ERROR failed to parse configuration
+```
+
+**Solutions:**
+1. Check YAML syntax
+2. Validate required fields (adapters, queries)
+3. Ensure connector types are valid
+4. Use a YAML linter
+</details>
+
+<details>
+<summary><strong>Undefined adapter reference</strong></summary>
+**Symptoms:**
+```
+ERROR query 'get-user' references undefined adapter 'main_db'
+```
+
+**Solutions:**
+1. Check adapter name spelling
+2. Define the adapter before the query
+3. Use consistent naming
+</details>
+
+<details>
+<summary><strong>Missing template variable</strong></summary>
+**Symptoms:**
+```
+ERROR input 'userId' not found for substitution
+```
+
+**Solutions:**
+1. Define input in query's `inputs` section
+2. Check spelling matches exactly
+3. Verify input is defined
+</details>
+
+## Runtime errors
+
+<details>
+<summary><strong>Query execution failed</strong></summary>
+**Symptoms:**
+```json
+{
+  "success": false,
+  "error": "query execution failed"
+}
+```
+
+**Solutions:**
+1. Check SQL syntax
+2. Verify table/column names
+3. Check database logs for details
+4. Test query directly in database
+</details>
+
+<details>
+<summary><strong>Port already in use</strong></summary>
+**Symptoms:**
+```
+ERROR listen tcp :8080: bind: address already in use
+```
+
+**Solutions:**
+1. Use different port: `-p 3000`
+2. Find and stop process using port:
+   ```bash
+   lsof -i :8080
+   kill -9 <PID>
+   ```
+</details>
+
+<details>
+<summary><strong>Permission denied</strong></summary>
+**Symptoms:**
+```
+ERROR permission denied for table users
+```
+
+**Solutions:**
+1. Grant permissions to database user:
+   ```sql
+   GRANT SELECT ON users TO hyperterse;
+   ```
+2. Check row-level security policies
+</details>
+
+## Hot reload issues
+
+<details>
+<summary><strong>Changes not detected</strong></summary>
+**Symptoms:**
+Changes to config file not triggering reload.
+
+**Solutions:**
+1. Ensure using `dev` command, not `run`
+2. Check file is being saved (not just buffer)
+3. Verify watching correct file path
+</details>
+
+<details>
+<summary><strong>Invalid config not rejected</strong></summary>
+**Symptoms:**
+Server reloads with invalid configuration.
+
+**Solutions:**
+In dev mode, invalid configs should be rejected with previous config retained. Check logs for validation errors.
+</details>
+
+## Need more help?
+
+- [Debugging Guide](/troubleshooting/debugging) — Detailed debugging steps
+- [GitHub Issues](https://github.com/hyperterse/hyperterse/issues) — Report bugs
+- [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions) — Ask questions

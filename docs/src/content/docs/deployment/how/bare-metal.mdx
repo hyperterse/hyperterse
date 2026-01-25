@@ -1,0 +1,235 @@
+---
+title: Bare metal
+description: Deploy Hyperterse directly on servers without containers.
+---
+
+import Aside from '@/components/admonition.astro'
+
+## Quick start
+
+### Step 1: Export bundle
+
+```bash
+hyperterse export -f config.terse -o dist
+```
+
+### Step 2: Transfer to server
+
+```bash
+scp -r dist/ user@server:/opt/hyperterse/
+```
+
+### Step 3: Run on server
+
+```bash
+ssh user@server
+cd /opt/hyperterse
+export DATABASE_URL="postgresql://user:pass@localhost:5432/app"
+./hyperterse run -f config.terse
+```
+
+## Systemd service
+
+Run Hyperterse as a system service:
+
+```ini title="/etc/systemd/system/hyperterse.service"
+[Unit]
+Description=Hyperterse Query Gateway
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=hyperterse
+Group=hyperterse
+WorkingDirectory=/opt/hyperterse
+EnvironmentFile=/opt/hyperterse/.env
+ExecStart=/opt/hyperterse/hyperterse run -f /opt/hyperterse/config.terse
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Environment file
+
+```bash title="/opt/hyperterse/.env"
+DATABASE_URL=postgresql://user:pass@localhost:5432/app
+REDIS_URL=redis://localhost:6379/0
+```
+
+### Enable and start
+
+```bash
+# Create user
+sudo useradd -r -s /bin/false hyperterse
+
+# Set permissions
+sudo chown -R hyperterse:hyperterse /opt/hyperterse
+
+# Enable and start
+sudo systemctl enable hyperterse
+sudo systemctl start hyperterse
+
+# Check status
+sudo systemctl status hyperterse
+```
+
+## Process Manager (PM2)
+
+Alternative using PM2 (Node.js process manager):
+
+```bash
+# Install PM2
+npm install -g pm2
+
+# Start Hyperterse
+pm2 start /opt/hyperterse/hyperterse -- run -f /opt/hyperterse/config.terse
+
+# Save configuration
+pm2 save
+pm2 startup
+```
+
+## Nginx reverse proxy
+
+```nginx title="/etc/nginx/sites-available/hyperterse"
+upstream hyperterse {
+    server 127.0.0.1:8080;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://hyperterse;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+    }
+}
+```
+
+Enable:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/hyperterse /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+## SSL with let's encrypt
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d api.example.com
+```
+
+## Logging
+
+### Systemd journal
+
+```bash
+# View logs
+journalctl -u hyperterse -f
+
+# Last 100 lines
+journalctl -u hyperterse -n 100
+
+# Since specific time
+journalctl -u hyperterse --since "1 hour ago"
+```
+
+### Log rotation
+
+```ini title="/etc/logrotate.d/hyperterse"
+/var/log/hyperterse/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 hyperterse hyperterse
+}
+```
+
+## Firewall
+
+### Ufw (ubuntu)
+
+```bash
+# Allow HTTP/HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Block direct access to Hyperterse port
+sudo ufw deny 8080/tcp
+```
+
+### Iptables
+
+```bash
+# Allow from nginx only
+iptables -A INPUT -p tcp --dport 8080 -s 127.0.0.1 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8080 -j DROP
+```
+
+## Monitoring
+
+### Health check script
+
+```bash title="/opt/hyperterse/healthcheck.sh"
+#!/bin/bash
+response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/docs)
+if [ "$response" != "200" ]; then
+    echo "Hyperterse unhealthy: HTTP $response"
+    systemctl restart hyperterse
+fi
+```
+
+Add to cron:
+
+```bash
+* * * * * /opt/hyperterse/healthcheck.sh
+```
+
+## Updates
+
+```bash
+# Stop service
+sudo systemctl stop hyperterse
+
+# Backup current version
+cp /opt/hyperterse/hyperterse /opt/hyperterse/hyperterse.bak
+
+# Deploy new version
+scp dist/hyperterse user@server:/opt/hyperterse/
+
+# Start service
+sudo systemctl start hyperterse
+
+# Verify
+curl http://localhost:8080/docs
+```

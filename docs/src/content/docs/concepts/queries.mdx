@@ -1,0 +1,225 @@
+---
+title: Queries
+description: Define SQL statements that become REST endpoints and MCP tools.
+icon: Code
+---
+
+import Aside from '@/components/admonition.astro'
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+Queries are the heart of Hyperterse. Each query defines a SQL statement that becomes a REST endpoint and MCP tool.
+
+## Defining queries
+
+```yaml title="config.terse"
+queries:
+  get-user-by-id:
+    use: production_db
+    description: 'Retrieve a user by their unique ID'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+        description: 'Unique user identifier'
+```
+
+## Query properties
+
+| Property      | Required | Description                               |
+| ------------- | -------- | ----------------------------------------- |
+| `use`         | Yes      | Adapter name to execute query against     |
+| `description` | Yes      | Human-readable description (used in docs) |
+| `statement`   | Yes      | SQL query with template variables         |
+| `inputs`      | No       | Input parameter definitions               |
+| `data`        | No       | Output schema (for documentation)         |
+
+## How queries become endpoints
+
+Each query automatically generates:
+
+| Endpoint Type | Path/Method                   | Description               |
+| ------------- | ----------------------------- | ------------------------- |
+| REST          | `POST /query/{query-name}`    | Execute query via HTTP    |
+| MCP           | `POST /mcp` with `tools/call` | Execute via MCP protocol  |
+| OpenAPI       | Included in `GET /docs`       | API documentation         |
+| LLM Docs      | Included in `GET /llms.txt`   | AI-friendly documentation |
+
+For a query named `get-user-by-id`:
+
+```bash
+# REST endpoint
+curl -X POST http://localhost:8080/query/get-user-by-id \
+  -H "Content-Type: application/json" \
+  -d '{"userId": 123}'
+
+# MCP endpoint
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "get-user-by-id",
+      "arguments": {"userId": "123"}
+    },
+    "id": 1
+  }'
+```
+
+## Writing statements
+
+Based on the adapter used, you can use all the query language features supported by the database.
+
+### Basic SELECT
+
+```yaml
+queries:
+  list-products:
+    use: main_db
+    description: 'List all products'
+    statement: |
+      SELECT id, name, price, stock
+      FROM products
+      ORDER BY name ASC
+```
+
+### Parameterized queries
+
+Use `{{ inputs.fieldName }}` to inject validated inputs:
+
+```yaml
+queries:
+  search-products:
+    use: main_db
+    description: 'Search products by category and price range'
+    statement: |
+      SELECT id, name, price, category
+      FROM products
+      WHERE category = {{ inputs.category }}
+        AND price >= {{ inputs.minPrice }}
+        AND price <= {{ inputs.maxPrice }}
+      ORDER BY price ASC
+    inputs:
+      category:
+        type: string
+        description: 'Product category'
+      minPrice:
+        type: float
+        description: 'Minimum price'
+      maxPrice:
+        type: float
+        description: 'Maximum price'
+```
+
+### Pagination
+
+```yaml
+queries:
+  paginated-users:
+    use: main_db
+    description: 'Get users with pagination'
+    statement: |
+      SELECT id, name, email
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT {{ inputs.limit }}
+      OFFSET {{ inputs.offset }}
+    inputs:
+      limit:
+        type: int
+        optional: true
+        default: '20'
+      offset:
+        type: int
+        optional: true
+        default: '0'
+```
+
+### Aggregations
+
+```yaml
+queries:
+  daily-signups:
+    use: analytics_db
+    description: 'Count user signups by day'
+    statement: |
+      SELECT 
+        DATE(created_at) as signup_date,
+        COUNT(*) as total_signups
+      FROM users
+      WHERE created_at >= {{ inputs.startDate }}
+        AND created_at <= {{ inputs.endDate }}
+      GROUP BY DATE(created_at)
+      ORDER BY signup_date DESC
+    inputs:
+      startDate:
+        type: datetime
+      endDate:
+        type: datetime
+```
+
+## Response format
+
+All queries return a consistent JSON response.
+
+### Success response
+
+```json
+{
+  "success": true,
+  "error": "",
+  "results": [
+    {
+      "id": 1,
+      "name": "Alice",
+      "email": "alice@example.com"
+    }
+  ]
+}
+```
+
+### Error response
+
+```json
+{
+  "success": false,
+  "error": "validation error for field 'userId': required input 'userId' is missing",
+  "results": []
+}
+```
+
+## Query naming conventions
+
+Query names must follow these rules:
+
+- Use `lower-kebab-case` or `lower_snake_case`
+- Start with a letter
+- Contain only letters, numbers, hyphens, and underscores
+
+**Valid names:** `get-user`, `list_products`, `user-signups-by-date`
+
+**Invalid names:** `GetUser`, `123query`, `get user`
+
+<Aside>
+  Choose descriptive names that reflect the action. Names become endpoint paths
+  and MCP tool names, so clarity helps API consumers.
+</Aside>
+
+## Documenting output schema
+
+The optional `data` property documents the response structure:
+
+```yaml
+queries:
+  get-user:
+    use: main_db
+    statement: 'SELECT id, name, email FROM users WHERE id = {{ inputs.userId }}'
+    inputs:
+      userId:
+        type: int
+```
+
+This generates better OpenAPI and LLM documentation. The schema is for documentation only—Hyperterse returns whatever the database returns.

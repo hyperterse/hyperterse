@@ -1,0 +1,72 @@
+---
+import { cva } from "class-variance-authority";
+import { cn } from "../utils/cn";
+
+export enum Admonitions {
+  NOTE = "note",
+  TIP = "tip",
+  DANGER = "danger",
+  INFO = "info",
+  IMPORTANT = "important",
+  CAUTION = "caution",
+}
+
+type Props = {
+  type?: Admonitions;
+  title?: string;
+};
+
+const { type = Admonitions.NOTE, title } = Astro.props;
+
+const className = cva(
+  [
+    "admonition",
+    "relative",
+    "rounded-lg",
+    "p-5",
+    "grid",
+    "grid-flow-row",
+    "gap-2",
+    "my-5",
+  ],
+  {
+    variants: {
+      type: {
+        [Admonitions.NOTE]: ["bg-fg/5", "text-fg"],
+        [Admonitions.TIP]: [
+          "bg-green-500/30",
+          "text-green-950",
+          "dark:text-green-200",
+        ],
+        [Admonitions.INFO]: [
+          "bg-blue-500/30",
+          "text-blue-950",
+          "dark:text-blue-200",
+        ],
+        [Admonitions.IMPORTANT]: [
+          "bg-purple-500/30",
+          "text-purple-950",
+          "dark:text-purple-200",
+        ],
+        [Admonitions.DANGER]: [
+          "bg-red-500/30",
+          "text-red-950",
+          "dark:text-red-200",
+        ],
+        [Admonitions.CAUTION]: [
+          "bg-yellow-500/30",
+          "text-yellow-950",
+          "dark:text-yellow-200",
+        ],
+      },
+    },
+    defaultVariants: {
+      type: Admonitions.NOTE,
+    },
+  },
+);
+---
+
+<aside class={cn(className({ type }))} data-tag={title || type.toUpperCase()}>
+  <slot />
+</aside>

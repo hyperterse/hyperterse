@@ -1,0 +1,184 @@
+---
+title: Adapters
+description: Configure database connections for PostgreSQL, MySQL, and Redis.
+icon: Plug
+---
+
+import Aside from '@/components/admonition.astro'
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+Adapters define database connections. Each adapter specifies a database type, connection string, and optional configuration.
+
+## Defining adapters
+
+<Tabs>
+  <TabItem label="YAML">
+```yaml
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: "postgresql://user:pass@host:5432/dbname"
+    options:
+      max_connections: "10"
+      ssl_mode: "require"
+```
+  </TabItem>
+  <TabItem label="Dsl">
+```text
+adapter production_db {
+  connector: postgres
+  connection_string: "postgresql://user:pass@host:5432/dbname"
+  options: {
+    max_connections: "10"
+    ssl_mode: "require"
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+## Adapter properties
+
+| Property            | Required | Description                                    |
+| ------------------- | -------- | ---------------------------------------------- |
+| `connector`         | Yes      | Database type: `postgres`, `mysql`, or `redis` |
+| `connection_string` | Yes      | Database connection URL                        |
+| `options`           | No       | Connector-specific configuration               |
+
+## Supported connectors
+
+### PostgreSQL
+
+```yaml
+adapters:
+  my_postgres:
+    connector: postgres
+    connection_string: 'postgresql://user:password@host:5432/database'
+    options:
+      max_connections: 10
+      ssl_mode: 'require' # disable, allow, prefer, require, verify-ca, verify-full
+      connect_timeout: 10 # seconds
+```
+
+**Connection String Format:**
+
+```
+postgresql://[user]:[password]@[host]:[port]/[database]?[params]
+```
+
+### MySQL
+
+```yaml
+adapters:
+  my_mysql:
+    connector: mysql
+    connection_string: 'user:password@tcp(host:3306)/database'
+    options:
+      max_connections: 10
+      charset: 'utf8mb4'
+```
+
+**Connection String Format:**
+
+```
+[user]:[password]@tcp([host]:[port])/[database]?[params]
+```
+
+### Redis
+
+```yaml
+adapters:
+  my_redis:
+    connector: redis
+    connection_string: 'redis://[:password@]host:6379/db'
+    options:
+      pool_size: 10
+```
+
+**Connection String Format:**
+
+```
+redis://[:password@]host:port/db
+```
+
+## Multiple adapters
+
+You can define multiple adapters for different databases or purposes:
+
+```yaml
+adapters:
+  # Primary database for user data
+  users_db:
+    connector: postgres
+    connection_string: 'postgresql://user:pass@users-db:5432/users'
+
+  # Analytics database (read replica)
+  analytics_db:
+    connector: postgres
+    connection_string: 'postgresql://readonly:pass@analytics-db:5432/analytics'
+
+  # Redis for caching
+  cache:
+    connector: redis
+    connection_string: 'redis://cache:6379/0'
+```
+
+Queries reference adapters by name:
+
+```yaml
+queries:
+  get-user:
+    use: users_db # Uses the users_db adapter
+    statement: 'SELECT * FROM users WHERE id = {{ inputs.id }}'
+    # ...
+
+  get-analytics:
+    use: analytics_db # Uses the analytics_db adapter
+    statement: 'SELECT * FROM events WHERE date = {{ inputs.date }}'
+    # ...
+```
+
+## Environment variables
+
+<Aside type="caution">
+  Never hardcode credentials in configuration files. Use environment variables
+  in production.
+</Aside>
+
+Reference environment variables in connection strings:
+
+```yaml
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: '${DATABASE_URL}'
+```
+
+Or construct from multiple variables:
+
+```yaml
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: 'postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}'
+```
+
+## Naming conventions
+
+Adapter names must follow these rules:
+
+- Use `lower-kebab-case` or `lower_snake_case`
+- Start with a letter
+- Contain only letters, numbers, hyphens, and underscores
+
+**Valid names:** `main_db`, `users-db`, `analytics_replica`
+
+**Invalid names:** `MainDB`, `123db`, `my db`
+
+## Connection security
+
+See the [Security](/security) section for best practices on:
+
+- Protecting connection strings
+- Using SSL/TLS connections
+- Network security considerations

@@ -1,0 +1,98 @@
+---
+title: Railway
+description: Deploy Hyperterse to Railway with one click.
+---
+
+import Aside from '@/components/admonition.astro'
+
+Railway is one of the easiest ways to deploy Hyperterse.
+
+<Aside>
+  **First**: Run `hyperterse export -f config.terse -o dist` to create a
+  deployment bundle.
+</Aside>
+
+## Quick deploy
+
+### Step 1: Create dockerfile
+
+```dockerfile title="Dockerfile"
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates
+WORKDIR /app
+COPY dist/hyperterse /app/hyperterse
+COPY dist/config.terse /app/config.terse
+RUN chmod +x /app/hyperterse
+EXPOSE 8080
+CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
+```
+
+### Step 2: Push to GitHub
+
+```bash
+git add .
+git commit -m "Add Hyperterse deployment"
+git push
+```
+
+### Step 3: Deploy on Railway
+
+1. Go to [railway.app](https://railway.app)
+2. Click "New Project" → "Deploy from GitHub repo"
+3. Select your repository
+4. Railway auto-detects Dockerfile and deploys
+
+### Step 3: Add environment variables
+
+In Railway dashboard:
+
+- Add `DATABASE_URL` with your database connection string
+- Or connect a Railway PostgreSQL database
+
+## Railway PostgreSQL
+
+Add a PostgreSQL database directly in Railway:
+
+1. Click "New" → "Database" → "Add PostgreSQL"
+2. Railway provides `DATABASE_URL` automatically
+3. Link to your Hyperterse service
+
+## Configuration
+
+Railway automatically:
+
+- Assigns a public URL
+- Provides SSL
+- Handles restarts
+- Streams logs
+
+## Environment variables
+
+```bash
+# Via Railway CLI
+railway variables set DATABASE_URL="postgresql://..."
+
+# Or in dashboard
+# Settings → variables
+```
+
+## Custom domain
+
+1. Add domain in Railway dashboard
+2. Configure DNS CNAME to Railway's domain
+3. SSL is automatic
+
+## Scaling
+
+Railway supports horizontal scaling:
+
+- Adjust replica count in dashboard
+- Configure health checks
+
+## Logs
+
+```bash
+railway logs
+```
+
+Or view in Railway dashboard.

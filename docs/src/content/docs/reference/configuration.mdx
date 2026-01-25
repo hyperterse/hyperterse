@@ -1,0 +1,281 @@
+---
+title: Configuration reference
+description: Complete reference for Hyperterse configuration files.
+icon: Settings
+---
+
+import Aside from '@/components/admonition.astro'
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+Hyperterse supports YAML-like `.terse` configuration file.
+
+## Server configuration
+
+Configure the runtime server. All fields are optional.
+
+```yaml
+server:
+  port: '8080'
+  log_level: 3
+```
+
+| Field     | Type  | Default | Description      |
+| --------- | ----- | :-----: | ---------------- |
+| port      | `int` |  8080   | HTTP server port |
+| log_level | `int` |    3    | Log verbosity    |
+
+There are 4 log levels:
+
+| Value | Level | Description                    |
+| :---: | :---: | ------------------------------ |
+|   1   | ERROR | Only errors                    |
+|   2   | WARN  | Warnings and errors            |
+|   3   | INFO  | General information (default)  |
+|   4   | DEBUG | Detailed debugging information |
+
+<Aside>
+  CLI flags override config file values. See [CLI Reference](/reference/cli) for
+  priority order.
+</Aside>
+
+## Adapters
+
+Adapters define database connections.
+
+```yaml
+adapters:
+  adapter_name:
+    connector: postgres
+    connection_string: 'postgresql://user:pass@host:5432/db'
+    options:
+      key: 'value'
+```
+
+### Required fields
+
+| Field               | Type   | Description                                    |
+| ------------------- | ------ | ---------------------------------------------- |
+| `connector`         | string | Database type: `postgres`, `mysql`, or `redis` |
+| `connection_string` | string | Database connection URL                        |
+
+### Optional fields
+
+| Field     | Type | Description                          |
+| --------- | ---- | ------------------------------------ |
+| `options` | map  | Connector-specific key-value options |
+
+### Connector options
+
+#### PostgreSQL
+
+| Option            | Description                                                                   |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `max_connections` | Maximum connection pool size                                                  |
+| `ssl_mode`        | SSL mode: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
+| `connect_timeout` | Connection timeout in seconds                                                 |
+
+#### MySQL
+
+| Option            | Description                     |
+| ----------------- | ------------------------------- |
+| `max_connections` | Maximum connection pool size    |
+| `charset`         | Character set (e.g., `utf8mb4`) |
+
+#### Redis
+
+| Option      | Description          |
+| ----------- | -------------------- |
+| `pool_size` | Connection pool size |
+
+### Environment variables
+
+Use `${VAR}` syntax to reference environment variables:
+
+```yaml
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: '${DATABASE_URL}'
+```
+
+## Queries
+
+Queries define SQL statements that become API endpoints.
+
+```yaml
+queries:
+  query-name:
+    use: adapter_name
+    description: 'Human-readable description'
+    statement: |
+      SELECT * FROM table WHERE id = {{ inputs.id }}
+    inputs:
+      id:
+        type: int
+        description: 'Record ID'
+```
+
+### Required fields
+
+| Field         | Type   | Description                                         |
+| ------------- | ------ | --------------------------------------------------- |
+| `use`         | string | Adapter name for query execution                    |
+| `description` | string | Human-readable description (used in generated docs) |
+| `statement`   | string | SQL query with template variables                   |
+
+### Optional fields
+
+| Field    | Type | Description                 |
+| -------- | ---- | --------------------------- |
+| `inputs` | map  | Input parameter definitions |
+
+## Inputs
+
+Define typed parameters for queries.
+
+```yaml
+inputs:
+  field_name:
+    type: string
+    description: 'Field description'
+    optional: true
+    default: 'default_value'
+```
+
+### Required fields
+
+| Field       |   Type   | Description                 |
+| ----------- | :------: | --------------------------- |
+| type        | `string` | Data type (see types below) |
+| description | `string` | Human-readable description  |
+
+### Optional fields
+
+| Field    |    Type     | Default | Description                          |
+| -------- | :---------: | :-----: | ------------------------------------ |
+| optional |  `boolean`  | `false` | Whether input is optional            |
+| default  | `Primitive` |         | Default value (required if optional) |
+
+### Primitive types
+
+| Type       | Description           | JSON Example             |
+| ---------- | --------------------- | ------------------------ |
+| `string`   | Text values           | `"hello world"`          |
+| `int`      | 64-bit integers       | `42`                     |
+| `float`    | 64-bit floating point | `3.14`                   |
+| `boolean`  | True/false            | `true`                   |
+| `uuid`     | UUID strings          | `"550e8400-e29b-..."`    |
+| `datetime` | ISO 8601 / RFC3339    | `"2024-01-15T10:30:00Z"` |
+
+## Template variables
+
+Use `{{ inputs.fieldName }}` to inject input values into SQL statements.
+
+```yaml
+statement: |
+  SELECT * FROM users
+  WHERE email = {{ inputs.email }}
+    AND role = {{ inputs.role }}
+  LIMIT {{ inputs.limit }}
+```
+
+### Rules
+
+- All referenced inputs must be defined in the `inputs` section
+- Values are escaped and formatted based on their type
+- String values are quoted automatically
+
+## Naming conventions
+
+### Adapter names
+
+- Use `lower-kebab-case` or `lower_snake_case`
+- Must start with a letter
+- Valid: `main_db`, `users-db`, `analytics_replica`
+- Invalid: `MainDB`, `123db`, `my db`
+
+### Query names
+
+- Use `lower-kebab-case` or `lower_snake_case`
+- Must start with a letter
+- Becomes the endpoint path: `/query/{query-name}`
+- Valid: `get-user`, `list_products`, `user-signups`
+- Invalid: `GetUser`, `123query`
+
+## Validation rules
+
+Hyperterse validates configuration on startup:
+
+| Rule                    | Description                                        |
+| ----------------------- | -------------------------------------------------- |
+| At least one adapter    | Configuration must define at least one adapter     |
+| At least one query      | Configuration must define at least one query       |
+| Unique adapter names    | No duplicate adapter names                         |
+| Unique query names      | No duplicate query names                           |
+| Valid adapter reference | Query `use` must reference a defined adapter       |
+| Defined inputs          | All `{{ inputs.x }}` in statements must be defined |
+| Optional defaults       | Optional inputs must have default values           |
+| Valid types             | All types must be valid primitives                 |
+
+## Complete example
+
+```yaml
+server:
+  port: '8080'
+  log_level: 3
+
+adapters:
+  main_db:
+    connector: postgres
+    connection_string: '${DATABASE_URL}'
+    options:
+      max_connections: '10'
+      ssl_mode: 'require'
+
+  cache:
+    connector: redis
+    connection_string: 'redis://localhost:6379/0'
+
+queries:
+  list-users:
+    use: main_db
+    description: 'List users with pagination'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT {{ inputs.limit }}
+      OFFSET {{ inputs.offset }}
+    inputs:
+      limit:
+        type: int
+        description: 'Maximum results'
+        optional: true
+        default: '20'
+      offset:
+        type: int
+        description: 'Results to skip'
+        optional: true
+        default: '0'
+    data:
+      id:
+        type: int
+      name:
+        type: string
+      email:
+        type: string
+      created_at:
+        type: datetime
+
+  get-user-by-id:
+    use: main_db
+    description: 'Get a single user by ID'
+    statement: |
+      SELECT id, name, email, role, created_at
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+        description: 'User ID'
+```

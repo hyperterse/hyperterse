@@ -1,0 +1,177 @@
+/* IBM Plex Mono - Clean, modern monospace by IBM */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700;900&display=swap');
+
+/* Inter - Geometric, minimal sans-serif for headings */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;950&display=swap');
+
+@layer base, starlight, theme, components, utilities;
+
+@import '@astrojs/starlight-tailwind';
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Theme configuration */
+@theme {
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-sans: 'Inter', ui-sans-serif, sans-serif;
+
+  /* Clean minimal palette */
+  --color-bg: #141414;
+  --color-surface: #0c0c0c;
+  --color-border: #262626;
+
+  --color-fg: #fafafa;
+  --color-dim: #a1a1a1;
+  --color-muted: #666666;
+
+  --color-accent: #fafafa;
+  --color-primary: #86efac;
+  --color-secondary: #0d4a36;
+}
+
+/* Starlight theme overrides - use --color-bg for header and sidebar */
+:root {
+  --sl-color-bg-nav: var(--color-bg);
+  --sl-color-bg-sidebar: var(--color-bg);
+  --sl-color-text-accent: var(--color-primary);
+}
+
+/* Base styles */
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* Headings use sans-serif */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  @apply font-extrabold;
+  @apply leading-tight tracking-tighter;
+}
+
+strong {
+  font-weight: 900;
+}
+
+/*
+Add additional Tailwind styles to this file:
+https://tailwindcss.com/docs/adding-custom-styles#using-custom-css
+*/
+/* Selection */
+::selection {
+  @apply text-bg bg-fg;
+}
+
+.expressive-code {
+  @apply my-4;
+
+  figure.frame {
+    @apply shadow-none border-none;
+  }
+}
+
+header.header {
+  border-bottom: 0.5px solid var(--color-border);
+}
+
+blockquote {
+  @apply relative pl-4 my-5 italic;
+
+  &:before {
+    content: '';
+    @apply absolute top-0 bottom-0 left-0 w-1 rounded-lg bg-fg/50;
+  }
+}
+
+aside.admonition {
+  &:before {
+    content: attr(data-tag);
+    @apply px-3 py-1 text-xs font-bold rounded-md justify-self-start bg-fg/10 -ml-1.5 -mt-1.5;
+  }
+
+  > p:first-of-type {
+    @apply mt-0;
+  }
+
+  > p:last-of-type {
+    @apply mb-0;
+  }
+}
+
+code:not(.expressive-code pre > code) {
+  @apply py-0.5
+    px-2
+    rounded-lg
+    text-[0.85em]
+    bg-fg/10
+    whitespace-pre;
+}
+
+a[aria-current='page'] {
+  @apply text-primary bg-transparent;
+}
+
+starlight-tabs {
+  @apply bg-fg/5 p-2 rounded-lg;
+}
+
+.tablist-wrapper {
+  & > ul {
+    border-bottom: 0;
+
+    & > li.tab > a {
+      box-shadow: none;
+      @apply text-sm font-normal;
+
+      &[aria-selected='true'] {
+        @apply bg-primary/10 rounded-lg text-primary font-normal;
+      }
+    }
+  }
+}
+
+/* a:not([aria-current='page']) {
+  @apply text-dim;
+} */
+
+/* span.group-label > span.large {
+  @apply text-dim;
+} */
+
+table {
+  @apply table w-full rounded-lg overflow-hidden;
+
+  & thead {
+    @apply bg-dim/20;
+  }
+
+  & tbody {
+    @apply bg-dim/5;
+  }
+
+  tr:nth-child(even) {
+    @apply bg-surface/20;
+  }
+
+  tr > td,
+  th {
+    border: 0;
+    @apply px-4 py-2 border-r border-dim/10;
+  }
+}
+
+a {
+  text-decoration: none;
+}

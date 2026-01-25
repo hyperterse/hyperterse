@@ -1,0 +1,106 @@
+---
+title: DigitalOcean
+description: Deploy Hyperterse to DigitalOcean.
+---
+
+import Aside from '@/components/admonition.astro'
+
+<Aside>
+  **First**: Run `hyperterse export -f config.terse -o dist` to create a
+  deployment bundle.
+</Aside>
+
+## App platform (recommended)
+
+### Step 1: Create dockerfile
+
+```dockerfile title="Dockerfile"
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates
+WORKDIR /app
+COPY dist/hyperterse /app/hyperterse
+COPY dist/config.terse /app/config.terse
+RUN chmod +x /app/hyperterse
+EXPOSE 8080
+CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
+```
+
+### Step 2: Push to GitHub
+
+```bash
+git add .
+git commit -m "Add Hyperterse"
+git push
+```
+
+### Step 3: Deploy
+
+1. Go to DigitalOcean → Apps
+2. Create App → GitHub
+3. Select repository
+4. Configure as "Dockerfile" component
+5. Set HTTP port to 8080
+
+### Step 3: Add environment variables
+
+In App settings:
+
+- Add `DATABASE_URL` secret
+
+## Managed database
+
+Use DigitalOcean Managed Databases:
+
+1. Create PostgreSQL or MySQL database
+2. Get connection string from dashboard
+3. Add as encrypted environment variable
+4. Whitelist App Platform in database firewall
+
+## Droplet deployment
+
+For more control, use a Droplet:
+
+```bash
+# Ssh to droplet
+ssh root@your-droplet
+
+# Transfer files
+scp -r dist/ root@your-droplet:/opt/hyperterse/
+
+# Setup systemd service
+# See bare-metal guide for details
+```
+
+## Container registry
+
+Use DigitalOcean Container Registry:
+
+```bash
+# Configure Docker
+doctl registry login
+
+# Push image
+docker tag hyperterse registry.digitalocean.com/your-registry/hyperterse
+docker push registry.digitalocean.com/your-registry/hyperterse
+```
+
+## Load balancer
+
+App Platform includes load balancing. For Droplets:
+
+1. Create Load Balancer
+2. Add Droplets to backend
+3. Configure health check: `GET /docs`
+4. Add SSL certificate
+
+## Scaling
+
+App Platform:
+
+- Adjust instance count in settings
+- Configure auto-scaling rules
+
+Droplets:
+
+- Create multiple Droplets
+- Add to Load Balancer

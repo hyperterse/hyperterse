@@ -1,0 +1,88 @@
+---
+title: Installation
+description: Install Hyperterse on Linux, macOS, or Windows with a single command.
+icon: Download
+sidebar:
+  order: 1
+---
+
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+Hyperterse is a CLI tool for creating database APIs. Choose your preferred installation method below.
+
+## Quick install
+
+<Tabs>
+  <TabItem label="curl">
+```bash
+curl -fsSL https://hyperterse.com/install | bash
+```
+
+This script automatically detects your operating system and architecture, downloads Hyperterse, and installs it to `/usr/local/bin`.
+
+  </TabItem>
+  <TabItem label="npm">
+```bash
+npm install -g hyperterse
+```
+
+Installs Hyperterse globally via npm. Requires Node.js 18 or later.
+
+  </TabItem>
+  <TabItem label="bun">
+```bash
+bun add -g hyperterse
+```
+
+Installs Hyperterse globally via Bun package manager.
+
+  </TabItem>
+  <TabItem label="Homebrew">
+```bash
+brew install hyperterse/tap/hyperterse
+```
+
+Installs via Homebrew on macOS or Linux.
+
+  </TabItem>
+</Tabs>
+
+## Supported platforms
+
+| Operating System | Architecture          | Status       |
+| ---------------- | --------------------- | ------------ |
+| Linux            | amd64, arm64, arm     | ✅ Supported |
+| macOS            | Intel (amd64)         | ✅ Supported |
+| macOS            | Apple Silicon (arm64) | ✅ Supported |
+| Windows          | amd64, arm64          | ✅ Supported |
+
+## Verify installation
+
+After installation, verify that Hyperterse is available:
+
+```bash
+hyperterse --version
+```
+
+You should see output like:
+
+```
+hyperterse v1.0.0
+```
+
+## Manual installation
+
+If you prefer to install manually or need a specific version:
+
+### Download from releases
+
+1. Visit the [GitHub Releases](https://github.com/hyperterse/hyperterse/releases) page
+2. Download the package for your platform
+3. Extract and move to a directory in your `PATH`
+
+```bash
+# Example for Linux amd64
+wget https://github.com/hyperterse/hyperterse/releases/latest/download/hyperterse-linux-amd64.tar.gz
+tar -xzf hyperterse-linux-amd64.tar.gz
+sudo mv hyperterse /usr/local/bin/
+```

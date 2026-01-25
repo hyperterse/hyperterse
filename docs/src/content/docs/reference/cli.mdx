@@ -1,0 +1,236 @@
+---
+title: Cli reference
+description: Complete command-line interface reference for Hyperterse.
+icon: Terminal
+---
+
+import Aside from '@/components/admonition.astro'
+
+Hyperterse provides a simple command-line interface for running the server, development, and generating artifacts.
+
+## Global flags
+
+These flags are available for all commands:
+
+| Flag        | Short | Description                                            |
+| ----------- | ----- | ------------------------------------------------------ |
+| `--file`    | `-f`  | Path to configuration file (`.terse` or `.hyperterse`) |
+| `--help`    | `-h`  | Show help for any command                              |
+| `--version` |       | Show version information                               |
+
+## Commands
+
+### `Hyperterse Run`
+
+Run the Hyperterse server in production mode.
+
+```bash
+hyperterse run -f config.terse
+# Or simply
+hyperterse -f config.terse
+```
+
+**Flags:**
+
+| Flag          | Short | Default | Description                                      |
+| ------------- | ----- | ------- | ------------------------------------------------ |
+| `--port`      | `-p`  | `8080`  | Server port (overrides config file and PORT env) |
+| `--log-level` |       | `3`     | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG      |
+| `--verbose`   | `-v`  |         | Enable verbose logging (sets log level to DEBUG) |
+
+**Examples:**
+
+```bash
+# Run on custom port
+hyperterse run -f config.terse -p 3000
+
+# Run with verbose logging
+hyperterse run -f config.terse -v
+
+# Run with specific log level
+hyperterse run -f config.terse --log-level 4
+```
+
+**Priority Order:**
+
+Server settings are applied in this order (highest to lowest):
+
+1. CLI flags (`-p`, `--log-level`, `-v`)
+2. Config file (`server.port`, `server.log_level`)
+3. Environment variables (`PORT`)
+4. Defaults (`8080`, `INFO`)
+
+---
+
+### `Hyperterse dev`
+
+Run the server in development mode with hot reload.
+
+```bash
+hyperterse dev -f config.terse
+```
+
+The server watches your configuration file and automatically reloads when changes are detected. This is ideal for local development.
+
+**Flags:**
+
+Same as `run` command.
+
+**Features:**
+
+- Watches configuration file for changes
+- 500ms debounce delay for rapid saves
+- Graceful reload without downtime
+- Validates configuration before applying changes
+
+<Aside>
+  In development mode, invalid configuration changes are rejected and the
+  previous valid configuration remains active.
+</Aside>
+
+---
+
+### `Hyperterse init`
+
+Initialize a new Hyperterse configuration file.
+
+```bash
+hyperterse init
+```
+
+Creates a `config.terse` file in the current directory with a basic template.
+
+---
+
+### `Hyperterse upgrade`
+
+Upgrade Hyperterse to the latest version.
+
+```bash
+hyperterse upgrade
+```
+
+Downloads and installs the latest version of Hyperterse.
+
+---
+
+### `Hyperterse export`
+
+Export a self-contained deployment bundle.
+
+```bash
+hyperterse export -f config.terse -o dist
+```
+
+Creates a distribution directory containing everything needed to run Hyperterse without the CLI. This is the **recommended first step for any deployment**.
+
+**Flags:**
+
+| Flag       | Short | Default | Description                     |
+| ---------- | ----- | ------- | ------------------------------- |
+| `--output` | `-o`  | `dist`  | Output directory for the bundle |
+
+**Output Contents:**
+
+- `hyperterse` — Self-contained bash script
+- `config.terse` — Configuration file (credentials stripped)
+- `README.md` — Deployment instructions
+
+<Aside type="caution">
+  Always use `hyperterse export` before deploying. The exported bundle is
+  optimized for production and doesn't require the Hyperterse CLI to be
+  installed.
+</Aside>
+
+---
+
+### `Hyperterse generate LLMs`
+
+Generate an `llms.txt` documentation file for AI/LLM consumption.
+
+```bash
+hyperterse generate llms -f config.terse
+hyperterse generate llms -f config.terse -o docs/llms.txt --base-url https://api.example.com
+```
+
+**Flags:**
+
+| Flag         | Short | Default                 | Description                |
+| ------------ | ----- | ----------------------- | -------------------------- |
+| `--output`   | `-o`  | `llms.txt`              | Output file path           |
+| `--base-url` |       | `http://localhost:8080` | Base URL for API endpoints |
+
+The generated file contains markdown documentation optimized for AI consumption, including:
+
+- Query descriptions
+- Input schemas
+- Example requests
+- Usage patterns
+
+---
+
+### `Hyperterse generate skills`
+
+Generate an Agent Skills archive (`.zip`) for AI platforms.
+
+```bash
+hyperterse generate skills -f config.terse
+hyperterse generate skills -f config.terse -o my-skill.zip --name my-data-api
+```
+
+**Flags:**
+
+| Flag       | Short | Default                | Description      |
+| ---------- | ----- | ---------------------- | ---------------- |
+| `--output` | `-o`  | `skill.zip`            | Output file path |
+| `--name`   |       | (from config filename) | Skill name       |
+
+The archive contains everything needed to register Hyperterse queries as AI agent skills.
+
+---
+
+## Environment variables
+
+| Variable       | Description                           |
+| -------------- | ------------------------------------- |
+| `PORT`         | Default server port (lowest priority) |
+| `DATABASE_URL` | Common pattern for connection strings |
+
+Use environment variables in configuration files:
+
+```yaml
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: '${DATABASE_URL}'
+```
+
+---
+
+## Exit codes
+
+| Code | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| `0`  | Success                                                  |
+| `1`  | General error (invalid config, connection failure, etc.) |
+
+---
+
+## Log levels
+
+Control logging verbosity with `--log-level` or `-v`:
+
+| Level | Name  | Description                    |
+| ----- | ----- | ------------------------------ |
+| `1`   | ERROR | Only errors                    |
+| `2`   | WARN  | Warnings and errors            |
+| `3`   | INFO  | General information (default)  |
+| `4`   | DEBUG | Detailed debugging information |
+
+```bash
+# Set specific level
+hyperterse run -f config.terse --log-level 4
+
+# Shortcut for DEBUG level
+hyperterse run -f config.terse -v
+```

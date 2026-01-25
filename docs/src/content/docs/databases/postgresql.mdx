@@ -1,0 +1,249 @@
+---
+title: PostgreSQL
+description: Configure and use PostgreSQL with Hyperterse.
+sidebar:
+  order: 2
+---
+
+import Aside from '@/components/admonition.astro'
+
+PostgreSQL is fully supported in Hyperterse with connection pooling, SSL/TLS, and all standard SQL features.
+
+## Defining a PostgreSQL adapter
+
+```yaml
+adapters:
+  my_postgres:
+    connector: postgres
+    connection_string: 'postgresql://user:password@host:5432/database'
+```
+
+## Adapter options
+
+You can configure connection options like `max_connections`, `ssl_mode`, and `connect_timeout`:
+
+```yaml
+adapters:
+  production_db:
+    connector: postgres
+    connection_string: 'postgresql://user:pass@host:5432/db'
+    options:
+      max_connections: 10
+      ssl_mode: 'require'
+      connect_timeout: 10
+```
+
+For a complete list of connector options and SSL modes, see the [PostgreSQL connection documentation](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS).
+
+<Aside type="caution">
+  Use `require` or stricter SSL modes in production. Never use `disable` with
+  cloud databases.
+</Aside>
+
+## Setup guide
+
+### Step 1: Create your database
+
+```sql
+CREATE DATABASE myapp;
+CREATE USER hyperterse WITH PASSWORD 'secure_password';
+GRANT CONNECT ON DATABASE myapp TO hyperterse;
+```
+
+### Step 2: Grant permissions
+
+Grant only the permissions Hyperterse needs:
+
+```sql
+-- Read-only access
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO hyperterse;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO hyperterse;
+
+-- Or specific tables
+GRANT SELECT ON users, products, orders TO hyperterse;
+
+-- For future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO hyperterse;
+```
+
+### Step 3: Configure Hyperterse
+
+```yaml
+adapters:
+  main_db:
+    connector: postgres
+    connection_string: 'postgresql://hyperterse:secure_password@localhost:5432/myapp'
+    options:
+      ssl_mode: 'prefer'
+```
+
+### Step 4: Test connection
+
+```bash
+hyperterse dev -f config.terse
+```
+
+Look for:
+
+```
+INFO  Connected to adapter: main_db
+```
+
+## Query examples
+
+### Basic queries
+
+```yaml
+queries:
+  list-users:
+    use: main_db
+    description: 'List all users'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT 100
+```
+
+### Parameterized queries
+
+```yaml
+queries:
+  get-user-by-id:
+    use: main_db
+    description: 'Get user by ID'
+    statement: |
+      SELECT id, name, email, role
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+        description: 'User ID'
+```
+
+### JSON operations
+
+```yaml
+queries:
+  get-user-preferences:
+    use: main_db
+    description: 'Get user preferences'
+    statement: |
+      SELECT id, preferences->>'theme' as theme
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+```
+
+### Date range queries
+
+```yaml
+queries:
+  events-in-range:
+    use: main_db
+    description: 'Get events in date range'
+    statement: |
+      SELECT *
+      FROM events
+      WHERE created_at >= {{ inputs.startDate }}::timestamp
+        AND created_at <= {{ inputs.endDate }}::timestamp
+      ORDER BY created_at DESC
+    inputs:
+      startDate:
+        type: datetime
+        description: 'Start date (ISO 8601)'
+      endDate:
+        type: datetime
+        description: 'End date (ISO 8601)'
+```
+
+### Full-text search
+
+```yaml
+queries:
+  search-products:
+    use: main_db
+    description: 'Full-text search products'
+    statement: |
+      SELECT id, name, description
+      FROM products
+      WHERE to_tsvector('english', name || ' ' || description) 
+            @@ plainto_tsquery('english', {{ inputs.query }})
+      LIMIT 20
+    inputs:
+      query:
+        type: string
+        description: 'Search query'
+```
+
+## Performance tips
+
+### Use read replicas
+
+```yaml
+adapters:
+  primary:
+    connector: postgres
+    connection_string: '${PRIMARY_DB_URL}'
+
+  replica:
+    connector: postgres
+    connection_string: '${REPLICA_DB_URL}'
+
+queries:
+  # Write operations use primary
+  create-order:
+    use: primary
+    statement: 'INSERT INTO orders ...'
+
+  # Read operations use replica
+  list-orders:
+    use: replica
+    statement: 'SELECT * FROM orders ...'
+```
+
+### Optimize queries
+
+- Add indexes for frequently filtered columns
+- Use `LIMIT` to control result size
+- Avoid `SELECT *` — specify columns
+
+### Connection pooling
+
+Tune `max_connections` based on workload:
+
+```yaml
+options:
+  max_connections: '20' # Increase for high concurrency
+```
+
+## Common issues
+
+### Connection refused
+
+Check that PostgreSQL is running and accessible:
+
+```bash
+psql -h localhost -U user -d database
+```
+
+### SSL certificate error
+
+For self-signed certificates:
+
+```yaml
+connection_string: 'postgresql://user:pass@host:5432/db?sslmode=require'
+```
+
+For full verification, ensure the CA certificate is installed.
+
+### Permission denied
+
+Grant necessary permissions:
+
+```sql
+GRANT SELECT ON table_name TO hyperterse;
+```

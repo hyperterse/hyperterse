@@ -1,0 +1,79 @@
+---
+title: Azure
+description: Deploy Hyperterse to Microsoft Azure.
+---
+
+import Aside from '@/components/admonition.astro'
+
+<Aside>
+  **First**: Run `hyperterse export -f config.terse -o dist` to create a
+  deployment bundle.
+</Aside>
+
+## Azure container apps (recommended)
+
+### Step 1: Create container registry
+
+```bash
+az acr create --name hyperterseregistry --resource-group mygroup --sku Basic
+az acr login --name hyperterseregistry
+```
+
+### Step 2: Push image
+
+```bash
+docker build -t hyperterseregistry.azurecr.io/hyperterse .
+docker push hyperterseregistry.azurecr.io/hyperterse
+```
+
+### Step 3: Create container app
+
+```bash
+az containerapp create \
+  --name hyperterse \
+  --resource-group mygroup \
+  --environment my-environment \
+  --image hyperterseregistry.azurecr.io/hyperterse \
+  --target-port 8080 \
+  --ingress external \
+  --secrets database-url=keyvault:hyperterse-vault/DATABASE-URL \
+  --env-vars DATABASE_URL=secretref:database-url
+```
+
+## Key vault
+
+Store secrets:
+
+```bash
+# Create key vault
+az keyvault create --name hyperterse-vault --resource-group mygroup
+
+# Add secret
+az keyvault secret set \
+  --vault-name hyperterse-vault \
+  --name DATABASE-URL \
+  --value "postgresql://user:pass@host:5432/db"
+```
+
+## Azure database
+
+Use Azure Database for PostgreSQL/MySQL:
+
+1. Create database in same region
+2. Configure private endpoint or VNet integration
+3. Allow access from Container Apps
+
+## AKS
+
+See [Kubernetes](/deployment/how/kubernetes) guide. For AKS:
+
+```bash
+# Create cluster
+az aks create \
+  --resource-group mygroup \
+  --name hyperterse-cluster \
+  --node-count 3
+
+# Get credentials
+az aks get-credentials --resource-group mygroup --name hyperterse-cluster
+```

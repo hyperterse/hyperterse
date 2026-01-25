@@ -1,0 +1,95 @@
+---
+title: Cloudflare
+description: Deploy Hyperterse with Cloudflare.
+---
+
+import Aside from '@/components/admonition.astro'
+
+Use Cloudflare for edge caching and protection in front of your Hyperterse deployment.
+
+<Aside type="caution">
+  Hyperterse requires a persistent server to run. The `hyperterse export`
+  command produces a bash script that cannot run directly on Cloudflare Workers.
+  Deploy Hyperterse on another platform and use Cloudflare as a CDN/proxy.
+</Aside>
+
+## Architecture
+
+```
+┌──────────┐      ┌─────────────┐      ┌─────────────┐      ┌──────────┐
+│  Client  │─────▶│ Cloudflare  │─────▶│ Hyperterse  │─────▶│ Database │
+│          │      │ (Proxy/CDN) │      │ (Origin)    │      │          │
+└──────────┘      └─────────────┘      └─────────────┘      └──────────┘
+```
+
+## Cloudflare tunnel
+
+Connect Hyperterse without exposing ports:
+
+```bash
+# Install cloudflared
+brew install cloudflare/cloudflare/cloudflared
+
+# Authenticate
+cloudflared tunnel login
+
+# Create tunnel
+cloudflared tunnel create hyperterse
+
+# Configure
+cat > ~/.cloudflared/config.yml << EOF
+tunnel: <tunnel-id>
+credentials-file: /path/to/credentials.json
+
+ingress:
+  - hostname: api.example.com
+    service: http://localhost:8080
+  - service: http_status:404
+EOF
+
+# Run tunnel
+cloudflared tunnel run hyperterse
+```
+
+## Dns setup
+
+1. Add your domain to Cloudflare
+2. Create CNAME record pointing to your tunnel
+3. Enable proxy (orange cloud)
+
+## Caching
+
+Configure caching rules for read-heavy endpoints:
+
+```js
+// Page Rules or Transform Rules
+// Cache GET /llms.txt for 1 hour
+// Don't cache POST endpoints
+```
+
+## Rate limiting
+
+Configure rate limiting in Cloudflare dashboard:
+
+- Path: `/query/*`
+- Rate: 100 requests per minute per IP
+- Action: Block or challenge
+
+## Security
+
+Enable Cloudflare security features:
+
+- WAF rules
+- Bot management
+- DDoS protection
+- SSL/TLS (Full Strict mode)
+
+## First: export
+
+Remember to export before deploying your origin:
+
+```bash
+hyperterse export -f config.terse -o dist
+```
+
+Then deploy to your origin server (see other deployment guides).

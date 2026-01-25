@@ -1,0 +1,274 @@
+---
+title: Production hardening
+description: Security checklist and best practices for production Hyperterse deployments.
+---
+
+import Aside from '@/components/admonition.astro'
+
+## Security checklist
+
+Before going to production, verify:
+
+- [ ] Environment variables for all credentials
+- [ ] SSL/TLS enabled for database connections
+- [ ] Database user has minimal permissions
+- [ ] Hyperterse behind reverse proxy with TLS
+- [ ] Authentication configured at proxy level
+- [ ] Rate limiting enabled
+- [ ] Error logging configured (not to clients)
+- [ ] Regular secret rotation process
+
+## Reverse proxy setup
+
+For production environments, place Hyperterse behind a reverse proxy:
+
+```
+┌──────────┐      ┌─────────────┐      ┌─────────────┐      ┌──────────┐
+│  Client  │─────▶│   Nginx/    │─────▶│ Hyperterse  │─────▶│ Database │
+│          │ TLS  │   Caddy     │ HTTP │   :8080     │      │          │
+└──────────┘      └─────────────┘      └─────────────┘      └──────────┘
+                   ▲
+                   │ Handles:
+                   │ - TLS termination
+                   │ - Authentication
+                   │ - Rate limiting
+```
+
+### Nginx example
+
+```nginx
+upstream hyperterse {
+    server 127.0.0.1:8080;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate /etc/ssl/certs/api.crt;
+    ssl_certificate_key /etc/ssl/private/api.key;
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+    limit_req zone=api burst=20 nodelay;
+
+    location / {
+        proxy_pass http://hyperterse;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Caddy example
+
+```text title="Caddyfile"
+api.example.com {
+    reverse_proxy localhost:8080
+
+    rate_limit {
+        zone api {
+            key {remote_host}
+            events 10
+            window 1s
+        }
+    }
+}
+```
+
+## Authentication
+
+Hyperterse doesn't include built-in authentication. Add it at the proxy layer:
+
+### API key authentication (nginx)
+
+```nginx
+location / {
+    # Require API key header
+    if ($http_x_api_key != "your-secret-key") {
+        return 401;
+    }
+    proxy_pass http://hyperterse;
+}
+```
+
+### Jwt authentication
+
+Use an authentication service or API gateway:
+
+```nginx
+location / {
+    auth_request /auth;
+    proxy_pass http://hyperterse;
+}
+
+location = /auth {
+    internal;
+    proxy_pass http://auth-service/validate;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header X-Original-URI $request_uri;
+}
+```
+
+## Rate limiting
+
+Protect against abuse with rate limiting:
+
+### Nginx
+
+```nginx
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+
+location / {
+    limit_req zone=api burst=20 nodelay;
+    limit_req_status 429;
+    proxy_pass http://hyperterse;
+}
+```
+
+### API gateway
+
+If using AWS API Gateway, Azure API Management, or similar:
+
+- Configure throttling at the gateway level
+- Set per-client rate limits
+- Use burst allowances for legitimate traffic spikes
+
+## Logging
+
+Configure appropriate logging:
+
+### Production log level
+
+```bash
+hyperterse run -f config.terse --log-level 2  # WARN level
+```
+
+| Level | Value | Use Case                     |
+| ----- | ----- | ---------------------------- |
+| ERROR | 1     | Minimal logging, only errors |
+| WARN  | 2     | Recommended for production   |
+| INFO  | 3     | Development                  |
+| DEBUG | 4     | Debugging only               |
+
+<Aside type="caution">
+  Avoid using DEBUG level in production environments as it may expose sensitive
+  request data.
+</Aside>
+
+### Log aggregation
+
+Send logs to a centralized system:
+
+```bash
+hyperterse run -f config.terse 2>&1 | tee -a /var/log/hyperterse.log
+```
+
+Or use Docker logging drivers:
+
+```bash
+docker run -d \
+  --log-driver=awslogs \
+  --log-opt awslogs-group=hyperterse \
+  hyperterse run -f config.terse
+```
+
+## Monitoring
+
+### Health checks
+
+Implement health checks for load balancers:
+
+```bash
+# Basic connectivity check
+curl -f http://localhost:8080/docs > /dev/null
+```
+
+### Metrics
+
+Monitor key metrics:
+
+- Request latency (p50, p95, p99)
+- Error rate
+- Database connection pool usage
+- Memory and CPU usage
+
+## Input validation notes
+
+Hyperterse validates inputs, but design defensively:
+
+### Use specific types
+
+```yaml
+# Good - type validation
+inputs:
+  userId:
+    type: int
+
+# Less safe - accepts any string
+inputs:
+  userId:
+    type: string
+```
+
+### Limit string lengths in queries
+
+```yaml
+statement: |
+  SELECT * FROM products
+  WHERE name LIKE {{ inputs.searchTerm }}
+  LIMIT 50  -- Always limit results
+```
+
+### Avoid dynamic Table/Column names
+
+```yaml
+# Never do this - can't be safely parameterized
+statement: 'SELECT * FROM {{ inputs.tableName }}'
+# Instead, define separate queries per table
+```
+
+## Export for deployment
+
+<Aside>
+  We recommend using `hyperterse export` to ensure a cohesive deployment bundle.
+</Aside>
+
+```bash
+hyperterse export -f config.terse -o dist
+```
+
+The export command:
+
+- Creates a self-contained bundle
+- Optimizes for production
+- Removes development dependencies
+
+## Regular maintenance
+
+### Update regularly
+
+Keep Hyperterse updated:
+
+```bash
+hyperterse upgrade
+```
+
+### Rotate credentials
+
+Schedule regular credential rotation:
+
+1. Update secrets in your secrets manager
+2. Rolling restart Hyperterse instances
+3. Revoke old credentials
+
+### Review query access
+
+Periodically audit:
+
+- Which queries are being called
+- Who is calling them
+- Whether least-privilege is maintained

@@ -1,0 +1,299 @@
+---
+title: Your first configuration
+description: A complete walkthrough of Hyperterse configuration with practical examples.
+icon: FileCode
+sidebar:
+  order: 3
+---
+
+import Aside from '@/components/admonition.astro'
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+This guide walks through building a complete Hyperterse configuration for a typical application—a user management system with authentication and analytics.
+
+## Configuration formats
+
+Hyperterse supports two configuration formats. Choose whichever you prefer:
+
+<Tabs>
+  <TabItem label="YAML (.terse)">
+```yaml title="config.terse"
+adapters:
+  main_db:
+    connector: postgres
+    connection_string: "postgresql://user:pass@localhost:5432/app"
+
+queries:
+get-user:
+use: main_db
+description: "Get user by ID"
+statement: "SELECT \* FROM users WHERE id = {{ inputs.userId }}"
+inputs:
+userId:
+type: int
+description: "User ID"
+
+````
+  </TabItem>
+  <TabItem label="Dsl (.Hyperterse)">
+```text title="config.hyperterse"
+adapter main_db {
+  connector: postgres
+  connection_string: "postgresql://user:pass@localhost:5432/app"
+}
+
+query get-user {
+  use: main_db
+  description: "Get user by ID"
+  statement: "SELECT * FROM users WHERE id = {{ inputs.userId }}"
+  inputs: {
+    userId: {
+      type: int
+      description: "User ID"
+    }
+  }
+}
+````
+
+  </TabItem>
+</Tabs>
+
+## Building a user management API
+
+Let's build a complete configuration for a user management system.
+
+### Step 1: define your adapters
+
+Adapters are database connections. You can define multiple adapters for different databases:
+
+```yaml title="config.terse"
+adapters:
+  # Primary PostgreSQL database
+  main_db:
+    connector: postgres
+    connection_string: 'postgresql://app_user:secret@localhost:5432/myapp'
+    options:
+      max_connections: '10'
+      ssl_mode: 'prefer'
+
+  # Redis for caching
+  cache:
+    connector: redis
+    connection_string: 'redis://localhost:6379/0'
+```
+
+<Aside type="caution">
+  **Security**: Never hardcode connection strings in configuration files. Use
+  environment variables in production: ```yaml connection_string: "$
+  {DATABASE_URL}" ```
+</Aside>
+
+### Step 2: create user queries
+
+Add queries for common user operations:
+
+```yaml title="config.terse"
+queries:
+  # List users with pagination
+  list-users:
+    use: main_db
+    description: 'List all users with pagination'
+    statement: |
+      SELECT id, name, email, role, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT {{ inputs.limit }}
+      OFFSET {{ inputs.offset }}
+    inputs:
+      limit:
+        type: int
+        description: 'Maximum number of results'
+        optional: true
+        default: '20'
+      offset:
+        type: int
+        description: 'Number of results to skip'
+        optional: true
+        default: '0'
+
+  # Get single user by ID
+  get-user-by-id:
+    use: main_db
+    description: 'Retrieve a user by their unique ID'
+    statement: |
+      SELECT id, name, email, role, created_at, updated_at
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+        description: 'Unique user identifier'
+
+  # Search users by email
+  find-user-by-email:
+    use: main_db
+    description: 'Find a user by email address'
+    statement: |
+      SELECT id, name, email, role
+      FROM users
+      WHERE email = {{ inputs.email }}
+    inputs:
+      email:
+        type: string
+        description: 'Email address to search for'
+```
+
+### Step 3: add analytics queries
+
+```yaml title="config.terse"
+queries:
+  # User signup statistics
+  user-signups-by-date:
+    use: main_db
+    description: 'Get user signup counts grouped by date'
+    statement: |
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as signups
+      FROM users
+      WHERE created_at >= {{ inputs.startDate }}
+        AND created_at <= {{ inputs.endDate }}
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    inputs:
+      startDate:
+        type: datetime
+        description: 'Start of date range (ISO 8601)'
+      endDate:
+        type: datetime
+        description: 'End of date range (ISO 8601)'
+
+  # Active users count
+  active-users-count:
+    use: main_db
+    description: 'Count users who logged in within a timeframe'
+    statement: |
+      SELECT COUNT(DISTINCT user_id) as active_users
+      FROM sessions
+      WHERE last_activity > {{ inputs.since }}
+    inputs:
+      since:
+        type: datetime
+        description: 'Count users active since this time'
+```
+
+### Step 4: server configuration (optional)
+
+Configure server settings:
+
+```yaml title="config.terse"
+server:
+  port: '8080'
+  log_level: 3 # 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG
+```
+
+## Complete example
+
+Here's the full configuration file:
+
+```yaml title="config.terse"
+server:
+  port: '8080'
+  log_level: 3
+
+adapters:
+  main_db:
+    connector: postgres
+    connection_string: 'postgresql://app_user:secret@localhost:5432/myapp'
+    options:
+      max_connections: '10'
+
+queries:
+  list-users:
+    use: main_db
+    description: 'List all users with pagination'
+    statement: |
+      SELECT id, name, email, role, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT {{ inputs.limit }}
+      OFFSET {{ inputs.offset }}
+    inputs:
+      limit:
+        type: int
+        optional: true
+        default: '20'
+      offset:
+        type: int
+        optional: true
+        default: '0'
+
+  get-user-by-id:
+    use: main_db
+    description: 'Retrieve a user by their unique ID'
+    statement: |
+      SELECT id, name, email, role, created_at, updated_at
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+        description: 'Unique user identifier'
+
+  find-user-by-email:
+    use: main_db
+    description: 'Find a user by email address'
+    statement: |
+      SELECT id, name, email, role
+      FROM users
+      WHERE email = {{ inputs.email }}
+    inputs:
+      email:
+        type: string
+        description: 'Email address'
+
+  user-signups-by-date:
+    use: main_db
+    description: 'Get user signup counts grouped by date'
+    statement: |
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as signups
+      FROM users
+      WHERE created_at >= {{ inputs.startDate }}
+        AND created_at <= {{ inputs.endDate }}
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    inputs:
+      startDate:
+        type: datetime
+        description: 'Start of date range'
+      endDate:
+        type: datetime
+        description: 'End of date range'
+```
+
+## Run and test
+
+Start the server:
+
+```bash
+hyperterse dev -f config.terse
+```
+
+Test your queries:
+
+```bash
+# List users
+curl -X POST http://localhost:8080/query/list-users \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 10, "offset": 0}'
+
+# Get specific user
+curl -X POST http://localhost:8080/query/get-user-by-id \
+  -H "Content-Type: application/json" \
+  -d '{"userId": 1}'
+
+# View auto-generated documentation
+curl http://localhost:8080/docs
+```

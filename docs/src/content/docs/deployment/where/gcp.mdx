@@ -1,0 +1,99 @@
+---
+title: Google Cloud
+description: Deploy Hyperterse to Google Cloud Platform.
+---
+
+import Aside from '@/components/admonition.astro'
+
+<Aside>
+  **First**: Run `hyperterse export -f config.terse -o dist` to create a
+  deployment bundle.
+</Aside>
+
+## Cloud Run (recommended)
+
+Cloud Run is the simplest option for deploying Hyperterse.
+
+### Step 1: Build and push image
+
+```bash
+# Configure Docker for GCR
+gcloud auth configure-docker
+
+# Build and push
+docker build -t gcr.io/PROJECT_ID/hyperterse .
+docker push gcr.io/PROJECT_ID/hyperterse
+```
+
+### Step 2: Deploy to Cloud Run
+
+```bash
+gcloud run deploy hyperterse \
+  --image gcr.io/PROJECT_ID/hyperterse \
+  --platform managed \
+  --region us-central1 \
+  --port 8080 \
+  --set-secrets DATABASE_URL=hyperterse-db:latest \
+  --allow-unauthenticated
+```
+
+## Secret Manager
+
+Store credentials:
+
+```bash
+# Create secret
+echo -n "postgresql://user:pass@host:5432/db" | \
+  gcloud secrets create hyperterse-db --data-file=-
+
+# Grant access to cloud run service account
+gcloud secrets add-iam-policy-binding hyperterse-db \
+  --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+## Cloud SQL integration
+
+1. Create Cloud SQL instance
+2. Enable Cloud SQL Admin API
+3. Add Cloud SQL connection to Cloud Run:
+
+```bash
+gcloud run services update hyperterse \
+  --add-cloudsql-instances PROJECT:REGION:INSTANCE
+```
+
+Use socket connection:
+
+```
+DATABASE_URL=postgresql://user:pass@/db?host=/cloudsql/PROJECT:REGION:INSTANCE
+```
+
+## GKE
+
+See [Kubernetes](/deployment/how/kubernetes) for manifests. For GKE:
+
+```bash
+# Create cluster
+gcloud container clusters create hyperterse-cluster \
+  --num-nodes=3 \
+  --region=us-central1
+
+# Get credentials
+gcloud container clusters get-credentials hyperterse-cluster
+
+# Deploy using kubectl
+kubectl apply -f deployment.yaml
+```
+
+## Load balancing
+
+Cloud Run automatically provides HTTPS. For GKE:
+
+```bash
+# Create managed certificate
+gcloud compute ssl-certificates create hyperterse-cert \
+  --domains=api.example.com
+
+# Configure ingress with certificate
+```

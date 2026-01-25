@@ -1,0 +1,19 @@
+{
+  "title": "Hyperterse",
+  "root": true,
+  "pages": [
+    "index",
+    "---Getting Started---",
+    "...getting-started",
+    "---Learn---",
+    "concepts",
+    "databases",
+    "guides",
+    "---Build---",
+    "reference",
+    "security",
+    "deployment",
+    "---Help---",
+    "...troubleshooting"
+  ]
+}

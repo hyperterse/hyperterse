@@ -1,0 +1,81 @@
+---
+title: Vercel
+description: Deploy Hyperterse with Vercel.
+---
+
+import Aside from '@/components/admonition.astro'
+
+<Aside type="caution">
+  Hyperterse requires a persistent server to run. The `hyperterse export`
+  command produces a bash script that cannot run on Vercel's serverless
+  infrastructure. For production, deploy Hyperterse on a persistent server and
+  use Vercel as a frontend.
+</Aside>
+
+## Architecture options
+
+### Option 1: external Hyperterse (recommended)
+
+Frontend on Vercel, Hyperterse on another platform:
+
+```
+┌──────────┐      ┌─────────────┐      ┌─────────────┐
+│  Client  │─────▶│   Vercel    │─────▶│ Hyperterse  │
+│          │      │  (Frontend) │ API  │ (Railway/   │
+└──────────┘      └─────────────┘      │  AWS/etc)   │
+                                       └─────────────┘
+```
+
+Configure in `next.config.js`:
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'https://hyperterse.your-domain.com/:path*',
+      },
+    ]
+  },
+}
+```
+
+### Option 2: Docker on Vercel (experimental)
+
+Vercel now supports Docker deployments:
+
+```dockerfile title="Dockerfile"
+FROM alpine:3.19
+RUN apk --no-cache add ca-certificates
+WORKDIR /app
+COPY dist/hyperterse /app/hyperterse
+COPY dist/config.terse /app/config.terse
+RUN chmod +x /app/hyperterse
+EXPOSE 8080
+CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
+```
+
+## Environment variables
+
+Set via Vercel CLI or dashboard:
+
+```bash
+vercel env add DATABASE_URL production
+```
+
+## First: export
+
+```bash
+hyperterse export -f config.terse -o dist
+```
+
+## Recommendation
+
+For the best experience, deploy Hyperterse on:
+
+- [Railway](/deployment/where/railway) — Simple, integrates well with Vercel
+- [AWS](/deployment/where/aws) — Production-grade
+- [Docker](/deployment/how/docker) — Flexible
+
+Then connect from your Vercel frontend.

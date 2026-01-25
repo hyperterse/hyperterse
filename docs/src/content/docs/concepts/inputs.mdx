@@ -1,0 +1,354 @@
+---
+title: Inputs
+description: Define typed parameters and use them in query statements.
+icon: TextCursorInput
+---
+
+import Aside from '@/components/admonition.astro'
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+Inputs are typed parameters that clients provide when calling queries. Hyperterse validates inputs, applies defaults for optional fields, and safely injects them into SQL statements. They serve three purposes:
+
+1. **Validation** — Ensure data types match before execution
+2. **Documentation** — Generate OpenAPI schemas and LLM descriptions
+3. **Security** — Properly escape values to prevent SQL injection
+
+## Defining inputs
+
+<Tabs>
+  <TabItem label="YAML">
+```yaml
+queries:
+  search-users:
+    use: main_db
+    description: "Search users by name and role"
+    statement: |
+      SELECT id, name, email, role
+      FROM users
+      WHERE name LIKE {{ inputs.searchTerm }}
+        AND role = {{ inputs.role }}
+      LIMIT {{ inputs.limit }}
+    inputs:
+      searchTerm:
+        type: string
+        description: "Search term (supports % wildcards)"
+      role:
+        type: string
+        description: "User role to filter by"
+        optional: true
+        default: "user"
+      limit:
+        type: int
+        description: "Maximum results to return"
+        optional: true
+        default: "20"
+```
+  </TabItem>
+  <TabItem label="Dsl">
+```text
+query search-users {
+  use: main_db
+  description: "Search users by name and role"
+  statement: "SELECT id, name FROM users WHERE name LIKE {{ inputs.searchTerm }}"
+  inputs: {
+    searchTerm: {
+      type: string
+      description: "Search term"
+    }
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+## Input properties
+
+| Property      | Required | Description                                      |
+| ------------- | -------- | ------------------------------------------------ |
+| `type`        | Yes      | Data type (see below)                            |
+| `description` | Yes      | Human-readable description                       |
+| `optional`    | No       | Whether the input is optional (default: `false`) |
+| `default`     | No       | Default value for optional inputs                |
+
+## Supported types
+
+| Type       | Description                 | Example Value                            |
+| ---------- | --------------------------- | ---------------------------------------- |
+| `string`   | Text values                 | `"hello world"`                          |
+| `int`      | Integer numbers (64-bit)    | `42`, `-100`                             |
+| `float`    | Floating-point numbers      | `3.14`, `-0.5`                           |
+| `boolean`  | True/false values           | `true`, `false`                          |
+| `uuid`     | UUID strings                | `"550e8400-e29b-41d4-a716-446655440000"` |
+| `datetime` | ISO 8601 datetime (RFC3339) | `"2024-01-15T10:30:00Z"`                 |
+
+## Using inputs in statements
+
+Reference inputs in SQL statements using the template syntax:
+
+```
+{{ inputs.fieldName }}
+```
+
+### Basic usage
+
+```yaml
+statement: |
+  SELECT * FROM users WHERE id = {{ inputs.userId }}
+inputs:
+  userId:
+    type: int
+    description: 'User ID'
+```
+
+When called with `{"userId": 123}`, the statement becomes:
+
+```sql
+SELECT * FROM users WHERE id = 123
+```
+
+### String values
+
+String values are automatically quoted and escaped:
+
+```yaml
+statement: |
+  SELECT * FROM users WHERE email = {{ inputs.email }}
+inputs:
+  email:
+    type: string
+    description: 'Email address'
+```
+
+When called with `{"email": "alice@example.com"}`:
+
+```sql
+SELECT * FROM users WHERE email = 'alice@example.com'
+```
+
+<Aside>
+  Hyperterse automatically escapes single quotes in string values to prevent SQL
+  injection. A value like `O'Brien` becomes `'O''Brien'` in the SQL.
+</Aside>
+
+### Multiple inputs
+
+```yaml
+statement: |
+  SELECT * FROM products
+  WHERE category = {{ inputs.category }}
+    AND price BETWEEN {{ inputs.minPrice }} AND {{ inputs.maxPrice }}
+    AND in_stock = {{ inputs.inStock }}
+  ORDER BY price ASC
+inputs:
+  category:
+    type: string
+    description: 'Product category'
+  minPrice:
+    type: float
+    description: 'Minimum price'
+  maxPrice:
+    type: float
+    description: 'Maximum price'
+  inStock:
+    type: boolean
+    description: 'Only show in-stock items'
+```
+
+### Date/Time values
+
+```yaml
+statement: |
+  SELECT * FROM events
+  WHERE created_at >= {{ inputs.startDate }}
+    AND created_at <= {{ inputs.endDate }}
+inputs:
+  startDate:
+    type: datetime
+    description: 'Start of date range'
+  endDate:
+    type: datetime
+    description: 'End of date range'
+```
+
+Call with ISO 8601 format:
+
+```json
+{
+  "startDate": "2024-01-01T00:00:00Z",
+  "endDate": "2024-01-31T23:59:59Z"
+}
+```
+
+## Optional inputs and defaults
+
+Mark inputs as optional and provide default values:
+
+```yaml
+inputs:
+  limit:
+    type: int
+    description: 'Number of results'
+    optional: true
+    default: '20'
+
+  sortOrder:
+    type: string
+    description: 'Sort direction (asc or desc)'
+    optional: true
+    default: 'desc'
+```
+
+<Aside type="caution">
+  Optional inputs **must** have a default value. The configuration is invalid if
+  `optional: true` is set without a `default`.
+</Aside>
+
+### Optional input examples
+
+```yaml
+queries:
+  list-users:
+    use: main_db
+    description: 'List users with optional pagination'
+    statement: |
+      SELECT id, name, email
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT {{ inputs.limit }}
+      OFFSET {{ inputs.offset }}
+    inputs:
+      limit:
+        type: int
+        description: 'Page size'
+        optional: true
+        default: '20'
+      offset:
+        type: int
+        description: 'Number of items to skip'
+        optional: true
+        default: '0'
+```
+
+This can be called with no inputs:
+
+```bash
+curl -X POST http://localhost:8080/query/list-users \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Or with specific values:
+
+```bash
+curl -X POST http://localhost:8080/query/list-users \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 50, "offset": 100}'
+```
+
+## Validation
+
+Hyperterse validates all inputs before executing queries:
+
+### Type validation
+
+Inputs must match their declared types:
+
+```json
+// Valid for type: int
+{"userId": 123}
+
+// Invalid - string provided for int
+{"userId": "abc"}
+```
+
+### Required input validation
+
+Missing required inputs return an error:
+
+```json
+{
+  "success": false,
+  "error": "validation error for field 'userId': required input 'userId' is missing",
+  "results": []
+}
+```
+
+### Unknown input rejection
+
+Extra inputs not defined in the schema are rejected:
+
+```json
+{
+  "success": false,
+  "error": "validation error: unknown input field 'unknownField' provided",
+  "results": []
+}
+```
+
+## Security considerations
+
+Hyperterse protects against SQL injection through:
+
+1. **Type enforcement** — Only valid types are accepted
+2. **String escaping** — Single quotes are escaped in string values
+3. **Template validation** — All `{{ inputs.x }}` references must be defined
+
+<Aside type="danger">
+Never construct SQL statements by concatenating strings. Always use the `{{ inputs.x }}` template syntax to ensure proper escaping.
+</Aside>
+
+## Best practices
+
+### Descriptive names
+
+Use clear, descriptive input names:
+
+```yaml
+# Good
+inputs:
+  userId:
+    type: int
+  emailAddress:
+    type: string
+  createdAfter:
+    type: datetime
+
+# Less clear
+inputs:
+  id:
+    type: int
+  str:
+    type: string
+  dt:
+    type: datetime
+```
+
+### Helpful descriptions
+
+Write descriptions that help API consumers understand what to provide:
+
+```yaml
+inputs:
+  searchTerm:
+    type: string
+    description: 'Search term to match against user names. Use % as wildcard.'
+  limit:
+    type: int
+    description: 'Maximum number of results (1-100)'
+    optional: true
+    default: '20'
+```
+
+### Sensible defaults
+
+Choose defaults that make sense for most use cases:
+
+```yaml
+inputs:
+  limit:
+    type: int
+    default: '20' # Reasonable page size
+  sortOrder:
+    type: string
+    default: 'desc' # Most recent first
+```

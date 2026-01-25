@@ -1,0 +1,130 @@
+---
+title: AWS
+description: Deploy Hyperterse to Amazon Web Services.
+---
+
+import Aside from '@/components/admonition.astro'
+
+<Aside>
+  **First**: Run `hyperterse export -f config.terse -o dist` to create a
+  deployment bundle.
+</Aside>
+
+## Deployment options
+
+| Option          | Best For                               |
+| --------------- | -------------------------------------- |
+| **ECS Fargate** | Serverless containers, simplest setup  |
+| **EKS**         | Kubernetes workloads, team familiarity |
+| **EC2**         | Full control, custom networking        |
+
+## Ecs fargate
+
+### Step 1: Push image to ECR
+
+```bash
+# Create repository
+aws ecr create-repository --repository-name hyperterse
+
+# Login
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
+
+# Build and push
+docker build -t hyperterse .
+docker tag hyperterse:latest <account>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
+docker push <account>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
+```
+
+### Step 2: Create task definition
+
+```json title="task-definition.json"
+{
+  "family": "hyperterse",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::<account>:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "hyperterse",
+      "image": "<account>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:<account>:secret:prod/hyperterse/db"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/hyperterse",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
+```
+
+### Step 3: Create service
+
+```bash
+aws ecs create-service \
+  --cluster default \
+  --service-name hyperterse \
+  --task-definition hyperterse \
+  --desired-count 2 \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
+```
+
+## Secrets Manager
+
+Store credentials securely:
+
+```bash
+aws secretsmanager create-secret \
+  --name prod/hyperterse/db \
+  --secret-string "postgresql://user:pass@rds-host:5432/app"
+```
+
+Reference in task definition as shown above.
+
+## Rds integration
+
+Use RDS for PostgreSQL/MySQL:
+
+1. Create RDS in same VPC as ECS
+2. Security group allowing ECS → RDS on port 5432/3306
+3. Use RDS endpoint in DATABASE_URL
+
+## Application load balancer
+
+```bash
+# Create target group
+aws elbv2 create-target-group \
+  --name hyperterse \
+  --protocol HTTP \
+  --port 8080 \
+  --vpc-id vpc-xxx \
+  --target-type ip \
+  --health-check-path /docs
+
+# Create ALB and listener
+# ... configure HTTPS with ACM certificate
+```
+
+## Cost optimization
+
+- Use Fargate Spot for non-critical workloads
+- Right-size CPU/memory based on usage
+- Use Application Load Balancer instead of NLB

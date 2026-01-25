@@ -1,0 +1,151 @@
+---
+title: Quick start
+description: Build your first database API in 5 minutes with Hyperterse.
+icon: Zap
+sidebar:
+  order: 2
+---
+
+import Aside from '@/components/admonition.astro'
+import { TabItem, Tabs } from '@astrojs/starlight/components'
+
+This guide will walk you through creating your first Hyperterse API in under 5 minutes. By the end, you'll have a working REST endpoint that queries your database.
+
+<Aside>
+  This tutorial assumes you have [installed
+  Hyperterse](/getting-started/installation) and have access to a PostgreSQL,
+  MySQL, or Redis database.
+</Aside>
+
+## Create your first API
+
+### Step 1: Initialize a configuration
+
+Create a new file called `config.terse` in your project directory:
+
+```yaml title="config.terse"
+adapters:
+  my_database:
+    connector: postgres
+    connection_string: 'postgresql://user:password@localhost:5432/mydb'
+
+queries:
+  get-users:
+    use: my_database
+    description: 'Retrieve all users'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT 100
+```
+
+<Aside type="caution">
+  Replace the connection string with your actual database credentials. Never
+  commit connection strings to version control.
+</Aside>
+
+### Step 2: Start the server
+
+Run Hyperterse in development mode with hot reload:
+
+```bash
+hyperterse dev -f config.terse
+```
+
+You should see output like:
+
+```
+INFO  Starting Hyperterse server
+INFO  Registered query: get-users
+INFO  Server listening on :8080
+```
+
+### Step 3: Call your endpoint
+
+Your query is now available as a REST endpoint. Test it with curl:
+
+```bash
+curl -X POST http://localhost:8080/query/get-users \
+  -H "Content-Type: application/json"
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "error": "",
+  "results": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "created_at": "2024-01-14T09:15:00Z"
+    }
+  ]
+}
+```
+
+## Add input parameters
+
+Let's add a query that accepts parameters:
+
+```yaml title="config.terse"
+queries:
+  get-user-by-email:
+    use: my_database
+    description: 'Find a user by their email address'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      WHERE email = {{ inputs.email }}
+    inputs:
+      email:
+        type: string
+        description: 'The email address to search for'
+```
+
+Now call it with an input:
+
+```bash
+curl -X POST http://localhost:8080/query/get-user-by-email \
+  -H "Content-Type: application/json" \
+  -d '{"email": "alice@example.com"}'
+```
+
+## Explore built-in endpoints
+
+Hyperterse automatically generates documentation and tooling:
+
+| Endpoint             | Description               |
+| -------------------- | ------------------------- |
+| `POST /query/{name}` | Execute a query           |
+| `GET /docs`          | OpenAPI 3.0 specification |
+| `GET /llms.txt`      | AI-friendly documentation |
+| `POST /mcp`          | MCP JSON-RPC 2.0 endpoint |
+
+Try opening `http://localhost:8080/docs` in your browser to see the auto-generated OpenAPI specification.
+
+## What's next?
+
+<Tabs>
+  <TabItem label="Deep dive">
+    Continue to [Your First Configuration](/getting-started/first-configuration)
+    to learn about all configuration options.
+  </TabItem>
+  <TabItem label="Database setup">
+    Check out the [Databases](/databases) section for PostgreSQL, MySQL, and
+    Redis-specific guides.
+  </TabItem>
+  <TabItem label="AI integration">
+    Learn how to connect Hyperterse to AI assistants in the [MCP
+    Protocol](/guides/mcp-protocol) guide.
+  </TabItem>
+</Tabs>

@@ -1,0 +1,276 @@
+---
+title: Kubernetes
+description: Deploy Hyperterse to Kubernetes clusters.
+---
+
+import Aside from '@/components/admonition.astro'
+
+<Aside>**First**: Run `hyperterse export` and build a Docker image.</Aside>
+
+## Prerequisites
+
+1. Kubernetes cluster (local, cloud, or managed)
+2. `kubectl` configured
+3. Docker image in a registry
+
+## Quick start
+
+### Step 1: Build and push image
+
+```bash
+# Export bundle
+hyperterse export -f config.terse -o dist
+
+# Build image
+docker build -t your-registry/hyperterse:latest .
+
+# Push to registry
+docker push your-registry/hyperterse:latest
+```
+
+### Step 2: Create secrets
+
+```bash
+kubectl create secret generic hyperterse-secrets \
+  --from-literal=DATABASE_URL="postgresql://user:pass@db:5432/app"
+```
+
+### Step 3: Deploy
+
+Apply the manifests below.
+
+## Kubernetes manifests
+
+### Deployment
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hyperterse
+  labels:
+    app: hyperterse
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hyperterse
+  template:
+    metadata:
+      labels:
+        app: hyperterse
+    spec:
+      containers:
+        - name: hyperterse
+          image: your-registry/hyperterse:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: hyperterse-secrets
+          resources:
+            requests:
+              memory: '128Mi'
+              cpu: '100m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+```
+
+### Service
+
+```yaml title="service.yaml"
+apiVersion: v1
+kind: Service
+metadata:
+  name: hyperterse
+spec:
+  selector:
+    app: hyperterse
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+```
+
+### Ingress
+
+```yaml title="ingress.yaml"
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hyperterse
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - api.example.com
+      secretName: hyperterse-tls
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hyperterse
+                port:
+                  number: 80
+```
+
+## Apply manifests
+
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+kubectl apply -f ingress.yaml
+```
+
+## Secrets management
+
+### Kubernetes secrets
+
+```yaml title="secrets.yaml"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hyperterse-secrets
+type: Opaque
+stringData:
+  DATABASE_URL: 'postgresql://user:pass@db:5432/app'
+```
+
+### External secrets operator
+
+For production, use External Secrets with AWS Secrets Manager, HashiCorp Vault, etc.:
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: hyperterse-secrets
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: aws-secrets
+  target:
+    name: hyperterse-secrets
+  data:
+    - secretKey: DATABASE_URL
+      remoteRef:
+        key: prod/hyperterse/database-url
+```
+
+## Scaling
+
+### Horizontal pod autoscaler
+
+```yaml title="hpa.yaml"
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hyperterse
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hyperterse
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+```
+
+## Health checks
+
+The deployment includes probes:
+
+- **Liveness**: Restarts unhealthy pods
+- **Readiness**: Removes from load balancing during startup
+
+Both use the `/docs` endpoint which returns the OpenAPI spec.
+
+## Rolling updates
+
+```yaml
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+```
+
+Update image:
+
+```bash
+kubectl set image deployment/hyperterse \
+  hyperterse=your-registry/hyperterse:v1.2.0
+```
+
+## Monitoring
+
+### Prometheus metrics
+
+Add annotations for Prometheus scraping:
+
+```yaml
+template:
+  metadata:
+    annotations:
+      prometheus.io/scrape: 'true'
+      prometheus.io/port: '8080'
+```
+
+## Network policies
+
+Restrict traffic:
+
+```yaml title="network-policy.yaml"
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hyperterse-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: hyperterse
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - port: 5432
+```

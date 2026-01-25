@@ -1,0 +1,303 @@
+---
+title: AI integration
+description: Patterns for integrating Hyperterse with LLMs, RAG systems, and multi-agent architectures.
+---
+
+
+Hyperterse is designed for AI-first applications. This guide covers patterns for LLMs, retrieval-augmented generation (RAG), and multi-agent systems.
+
+## Why Hyperterse for AI?
+
+Traditional database access in AI systems is problematic:
+
+| Challenge | Traditional Approach | Hyperterse Approach |
+|-----------|---------------------|---------------------|
+| SQL exposure | LLM generates raw SQL | LLM calls typed tools |
+| Injection risk | Must sanitize LLM output | Automatic validation |
+| Schema leakage | LLM needs schema knowledge | Tools are self-describing |
+| Credential security | Connection strings in prompts | Fully contained runtime |
+
+## Use cases
+
+<div class="card-grid">
+  <div class="card">
+    <h3>Tool calling</h3>
+    <p>Let LLMs discover and call database queries autonomously.</p>
+  </div>
+  <div class="card">
+    <h3>RAG systems</h3>
+    <p>Use structured queries for reliable context retrieval.</p>
+  </div>
+  <div class="card">
+    <h3>Chatbots</h3>
+    <p>Power conversational interfaces with live data.</p>
+  </div>
+  <div class="card">
+    <h3>Multi-agent</h3>
+    <p>Share consistent data access across agent teams.</p>
+  </div>
+</div>
+
+## Tool calling
+
+LLMs like GPT-4 and Claude support function/tool calling. Hyperterse queries become callable tools via MCP.
+
+### Example: customer support bot
+
+```yaml
+queries:
+  get-customer-orders:
+    use: main_db
+    description: "Get recent orders for a customer. Use when customers ask about their order history."
+    statement: |
+      SELECT id, status, total, created_at
+      FROM orders
+      WHERE customer_email = {{ inputs.email }}
+      ORDER BY created_at DESC
+      LIMIT 10
+    inputs:
+      email:
+        type: string
+        description: "Customer's email address"
+
+  get-order-details:
+    use: main_db
+    description: "Get detailed information about a specific order including items."
+    statement: |
+      SELECT o.*, oi.product_name, oi.quantity, oi.price
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      WHERE o.id = {{ inputs.orderId }}
+    inputs:
+      orderId:
+        type: int
+        description: "Order ID"
+
+  check-product-availability:
+    use: main_db
+    description: "Check if a product is in stock. Use when customers ask about availability."
+    statement: |
+      SELECT id, name, stock_quantity, price
+      FROM products
+      WHERE id = {{ inputs.productId }}
+    inputs:
+      productId:
+        type: int
+```
+
+The AI assistant can now:
+
+1. List available tools via `tools/list`
+2. Understand when to use each tool from descriptions
+3. Call tools with validated inputs
+4. Receive structured results
+
+## Retrieval-augmented generation (RAG)
+
+For RAG systems, Hyperterse provides reliable, structured context retrieval.
+
+### Semantic search setup
+
+```yaml
+queries:
+  search-knowledge-base:
+    use: main_db
+    description: "Semantic search over documentation"
+    statement: |
+      SELECT id, title, content, 
+             1 - (embedding <=> {{ inputs.queryEmbedding }}::vector) as similarity
+      FROM documents
+      ORDER BY embedding <=> {{ inputs.queryEmbedding }}::vector
+      LIMIT {{ inputs.limit }}
+    inputs:
+      queryEmbedding:
+        type: string
+        description: "Query embedding as JSON array"
+      limit:
+        type: int
+        optional: true
+        default: "5"
+```
+
+### Rag pipeline
+
+```python
+# 1. generate embedding for user query
+query_embedding = embed_text(user_query)
+
+# 2. retrieve relevant documents via Hyperterse
+docs = call_hyperterse("search-knowledge-base", {
+    "queryEmbedding": json.dumps(query_embedding),
+    "limit": 5
+})
+
+# 3. build context
+context = "\n\n".join([doc["content"] for doc in docs["results"]])
+
+# 4. generate response with context
+response = llm.complete(f"Context:\n{context}\n\nQuestion: {user_query}")
+```
+
+### Hybrid search
+
+Combine semantic and keyword search:
+
+```yaml
+queries:
+  hybrid-search:
+    use: main_db
+    description: "Combined semantic and keyword search"
+    statement: |
+      SELECT id, title, content,
+        (0.7 * (1 - (embedding <=> {{ inputs.queryEmbedding }}::vector))) +
+        (0.3 * ts_rank(search_vector, plainto_tsquery({{ inputs.keywords }}))) as score
+      FROM documents
+      WHERE search_vector @@ plainto_tsquery({{ inputs.keywords }})
+         OR (embedding <=> {{ inputs.queryEmbedding }}::vector) < 0.5
+      ORDER BY score DESC
+      LIMIT 10
+    inputs:
+      queryEmbedding:
+        type: string
+      keywords:
+        type: string
+```
+
+## Multi-agent systems
+
+In multi-agent architectures, Hyperterse provides a shared data layer:
+
+```
+┌────────────────┐     ┌────────────────┐     ┌────────────────┐
+│  Research Agent│     │  Planning Agent│     │ Execution Agent│
+└───────┬────────┘     └───────┬────────┘     └───────┬────────┘
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               │
+                        ┌──────▼──────┐
+                        │  Hyperterse │
+                        │  (MCP Tools)│
+                        └──────┬──────┘
+                               │
+                        ┌──────▼──────┐
+                        │   Database  │
+                        └─────────────┘
+```
+
+### Example: research + analyst agents
+
+```yaml
+queries:
+  # Research agent queries
+  get-market-data:
+    use: analytics_db
+    description: "Get market data for analysis"
+    statement: "SELECT * FROM market_data WHERE date >= {{ inputs.startDate }}"
+    inputs:
+      startDate:
+        type: datetime
+
+  # Planning agent queries
+  get-portfolio:
+    use: main_db
+    description: "Get current portfolio holdings"
+    statement: "SELECT * FROM portfolio WHERE user_id = {{ inputs.userId }}"
+    inputs:
+      userId:
+        type: int
+
+  # Execution agent queries
+  log-trade:
+    use: main_db
+    description: "Log a trade execution"
+    statement: "INSERT INTO trades (symbol, quantity, price) VALUES ({{ inputs.symbol }}, {{ inputs.qty }}, {{ inputs.price }})"
+    inputs:
+      symbol:
+        type: string
+      qty:
+        type: int
+      price:
+        type: float
+```
+
+## LLM documentation
+
+Generate AI-readable documentation:
+
+```bash
+hyperterse generate llms -f config.terse -o llms.txt --base-url https://api.example.com
+```
+
+Include in system prompts:
+
+```python
+system_prompt = f"""
+You are a helpful assistant with access to a database API.
+
+Available tools:
+{open("llms.txt").read()}
+
+When users ask about data, use these tools to fetch information.
+"""
+```
+
+## Agent skills
+
+Generate agent skill archives:
+
+```bash
+hyperterse generate skills -f config.terse -o my-data-skill.zip
+```
+
+This creates a portable package for AI platforms that support skill imports.
+
+## Best practices
+
+### 1. write AI-Friendly descriptions
+
+```yaml
+# Good - explains when to use
+description: "Search products by category. Use when customers ask about what products are available in a specific category."
+
+# Less helpful
+description: "Get products"
+```
+
+### 2. limit result sizes
+
+```yaml
+# Prevent overwhelming LLM context Windows
+statement: |
+  SELECT * FROM logs
+  ORDER BY created_at DESC
+  LIMIT 100  -- Always limit
+```
+
+### 3. return relevant fields only
+
+```yaml
+# Good - only useful fields
+statement: "SELECT id, name, summary FROM articles WHERE ..."
+
+# Avoid - too much data
+statement: "SELECT * FROM articles WHERE ..."
+```
+
+### 4. group related queries
+
+Organize queries logically so AI can understand the available operations:
+
+```yaml
+queries:
+  # Customer queries
+  get-customer: ...
+  list-customers: ...
+  search-customers: ...
+  
+  # Order queries
+  get-order: ...
+  list-orders: ...
+  get-order-items: ...
+```
+
+
