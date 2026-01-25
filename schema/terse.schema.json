@@ -1,16 +1,16 @@
 {
   "$comment": "Cross-reference validations: (1) The 'use' field in queries must reference valid adapter names defined in 'adapters'. (2) Statement input references ({{ inputs.x }}) must match defined inputs. These validations are performed by core/parser/validator.go. Standard JSON Schema Draft 07 doesn't support dynamic cross-references, but some validators (e.g., AJV with $data) can validate this.",
-  "$id": "https://hyperterse.dev/schema/terse.schema.json",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "JSON schema for Hyperterse .terse configuration files. Matches validations from core/parser/validator.go",
+  "description": "JSON schema for Hyperterse .terse configuration files.",
   "properties": {
     "adapters": {
       "additionalProperties": false,
       "description": "Adapter configurations (required, must have at least one entry)",
       "minProperties": 1,
       "patternProperties": {
-        "^[a-z][a-z0-9_-]*$": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
           "additionalProperties": false,
           "properties": {
             "connection_string": {
@@ -20,18 +20,35 @@
             },
             "connector": {
               "description": "Connector type (required)",
-              "enum": ["postgres", "redis", "mysql"],
+              "enum": [
+                "postgres",
+                "redis",
+                "mysql"
+              ],
               "type": "string"
             },
             "options": {
               "additionalProperties": {
-                "type": "string"
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
               },
               "description": "Connector-specific options",
               "type": "object"
             }
           },
-          "required": ["connector", "connection_string"],
+          "required": [
+            "connector",
+            "connection_string"
+          ],
           "type": "object"
         }
       },
@@ -54,7 +71,7 @@
               "additionalProperties": false,
               "description": "Input parameter definitions",
               "patternProperties": {
-                "^[a-z][a-z0-9_-]*$": {
+                "^[a-zA-Z][a-zA-Z0-9_-]*$": {
                   "additionalProperties": false,
                   "allOf": [
                     {
@@ -66,17 +83,24 @@
                         }
                       },
                       "then": {
-                        "required": ["default"]
+                        "required": [
+                          "default"
+                        ]
                       }
                     },
                     {
                       "if": {
                         "properties": {
                           "type": {
-                            "enum": ["string", "datetime"]
+                            "enum": [
+                              "string",
+                              "datetime"
+                            ]
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -94,7 +118,9 @@
                             "const": "int"
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -112,7 +138,9 @@
                             "const": "float"
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -130,7 +158,9 @@
                             "const": "boolean"
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -156,11 +186,19 @@
                     },
                     "type": {
                       "description": "Input type (required)",
-                      "enum": ["string", "int", "float", "boolean", "datetime"],
+                      "enum": [
+                        "string",
+                        "int",
+                        "float",
+                        "boolean",
+                        "datetime"
+                      ],
                       "type": "string"
                     }
                   },
-                  "required": ["type"],
+                  "required": [
+                    "type"
+                  ],
                   "type": "object"
                 }
               },
@@ -189,7 +227,11 @@
               ]
             }
           },
-          "required": ["use", "description", "statement"],
+          "required": [
+            "use",
+            "description",
+            "statement"
+          ],
           "type": "object"
         }
       },
@@ -215,7 +257,10 @@
       "type": "object"
     }
   },
-  "required": ["adapters", "queries"],
-  "title": "Hyperterse Configuration Schema",
+  "required": [
+    "adapters",
+    "queries"
+  ],
+  "title": "Hyperterse",
   "type": "object"
 }

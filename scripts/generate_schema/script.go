@@ -115,15 +115,17 @@ func convertProtoEnumToString(protoName, enumName string) string {
 // generateJSONSchema creates a JSON schema for .terse files
 // This schema matches the validations in core/parser/validator.go
 func generateJSONSchema(connectorValues, primitiveValues []string) map[string]interface{} {
-	// Name pattern: lower-kebab-case or lower_snake_case
-	// Must start with a letter, followed by lowercase letters, numbers, hyphens, and underscores
-	namePattern := "^[a-z][a-z0-9_-]*$"
+	// Name pattern: allows any casing (camelCase, PascalCase, snake_case, etc.)
+	// Must start with a letter, followed by letters (any case), numbers, hyphens, and underscores
+	namePattern := "^[a-zA-Z][a-zA-Z0-9_-]*$"
+	// Query name pattern: must start with a letter, lowercase only (lower-snake-case or lower-kebab-case)
+	queryNamePattern := "^[a-z][a-z0-9_-]*$"
 
 	schema := map[string]interface{}{
 		"$schema":     "http://json-schema.org/draft-07/schema#",
-		"$id":         "https://hyperterse.dev/schema/terse.schema.json",
-		"title":       "Hyperterse Configuration Schema",
-		"description": "JSON schema for Hyperterse .terse configuration files. Matches validations from core/parser/validator.go",
+		"$id":         "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
+		"title":       "Hyperterse",
+		"description": "JSON schema for Hyperterse .terse configuration files.",
 		"type":        "object",
 		"properties": map[string]interface{}{
 			"server": map[string]interface{}{
@@ -192,7 +194,7 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 				"description":   "Query definitions (required, must have at least one entry)",
 				"minProperties": 1,
 				"patternProperties": map[string]interface{}{
-					namePattern: map[string]interface{}{
+					queryNamePattern: map[string]interface{}{
 						"type": "object",
 						"properties": map[string]interface{}{
 							"use": map[string]interface{}{
@@ -248,8 +250,7 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 												"description": "Whether the input is optional",
 											},
 											"default": map[string]interface{}{
-												"type":        "string",
-												"description": "Default value (required if optional=true, stored as string, parsed at runtime)",
+												"description": "Default value (required if optional=true, type depends on input type)",
 											},
 										},
 										"required": []string{"type"},
@@ -264,6 +265,79 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 												},
 												"then": map[string]interface{}{
 													"required": []string{"default"},
+												},
+											},
+											// Conditional type validation for default based on type
+											{
+												"if": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"type": map[string]interface{}{
+															"enum": []string{"string", "datetime"},
+														},
+													},
+													"required": []string{"type"},
+												},
+												"then": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"default": map[string]interface{}{
+															"description": "Default value (required if optional=true)",
+															"type":        "string",
+														},
+													},
+												},
+											},
+											{
+												"if": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"type": map[string]interface{}{
+															"const": "int",
+														},
+													},
+													"required": []string{"type"},
+												},
+												"then": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"default": map[string]interface{}{
+															"description": "Default value (required if optional=true)",
+															"type":        "integer",
+														},
+													},
+												},
+											},
+											{
+												"if": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"type": map[string]interface{}{
+															"const": "float",
+														},
+													},
+													"required": []string{"type"},
+												},
+												"then": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"default": map[string]interface{}{
+															"description": "Default value (required if optional=true)",
+															"type":        "number",
+														},
+													},
+												},
+											},
+											{
+												"if": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"type": map[string]interface{}{
+															"const": "boolean",
+														},
+													},
+													"required": []string{"type"},
+												},
+												"then": map[string]interface{}{
+													"properties": map[string]interface{}{
+														"default": map[string]interface{}{
+															"description": "Default value (required if optional=true)",
+															"type":        "boolean",
+														},
+													},
 												},
 											},
 										},

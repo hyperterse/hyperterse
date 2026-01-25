@@ -45,8 +45,8 @@ func Validate(model *hyperterse.Model) error {
 
 	// Track adapter names for uniqueness and cross-reference validation
 	adapterNames := make(map[string]bool)
-	// Regex for lower-kebab-case or lower_snake_case: lowercase letters, numbers, hyphens, and underscores only, must start with letter
-	nameRegex := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	// Name pattern: must start with a letter, followed by letters, numbers, hyphens, and underscores
+	namePattern := regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
 	for i, adapter := range model.Adapters {
 		prefix := fmt.Sprintf("adapters[%d]", i)
@@ -59,16 +59,16 @@ func Validate(model *hyperterse.Model) error {
 
 		prefix = adapter.Name
 
+		// 2a. Adapter name must start with a letter
+		if !namePattern.MatchString(adapter.Name) {
+			errors = append(errors, fmt.Sprintf("Adapter '%s' - name is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", adapter.Name))
+		}
+
 		// 2. Adapter name must be unique
 		if adapterNames[adapter.Name] {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' - already defined. Adapters must be unique", adapter.Name))
 		}
 		adapterNames[adapter.Name] = true
-
-		// 2a. Adapter name must be lower-kebab-case or lower_snake_case
-		if !nameRegex.MatchString(adapter.Name) {
-			errors = append(errors, fmt.Sprintf("Adapter '%s' - name is invalid. Must be in lower-kebab-case or lower_snake_case (lowercase letters, numbers, hyphens, and underscores only, must start with a letter)", adapter.Name))
-		}
 
 		// 3. Connector is required and must be one of: postgres, redis, mysql
 		if adapter.Connector == connectors.Connector_CONNECTOR_UNSPECIFIED {
@@ -98,6 +98,8 @@ func Validate(model *hyperterse.Model) error {
 
 	// Track query names for uniqueness
 	queryNames := make(map[string]bool)
+	// Query name pattern: must start with a letter, lowercase only (lower-snake-case or lower-kebab-case)
+	queryNamePattern := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
 	for i, query := range model.Queries {
 		prefix := fmt.Sprintf("queries[%d]", i)
@@ -116,11 +118,10 @@ func Validate(model *hyperterse.Model) error {
 		}
 		queryNames[query.Name] = true
 
-		// 6. Query name must be lower-kebab-case or lower_snake_case
-		if !nameRegex.MatchString(query.Name) {
-			errors = append(errors, fmt.Sprintf("Query '%s' - name is invalid. Must be in lower-kebab-case or lower_snake_case (lowercase letters, numbers, hyphens, and underscores only, must start with a letter)", query.Name))
+		// 6a. Query name must start with a letter and be in lower-snake-case or lower-kebab-case
+		if !queryNamePattern.MatchString(query.Name) {
+			errors = append(errors, fmt.Sprintf("Query '%s' - name is invalid. Must start with a letter and be in lower-snake-case or lower-kebab-case (lowercase letters, numbers, hyphens, and underscores only)", query.Name))
 		}
-
 		// 7. Query use is required and must reference a valid adapter
 		if len(query.Use) == 0 {
 			errors = append(errors, fmt.Sprintf("Query '%s' - use is required", prefix))
@@ -151,6 +152,11 @@ func Validate(model *hyperterse.Model) error {
 			if input.Name == "" {
 				errors = append(errors, fmt.Sprintf("%s.name is required", inputPrefix))
 				continue
+			}
+
+			// Input name must start with a letter
+			if !namePattern.MatchString(input.Name) {
+				errors = append(errors, fmt.Sprintf("%s.name '%s' is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", inputPrefix, input.Name))
 			}
 
 			// Input name must be unique within the query
@@ -203,6 +209,11 @@ func Validate(model *hyperterse.Model) error {
 			}
 
 			dataPrefix = fmt.Sprintf("%s.data.%s", prefix, data.Name)
+
+			// Data name must start with a letter
+			if !namePattern.MatchString(data.Name) {
+				errors = append(errors, fmt.Sprintf("%s.name '%s' is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", dataPrefix, data.Name))
+			}
 
 			// Data name must be unique within the query
 			if dataNames[data.Name] {
