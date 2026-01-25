@@ -6,6 +6,7 @@ import (
 
 	"github.com/hyperterse/hyperterse/core/proto/connectors"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	"github.com/hyperterse/hyperterse/core/runtime/utils"
 )
 
 // Connector defines the interface for database connectors.
@@ -24,12 +25,17 @@ type Connector interface {
 }
 
 // NewConnector creates a new connector based on the adapter configuration
+// Environment variables in connection_string are substituted at runtime (server startup)
 func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 	if adapter.ConnectionString == "" {
 		return nil, fmt.Errorf("adapter '%s' missing connection string", adapter.Name)
 	}
 
-	connectionString := adapter.ConnectionString
+	// Substitute environment variables in connection_string at runtime
+	connectionString, err := utils.SubstituteEnvVars(adapter.ConnectionString)
+	if err != nil {
+		return nil, fmt.Errorf("adapter '%s': %w", adapter.Name, err)
+	}
 
 	switch adapter.Connector {
 	case connectors.Connector_CONNECTOR_POSTGRES:

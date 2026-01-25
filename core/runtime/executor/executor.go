@@ -8,6 +8,7 @@ import (
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor/utils"
+	runtimeutils "github.com/hyperterse/hyperterse/core/runtime/utils"
 )
 
 // Executor executes queries against database connectors
@@ -52,8 +53,14 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 		inputTypeMap[input.Name] = input.Type.String()
 	}
 
+	// Substitute environment variables in statement at runtime (before input substitution)
+	statementWithEnvVars, err := runtimeutils.SubstituteEnvVars(query.Statement)
+	if err != nil {
+		return nil, fmt.Errorf("query '%s': failed to substitute environment variables in statement: %w", queryName, err)
+	}
+
 	// Substitute inputs in statement
-	finalStatement, err := utils.SubstituteInputs(query.Statement, validatedInputs, inputTypeMap)
+	finalStatement, err := utils.SubstituteInputs(statementWithEnvVars, validatedInputs, inputTypeMap)
 	if err != nil {
 		return nil, fmt.Errorf("template substitution failed: %w", err)
 	}

@@ -24,11 +24,6 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 
 	model := &hyperterse.Model{}
 
-	// Perform environment variable substitution on the entire model at once
-	if err := SubstituteEnvVarsInModel(model); err != nil {
-		return nil, err
-	}
-
 	// Parse server configuration
 	if serverRaw, ok := raw["server"].(map[string]any); ok {
 		serverConfig := &hyperterse.ServerConfig{}
@@ -68,14 +63,9 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 				Name: adapterName,
 			}
 			if connectorStr, ok := adapterMap["connector"].(string); ok {
-				// Substitute environment variables before converting to enum (using shared function)
-				substitutedConnector, err := SubstituteEnvVarAndConvertConnector(connectorStr)
+				connectorEnum, err := types.StringToConnectorEnum(connectorStr)
 				if err != nil {
-					return nil, fmt.Errorf("adapter '%s': %w", adapterName, err)
-				}
-				connectorEnum, err := types.StringToConnectorEnum(substitutedConnector)
-				if err != nil {
-					return nil, fmt.Errorf("adapter '%s': invalid connector '%s': %w", adapterName, substitutedConnector, err)
+					return nil, fmt.Errorf("invalid connector '%s' for adapter '%s': %w", connectorStr, adapterName, err)
 				}
 				adapter.Connector = connectorEnum
 			}
