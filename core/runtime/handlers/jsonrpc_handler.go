@@ -63,7 +63,7 @@ func parseDefaultValueForMCP(valueStr, typ string) any {
 		}
 		return valueStr
 	default:
-		// For string types (string, uuid, datetime), return as-is
+		// For string types, return as-is
 		// The value should already be a valid string (quoted or unquoted)
 		// When JSON marshaled, it will be properly quoted
 		return valueStr

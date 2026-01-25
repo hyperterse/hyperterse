@@ -204,8 +204,6 @@ func getExampleValue(typ string) string {
 		return "3.14"
 	case "boolean":
 		return "true"
-	case "uuid":
-		return `"550e8400-e29b-41d4-a716-446655440000"`
 	case "datetime":
 		return `"2024-01-01T00:00:00Z"`
 	default:

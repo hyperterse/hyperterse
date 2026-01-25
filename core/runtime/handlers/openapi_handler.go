@@ -340,7 +340,7 @@ func GenerateOpenAPISpecHandler(model *hyperterse.Model, baseURL string) http.Ha
 // mapProtoTypeToOpenAPIType converts a proto type to OpenAPI type
 func mapProtoTypeToOpenAPIType(protoType string) string {
 	switch protoType {
-	case "string", "uuid", "datetime":
+	case "string", "datetime":
 		return "string"
 	case "int":
 		return "integer"
@@ -364,8 +364,6 @@ func getExampleValueForOpenAPI(typ string) any {
 		return 3.14
 	case "boolean":
 		return true
-	case "uuid":
-		return "550e8400-e29b-41d4-a716-446655440000"
 	case "datetime":
 		return "2024-01-01T00:00:00Z"
 	default:

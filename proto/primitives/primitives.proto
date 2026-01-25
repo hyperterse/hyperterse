@@ -11,7 +11,6 @@ enum Primitive {
   PRIMITIVE_INT = 2; // "int"
   PRIMITIVE_FLOAT = 3; // "float"
   PRIMITIVE_BOOLEAN = 4; // "boolean"
-  PRIMITIVE_UUID = 5; // "uuid"
-  PRIMITIVE_DATETIME = 6; // "datetime"
+  PRIMITIVE_DATETIME = 5; // "datetime"
 }
 

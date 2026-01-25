@@ -99,7 +99,6 @@
                         "int",
                         "float",
                         "boolean",
-                        "uuid",
                         "datetime"
                       ],
                       "type": "string"

@@ -97,8 +97,6 @@ func convertAndValidateValue(value any, expectedType string) (any, error) {
 		return convertToFloat(value)
 	case "boolean":
 		return convertToBoolean(value)
-	case "uuid":
-		return convertToString(value) // UUIDs are validated as strings
 	case "datetime":
 		return convertToDatetime(value)
 	default:
