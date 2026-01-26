@@ -21,7 +21,7 @@ runs:
       id: check_binaries
       shell: bash
       run: |
-        if [ -d "dist" ] && [ "$(ls -A dist/*.tar.gz 2>/dev/null)" ]; then
+        if [ -d "dist" ] && [ "$(ls -A dist/* 2>/dev/null)" ]; then
           echo "found=true" >> $GITHUB_OUTPUT
           echo "✓ Found local binaries"
         else
@@ -39,9 +39,9 @@ runs:
 
         # Download binaries from GitHub release
         for arch in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 linux-arm; do
-          echo "Downloading hyperterse-${arch}.tar.gz..."
-          curl -L -o "hyperterse-${arch}.tar.gz" \
-            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/hyperterse-${arch}.tar.gz" || true
+          echo "Downloading hyperterse-${arch}..."
+          curl -L -o "hyperterse-${arch}" \
+            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/hyperterse-${arch}" || true
         done
 
     - name: Flatten binaries
@@ -94,7 +94,7 @@ runs:
           "${{ steps.sha256.outputs.linux_arm64 }}" \
           "${{ steps.sha256.outputs.linux_arm }}"
 
-    - name: Checkout Homebrew tap
+    - name: Checkout homebrew-tap
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.tap_repo }}
@@ -104,16 +104,16 @@ runs:
     - name: Copy formula to tap
       shell: bash
       run: |
-        mkdir -p homebrew-tap/Formula
-        cp distributions/homebrew/hyperterse.rb homebrew-tap/Formula/hyperterse.rb
+        mkdir -p homebrew-tap
+        cp distributions/homebrew/hyperterse.rb homebrew-tap/hyperterse.rb
 
     - name: Commit and push to tap
       shell: bash
       run: |
         cd homebrew-tap
-        git config user.name "hyperterse-bot"
+        git config user.name "hyperterse"
         git config user.email "bot@hyperterse.com"
-        git add Formula/hyperterse.rb
+        git add hyperterse.rb
         if ! git diff --staged --quiet; then
           git commit -m "Update hyperterse to v${{ inputs.version }}"
           git push
