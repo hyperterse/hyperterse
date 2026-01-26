@@ -1,13 +1,11 @@
 ---
 title: Introduction
-description: The interface between production databases and AI agents. Define queries once, get a high-performant engine that is reliable, interpretable, and structured.
+description: The interface between production databases and AI agents.
 ---
 
 import { Card, CardGrid, TabItem, Tabs } from '@astrojs/starlight/components'
 
-# Connect your data to your agents
-
-Hyperterse is a high-performance runtime server that transforms database queries into **REST endpoints** and **MCP tools**. Define queries in a configuration file—Hyperterse handles execution, validation, documentation, and AI integration.
+Hyperterse is a high-performance runtime server that transforms database queries into **REST endpoints** and **MCP tools**. Define queries in a configuration file and Hyperterse handles execution, validation, documentation, and AI integration.
 
 <Tabs>
   <TabItem label="curl">
@@ -22,22 +20,34 @@ Hyperterse is a high-performance runtime server that transforms database queries
 ## Why Hyperterse?
 
 <CardGrid>
-  <Card title="Agent-ready by design" icon="zap">
+  <Card
+    title="Agent-ready by design"
+    icon="zap"
+  >
     Connect your data to AI agents through discoverable, callable tools—without
     exposing SQL, schemas, or credentials.
     <a href="/concepts">Learn more →</a>
   </Card>
-  <Card title="Zero-boilerplate APIs" icon="code">
+  <Card
+    title="Zero-boilerplate APIs"
+    icon="code"
+  >
     Turn queries into production-ready APIs with typed inputs, predictable
     outputs, and built-in documentation.
     <a href="/getting-started/quickstart">Get started →</a>
   </Card>
-  <Card title="Single source of truth" icon="file-text">
+  <Card
+    title="Single source of truth"
+    icon="file-text"
+  >
     Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools
     from one configuration file.
     <a href="/reference/configuration">View docs →</a>
   </Card>
-  <Card title="Database independence" icon="database">
+  <Card
+    title="Database independence"
+    icon="database"
+  >
     Work across PostgreSQL, MySQL, and Redis using a consistent, unified
     interface.
     <a href="/databases">Explore →</a>
