@@ -1,3 +1,28 @@
+# v1.0.0-beta.5
+
+Timestamp: 2026-01-26 10:23:27 UTC
+
+📦 **Multi-Package Manager Support & Documentation**
+
+This release adds support for distributing Hyperterse through multiple package managers (NPM and Homebrew), improves the release workflow, and consolidates documentation into the main repository.
+
+## ✨ Enhancements
+
+### Package Manager Support
+
+- **NPM Package** — New NPM package for easy installation via `npm install -g hyperterse`
+- **Homebrew Tap** — Official Homebrew formula available at `hyperterse/tap` for macOS and Linux users
+- **Automatic Binary Detection** — Both package managers automatically detect platform and architecture to download the correct binary
+
+### Documentation
+
+- **Consolidated Docs** — Moved documentation into the main repository for easier maintenance and contribution
+- **Improved Styling** — Enhanced documentation with content updates and subtle design changes
+
+> _This is a beta release of Hyperterse. We welcome feedback and contributions!_
+
+---
+
 # v1.0.0-beta.4
 
 Timestamp: 2026-01-25 08:34:13 UTC
