@@ -33,5 +33,3 @@ runs:
       run: |
         cd distributions/npm
         npm publish --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.token }}
