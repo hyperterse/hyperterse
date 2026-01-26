@@ -1,0 +1,122 @@
+name: 'Publish to Homebrew'
+description: 'Publish formula to Homebrew tap repository'
+inputs:
+  version:
+    description: 'Version to publish'
+    required: true
+  token:
+    description: 'GitHub token for accessing tap repository'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Download release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-binaries
+        path: dist
+      continue-on-error: true
+
+    - name: Check if binaries exist locally
+      id: check_binaries
+      shell: bash
+      run: |
+        if [ -d "dist" ] && [ "$(ls -A dist/*.tar.gz 2>/dev/null)" ]; then
+          echo "found=true" >> $GITHUB_OUTPUT
+          echo "✓ Found local binaries"
+        else
+          echo "found=false" >> $GITHUB_OUTPUT
+          echo "⚠️ No local binaries found, will download from release"
+        fi
+
+    - name: Download binaries from release
+      if: steps.check_binaries.outputs.found != 'true'
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        mkdir -p dist
+        cd dist
+
+        # Download binaries from GitHub release
+        for arch in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 linux-arm; do
+          echo "Downloading hyperterse-${arch}.tar.gz..."
+          curl -L -o "hyperterse-${arch}.tar.gz" \
+            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/hyperterse-${arch}.tar.gz" || true
+        done
+
+    - name: Flatten binaries
+      if: steps.check_binaries.outputs.found == 'true'
+      shell: bash
+      run: ./scripts/create-archives.sh dist
+
+    - name: Calculate SHA256 for all binaries
+      id: sha256
+      shell: bash
+      run: |
+        cd dist
+        SHA256_DARWIN_AMD64=$(sha256sum hyperterse-darwin-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-darwin-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
+        SHA256_DARWIN_ARM64=$(sha256sum hyperterse-darwin-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-darwin-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
+        SHA256_LINUX_AMD64=$(sha256sum hyperterse-linux-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
+        SHA256_LINUX_ARM64=$(sha256sum hyperterse-linux-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
+        SHA256_LINUX_ARM=$(sha256sum hyperterse-linux-arm.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-arm.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
+        echo "darwin_amd64=${SHA256_DARWIN_AMD64}" >> $GITHUB_OUTPUT
+        echo "darwin_arm64=${SHA256_DARWIN_ARM64}" >> $GITHUB_OUTPUT
+        echo "linux_amd64=${SHA256_LINUX_AMD64}" >> $GITHUB_OUTPUT
+        echo "linux_arm64=${SHA256_LINUX_ARM64}" >> $GITHUB_OUTPUT
+        echo "linux_arm=${SHA256_LINUX_ARM}" >> $GITHUB_OUTPUT
+
+    - name: Verify version in formula
+      shell: bash
+      run: |
+        FORMULA_VERSION=$(grep -E '^\s+version\s+"[^"]+"' distributions/homebrew/hyperterse.rb | sed -E 's/.*version\s+"([^"]+)".*/\1/')
+        EXPECTED_VERSION="${{ inputs.version }}"
+        if [ "$FORMULA_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "❌ Version mismatch: formula has $FORMULA_VERSION but expected $EXPECTED_VERSION"
+          exit 1
+        fi
+        echo "✓ Version matches: $FORMULA_VERSION"
+
+    - name: Update Homebrew formula with SHA256
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        FORMULA_FILE="distributions/homebrew/hyperterse.rb"
+
+        # Update version (if not already correct)
+        sed -i "s/^  version \".*\"/  version \"${VERSION}\"/" "$FORMULA_FILE"
+
+        # Update SHA256 checksums using helper script
+        ./scripts/update-homebrew-sha256.sh \
+          "$FORMULA_FILE" \
+          "${{ steps.sha256.outputs.darwin_amd64 }}" \
+          "${{ steps.sha256.outputs.darwin_arm64 }}" \
+          "${{ steps.sha256.outputs.linux_amd64 }}" \
+          "${{ steps.sha256.outputs.linux_arm64 }}" \
+          "${{ steps.sha256.outputs.linux_arm }}"
+
+    - name: Checkout Homebrew tap
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.tap_repo }}
+        token: ${{ inputs.token || github.token }}
+        path: homebrew-tap
+
+    - name: Copy formula to tap
+      shell: bash
+      run: |
+        mkdir -p homebrew-tap/Formula
+        cp distributions/homebrew/hyperterse.rb homebrew-tap/Formula/hyperterse.rb
+
+    - name: Commit and push to tap
+      shell: bash
+      run: |
+        cd homebrew-tap
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add Formula/hyperterse.rb
+        if ! git diff --staged --quiet; then
+          git commit -m "Update hyperterse to v${{ inputs.version }}"
+          git push
+        else
+          echo "No changes to commit"
+        fi

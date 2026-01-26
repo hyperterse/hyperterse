@@ -1,0 +1,64 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      homebrew:
+        description: "Publish to Homebrew"
+        required: true
+        default: true
+        type: boolean
+      npm:
+        description: "Publish to NPM"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  publish-brew:
+    name: Homebrew
+    if: ${{ inputs.homebrew }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from formula
+        id: version
+        run: |
+          VERSION=$(grep -E '^\s+version\s+"[^"]+"' distributions/homebrew/hyperterse.rb | sed -E 's/.*version\s+"([^"]+)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "🍺 Publishing version: ${VERSION}"
+
+      - name: Publish to Homebrew
+        uses: ./.github/actions/publish-homebrew
+        with:
+          version: ${{ steps.version.outputs.version }}
+          tap_repo: "hyperterse/tap"
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  publish-npm:
+    name: NPM
+    if: ${{ inputs.npm }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./distributions/npm/package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Publishing version: ${VERSION}"
+
+      - name: Publish to NPM
+        uses: ./.github/actions/publish-npm
+        with:
+          version: ${{ steps.version.outputs.version }}
+          token: ${{ secrets.NPM_TOKEN }}

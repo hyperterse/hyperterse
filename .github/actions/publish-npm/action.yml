@@ -1,0 +1,37 @@
+name: 'Publish to NPM'
+description: 'Publish package to NPM registry'
+inputs:
+  version:
+    description: 'Version to publish'
+    required: true
+  token:
+    description: 'NPM token for authentication'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        registry-url: "https://registry.npmjs.org"
+
+    - name: Verify version in package.json
+      shell: bash
+      run: |
+        PACKAGE_VERSION=$(node -p "require('./distributions/npm/package.json').version")
+        EXPECTED_VERSION="${{ inputs.version }}"
+        if [ "$PACKAGE_VERSION" != "$EXPECTED_VERSION" ]; then
+          echo "❌ Version mismatch: package.json has $PACKAGE_VERSION but expected $EXPECTED_VERSION"
+          exit 1
+        fi
+        echo "✓ Version matches: $PACKAGE_VERSION"
+
+    - name: Publish to NPM
+      shell: bash
+      run: |
+        cd distributions/npm
+        npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.token }}
