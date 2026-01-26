@@ -1,70 +1,74 @@
 ---
-import Button from "./button.astro";
-import Logo from "./logo.astro";
+import Button from './button.astro'
+import Logo from './logo.astro'
+import MobileMenuToggle from '@astrojs/starlight/components/MobileMenuToggle.astro'
 // Sticky header with logo and CTAs
 
-const currentPath = Astro.url.pathname;
+const currentPath = Astro.url.pathname
 const isActive = (path: string) =>
-  currentPath === path || currentPath === path + "/";
+  currentPath === path || currentPath === path + '/'
 
 const MENU_ITEMS = [
   {
-    label: "Docs",
-    href: "https://docs.hyperterse.com",
+    label: 'Docs',
+    href: 'https://docs.hyperterse.com',
   },
   {
-    label: "GitHub",
-    href: "https://github.com/hyperterse/hyperterse",
-    target: "_blank",
-    rel: "noopener noreferrer",
+    label: 'GitHub',
+    href: 'https://github.com/hyperterse/hyperterse',
+    target: '_blank',
+    rel: 'noopener noreferrer',
   },
-];
+]
 ---
 
-<header class="header p-4 flex items-center gap-2 justify-between border-b-border bg-bg fixed top-0 left-0 right-0 z-50">
-    <a href="/" class="flex items-center">
-      <Logo class="h-7" />
-    </a>
+<header
+  class="header p-4 flex items-center gap-2 justify-between border-b-hairline border-b-border bg-bg fixed top-0 left-0 right-0 z-50"
+>
+  <a
+    href="/"
+    class="flex items-center"
+  >
+    <Logo class="h-7" />
+  </a>
 
-    <!-- Desktop navigation links -->
-    <div class="md:flex items-center gap-2 hidden leading-4">
-      {
-        MENU_ITEMS.map((item) => (
-          <>
-            <a
-              href={item.href}
-              target={item.target}
-              rel={item.rel}
-              class:list={[
-                "nav-link px-1.5 py-1.5 text-sm",
-                isActive(item.href)
-                  ? "bg-white/10 text-fg"
-                  : "text-fg hover:text-fg/50",
-              ]}
-            >
-              {item.label}
-            </a>
-            <span>·</span>
-          </>
-        ))
-      }
+  <!-- Desktop navigation links -->
+  <div class="md:flex items-center gap-2 hidden leading-4">
+    {
+      MENU_ITEMS.map((item) => (
+        <>
+          <a
+            href={item.href}
+            target={item.target}
+            rel={item.rel}
+            class:list={[
+              'nav-link px-1.5 py-1.5 text-sm',
+              isActive(item.href)
+                ? 'bg-white/10 text-fg'
+                : 'text-fg hover:text-fg/50',
+            ]}
+          >
+            {item.label}
+          </a>
+          <span>·</span>
+        </>
+      ))
+    }
 
-      <Button href="/download" variant="primary" size="sm">
-        Get started
-        <span>&rarr;</span>
-      </Button>
-    </div>
-
-    <!-- Mobile hamburger -->
-    <button
-      id="menu-toggle"
-      class="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5"
-      aria-label="Toggle menu"
-      type="button"
+    <Button
+      href="/download"
+      variant="primary"
+      size="sm"
     >
-      <span id="hamburger-top" class="w-5 h-px bg-fg"></span>
-      <span id="hamburger-bottom" class="w-5 h-px bg-fg"></span>
-    </button>
+      Get started
+      <span>&rarr;</span>
+    </Button>
+  </div>
+
+  <!-- Mobile hamburger -->
+  <div class="block md:hidden">
+    <MobileMenuToggle />
+  </div>
 </header>
 
 <!-- Mobile menu overlay -->
@@ -73,7 +77,10 @@ const MENU_ITEMS = [
   class="fixed inset-0 z-40 bg-bg pt-20 px-6 transition-opacity"
 >
   <nav class="flex flex-col gap-2">
-    <Button href="/download" variant="primary" size="sm">
+    <Button
+      href="/download"
+      variant="primary"
+    >
       Get started
       <span>&rarr;</span>
     </Button>
@@ -85,10 +92,10 @@ const MENU_ITEMS = [
           target={item.target}
           rel={item.rel}
           class:list={[
-            "nav-link px-1.5 py-1.5",
+            'nav-link px-1.5 py-1.5',
             isActive(item.href)
-              ? "bg-white/10 text-fg"
-              : "text-fg hover:text-fg/50",
+              ? 'bg-white/10 text-fg'
+              : 'text-fg hover:text-fg/50',
           ]}
         >
           {item.label}
@@ -99,6 +106,9 @@ const MENU_ITEMS = [
 </div>
 
 <style>
+  header.header {
+    height: var(--sl-nav-height);
+  }
   #mobile-menu.menu-open {
     opacity: 1;
     pointer-events: auto;
@@ -111,31 +121,31 @@ const MENU_ITEMS = [
 </style>
 
 <script is:inline>
-  document.addEventListener("DOMContentLoaded", function () {
-    const menuToggle = document.getElementById("menu-toggle");
-    const mobileMenu = document.getElementById("mobile-menu");
-    let isOpen = false;
+  document.addEventListener('DOMContentLoaded', function () {
+    const menuToggle = document.querySelector('starlight-menu-button')
+    const mobileMenu = document.getElementById('mobile-menu')
+    let isOpen = false
 
-    menuToggle.addEventListener("click", function () {
-      isOpen = !isOpen;
+    menuToggle.addEventListener('click', function () {
+      isOpen = !isOpen
 
       if (isOpen) {
-        mobileMenu.classList.add("menu-open");
-        document.body.style.overflow = "hidden";
+        mobileMenu.classList.add('menu-open')
+        document.body.style.overflow = 'hidden'
       } else {
-        mobileMenu.classList.remove("menu-open");
-        document.body.style.overflow = "";
+        mobileMenu.classList.remove('menu-open')
+        document.body.style.overflow = ''
       }
-    });
+    })
 
     // Close menu when clicking a link
-    const links = mobileMenu.querySelectorAll("a");
+    const links = mobileMenu.querySelectorAll('a')
     links.forEach(function (link) {
-      link.addEventListener("click", function () {
-        isOpen = false;
-        mobileMenu.classList.remove("menu-open");
-        document.body.style.overflow = "";
-      });
-    });
-  });
+      link.addEventListener('click', function () {
+        isOpen = false
+        mobileMenu.classList.remove('menu-open')
+        document.body.style.overflow = ''
+      })
+    })
+  })
 </script>

@@ -10,6 +10,42 @@
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
+@utility border-hairline {
+  border-style: var(--tw-border-style);
+  border-width: 0.5px;
+}
+
+@utility border-t-hairline {
+  border-top-style: var(--tw-border-style);
+  border-top-width: 0.5px;
+}
+
+@utility border-r-hairline {
+  border-right-style: var(--tw-border-style);
+  border-right-width: 0.5px;
+}
+
+@utility border-b-hairline {
+  border-bottom-style: var(--tw-border-style);
+  border-bottom-width: 0.5px;
+}
+
+@utility border-l-hairline {
+  border-left-style: var(--tw-border-style);
+  border-left-width: 0.5px;
+}
+
+@utility border-s-hairline {
+  border-inline-start-style: var(--tw-border-style);
+  border-inline-start-width: 0.5px;
+}
+
+@utility border-e-hairline {
+  border-inline-end-style: var(--tw-border-style);
+  border-inline-end-width: 0.5px;
+}
+
+
 /* Theme configuration */
 @theme {
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
@@ -34,11 +70,20 @@
   --sl-color-bg-nav: var(--color-bg);
   --sl-color-bg-sidebar: var(--color-bg);
   --sl-color-text-accent: var(--color-primary);
+
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 2rem;
+  --sl-text-h3: 1.5rem;
+  --sl-text-h4: 1.25rem;
+  --sl-text-h5: 1rem;
+  --sl-text-h6: 0.875rem;
 }
 
 /* Base styles */
 html,
 body {
+  width: 100%;
+  height: 100%;
   background-color: var(--color-bg);
   color: var(--color-fg);
 }
@@ -58,7 +103,7 @@ h5,
 h6 {
   font-family: var(--font-sans);
   @apply font-extrabold;
-  @apply leading-tight tracking-tighter;
+  @apply leading-tight tracking-tight;
 }
 
 strong {
@@ -75,15 +120,30 @@ https://tailwindcss.com/docs/adding-custom-styles#using-custom-css
 }
 
 .expressive-code {
-  @apply my-4;
+  @apply border-hairline border-border rounded-lg;
 
   figure.frame {
-    @apply shadow-none border-none;
-  }
-}
+    @apply shadow-none border-none rounded-lg;
 
-header.header {
-  border-bottom: 0.5px solid var(--color-border);
+    & > pre {
+      @apply rounded-lg;
+    }
+
+    &.has-title:not(.is-terminal) {
+      & > figcaption.header {
+        background: none;
+        @apply bg-transparent rounded-t-lg;
+      }
+
+      & span.title {
+        @apply bg-transparent text-fg;
+
+        &:after {
+          display: none;
+        }
+      }
+    }
+  }
 }
 
 blockquote {
@@ -116,11 +176,13 @@ code:not(.expressive-code pre > code) {
     rounded-lg
     text-[0.85em]
     bg-fg/10
-    whitespace-pre;
+    whitespace-normal;
 }
 
-a[aria-current='page'] {
-  @apply text-primary bg-transparent;
+a {
+  &[aria-current='page'] {
+    @apply bg-secondary text-primary;
+  }
 }
 
 starlight-tabs {
@@ -174,4 +236,35 @@ table {
 
 a {
   text-decoration: none;
+}
+
+.pagination-links {
+  > a  {
+
+    > span {
+      @apply text-sm text-dim;
+    }
+
+    .link-title {
+      @apply text-lg text-fg;
+    }
+  }
+}
+
+#starlight__mobile-toc {
+  & ul.isMobile > li > a {
+    @apply transition-colors;
+  }
+
+  & [aria-current='true'] {
+    @apply text-primary;
+  }
+}
+
+#starlight__sidebar {
+  @apply border-e-hairline border-e-border;
+}
+
+.content-panel {
+  border: 0;
 }
