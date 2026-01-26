@@ -102,12 +102,44 @@ h4,
 h5,
 h6 {
   font-family: var(--font-sans);
-  @apply font-extrabold;
   @apply leading-tight tracking-tight;
+  @apply font-extrabold;
+}
+
+h1 {
+  @apply text-4xl;
+}
+
+h2 {
+  @apply text-2xl;
+}
+
+h3 {
+  @apply text-xl;
+}
+
+h4 {
+  @apply text-lg;
+}
+
+h5 {
+  @apply text-base;
+}
+
+h6 {
+  @apply text-sm;
 }
 
 strong {
   font-weight: 900;
+}
+
+.content-panel > .sl-container {
+  margin-inline: auto;
+}
+
+div.main-pane {
+  width: 100%;
 }
 
 /*
@@ -129,19 +161,24 @@ https://tailwindcss.com/docs/adding-custom-styles#using-custom-css
       @apply rounded-lg;
     }
 
-    &.has-title:not(.is-terminal) {
-      & > figcaption.header {
-        background: none;
-        @apply bg-transparent rounded-t-lg;
-      }
+    & > figcaption.header, &.is-terminal > figcaption.header {
+      @apply rounded-t-lg border-t-0 border-l-0 border-r-0 border-b-hairline border-border;
+    }
 
+    &.has-title:not(.is-terminal) {
       & span.title {
-        @apply bg-transparent text-fg;
+        @apply bg-transparent text-dim;
 
         &:after {
           display: none;
         }
       }
+    }
+  }
+
+  & .ec-section.collapsible-start {
+    & summary::before {
+      display: none;
     }
   }
 }
@@ -179,6 +216,14 @@ code:not(.expressive-code pre > code) {
     whitespace-normal;
 }
 
+#starlight__sidebar {
+  @apply text-sm;
+
+  .large {
+    @apply text-sm;
+  }
+}
+
 a {
   &[aria-current='page'] {
     @apply bg-secondary text-primary;
@@ -186,19 +231,24 @@ a {
 }
 
 starlight-tabs {
-  @apply bg-fg/5 p-2 rounded-lg;
+  @apply bg-surface/10 rounded-lg border-hairline border-border;
+
+  [role="tabpanel"] {
+    @apply bg-fg/5 p-2 rounded-b-lg pt-4 mt-0;
+  }
 }
 
 .tablist-wrapper {
   & > ul {
     border-bottom: 0;
+    @apply rounded-t-lg overflow-y-hidden;
 
     & > li.tab > a {
       box-shadow: none;
       @apply text-sm font-normal;
 
       &[aria-selected='true'] {
-        @apply bg-primary/10 rounded-lg text-primary font-normal;
+        @apply bg-fg/5 text-fg font-normal;
       }
     }
   }
@@ -208,12 +258,8 @@ starlight-tabs {
   @apply text-dim;
 } */
 
-/* span.group-label > span.large {
-  @apply text-dim;
-} */
-
 table {
-  @apply table w-full rounded-lg overflow-hidden;
+  @apply table w-full rounded-lg overflow-hidden border-hairline border-border;
 
   & thead {
     @apply bg-dim/20;
@@ -224,13 +270,16 @@ table {
   }
 
   tr:nth-child(even) {
-    @apply bg-surface/20;
+    @apply bg-surface/40;
   }
 
   tr > td,
   th {
-    border: 0;
-    @apply px-4 py-2 border-r border-dim/10;
+    @apply border-0 px-4 py-2 border-r-hairline border-dim/25;
+  }
+
+  tr > td:last-child, tr > th:last-child {
+    @apply border-r-0;
   }
 }
 
@@ -267,4 +316,8 @@ a {
 
 .content-panel {
   border: 0;
+}
+
+ol.sl-steps > li:last-child::after {
+  display: none;
 }

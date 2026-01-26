@@ -1,6 +1,7 @@
 ---
 import Button from './button.astro'
 import Logo from './logo.astro'
+import Search from './search.astro'
 import MobileMenuToggle from '@astrojs/starlight/components/MobileMenuToggle.astro'
 // Sticky header with logo and CTAs
 
@@ -8,16 +9,44 @@ const currentPath = Astro.url.pathname
 const isActive = (path: string) =>
   currentPath === path || currentPath === path + '/'
 
+// Fetch GitHub stars
+let githubStars = 0
+try {
+  const response = await fetch(
+    'https://api.github.com/repos/hyperterse/hyperterse',
+    {
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+      },
+    },
+  )
+  if (response.ok) {
+    const data = await response.json()
+    githubStars = data.stargazers_count || 0
+  }
+} catch (error) {
+  // Silently fail if API is unavailable
+  console.error('Failed to fetch GitHub stars:', error)
+}
+
+// Humanize number function
+function humanizeNumber(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+  }
+  return num.toString()
+}
+
 const MENU_ITEMS = [
-  {
-    label: 'Docs',
-    href: 'https://docs.hyperterse.com',
-  },
   {
     label: 'GitHub',
     href: 'https://github.com/hyperterse/hyperterse',
     target: '_blank',
     rel: 'noopener noreferrer',
+    stars: githubStars,
   },
 ]
 ---
@@ -25,12 +54,16 @@ const MENU_ITEMS = [
 <header
   class="header p-4 flex items-center gap-2 justify-between border-b-hairline border-b-border bg-bg fixed top-0 left-0 right-0 z-50"
 >
-  <a
-    href="/"
-    class="flex items-center"
-  >
-    <Logo class="h-7" />
-  </a>
+  <div class="flex items-center gap-2">
+    <a
+      href="/"
+      class="flex items-center"
+    >
+      <Logo class="h-7" />
+    </a>
+
+    <Search />
+  </div>
 
   <!-- Desktop navigation links -->
   <div class="md:flex items-center gap-2 hidden leading-4">
@@ -42,13 +75,31 @@ const MENU_ITEMS = [
             target={item.target}
             rel={item.rel}
             class:list={[
-              'nav-link px-1.5 py-1.5 text-sm',
+              'nav-link px-1.5 py-1.5 text-sm flex items-center gap-1',
               isActive(item.href)
                 ? 'bg-white/10 text-fg'
                 : 'text-fg hover:text-fg/50',
             ]}
           >
             {item.label}
+            {item.stars > 0 && (
+              <span class="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-lg bg-fg/10">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  class="w-3.5 h-3.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span>{humanizeNumber(item.stars)}</span>
+              </span>
+            )}
           </a>
           <span>·</span>
         </>
@@ -56,9 +107,10 @@ const MENU_ITEMS = [
     }
 
     <Button
-      href="/download"
+      href="/getting-started/installation"
       variant="primary"
       size="sm"
+      class="shrink-0 h-9"
     >
       Get started
       <span>&rarr;</span>
@@ -92,13 +144,31 @@ const MENU_ITEMS = [
           target={item.target}
           rel={item.rel}
           class:list={[
-            'nav-link px-1.5 py-1.5',
+            'nav-link px-1.5 py-1.5 flex items-center gap-1',
             isActive(item.href)
               ? 'bg-white/10 text-fg'
               : 'text-fg hover:text-fg/50',
           ]}
         >
           {item.label}
+          {item.stars > 0 && (
+            <span class="flex items-center gap-0.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                class="w-3.5 h-3.5"
+                aria-hidden="true"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span>{humanizeNumber(item.stars)}</span>
+            </span>
+          )}
         </a>
       ))
     }

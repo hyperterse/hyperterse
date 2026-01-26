@@ -9,6 +9,7 @@ import expressiveCode from 'astro-expressive-code'
 import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections'
 import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
 
+
 // https://astro.build/config
 export default defineConfig({
   integrations: [
@@ -17,13 +18,31 @@ export default defineConfig({
       themes: ['vesper'],
       styleOverrides: {
         borderWidth: '0.1px',
+        frames: {
+          editorTabBarBackground: 'var(--color-surface)',
+          editorActiveTabBackground: 'var(--color-surface)',
+          editorBackground: 'var(--color-surface)',
+          terminalBackground: 'var(--color-surface)',
+          terminalTitlebarBackground: 'var(--color-surface)',
+        }
       },
+
       frames: {
         extractFileNameFromCode: false,
         removeCommentsWhenCopyingTerminalFrames: true,
         showCopyToClipboardButton: true,
       },
       plugins: [pluginCollapsibleSections(), pluginLineNumbers()],
+      defaultProps: {
+        // Disable line numbers by default
+        showLineNumbers: false,
+        // But enable line numbers for certain languages
+        overridesByLang: {
+          'bash,sh,shell': {
+            showLineNumbers: false,
+          },
+        },
+      }
     }),
     starlight({
       title: 'Hyperterse',
@@ -85,6 +104,7 @@ export default defineConfig({
       components: {
         Header: '@/components/header.astro',
         PageFrame: '@/components/page-frame.astro',
+        Search: '@/components/search.astro',
       },
       customCss: ['./src/styles/global.css'],
       pagination: true,
