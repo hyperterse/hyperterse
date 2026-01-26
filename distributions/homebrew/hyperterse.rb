@@ -13,31 +13,33 @@ class Hyperterse < Formula
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-darwin-amd64.tar.gz"
+      url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-darwin-amd64"
       sha256 ""
     elsif Hardware::CPU.arm?
-      url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-darwin-arm64.tar.gz"
+      url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-darwin-arm64"
       sha256 ""
     end
   end
 
   on_linux do
     if Hardware::CPU.intel?
-      url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-linux-amd64.tar.gz"
+      url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-linux-amd64"
       sha256 ""
     elsif Hardware::CPU.arm?
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-linux-arm64.tar.gz"
+        url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-linux-arm64"
         sha256 ""
       else
-        url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-linux-arm.tar.gz"
+        url "https://github.com/hyperterse/hyperterse/releases/download/v#{version}/hyperterse-linux-arm"
         sha256 ""
       end
     end
   end
 
   def install
-    bin.install "hyperterse"
+    # Homebrew downloads the binary file, rename it to 'hyperterse'
+    binary = Dir["hyperterse-*"].first
+    bin.install binary => "hyperterse"
   end
 
   test do

@@ -30,42 +30,42 @@ linux_arm = "$LINUX_ARM"
 with open("$FORMULA_FILE", 'r') as f:
     content = f.read()
 
-# Update SHA256 for darwin-amd64 (line after darwin-amd64.tar.gz)
+# Update SHA256 for darwin-amd64 (line after darwin-amd64)
 if darwin_amd64:
     content = re.sub(
-        r'(darwin-amd64\.tar\.gz"\s*\n\s*)sha256 "[^"]*"',
+        r'(darwin-amd64"\s*\n\s*)sha256 "[^"]*"',
         r'\1sha256 "' + darwin_amd64 + '"',
         content
     )
 
-# Update SHA256 for darwin-arm64 (line after darwin-arm64.tar.gz)
+# Update SHA256 for darwin-arm64 (line after darwin-arm64)
 if darwin_arm64:
     content = re.sub(
-        r'(darwin-arm64\.tar\.gz"\s*\n\s*)sha256 "[^"]*"',
+        r'(darwin-arm64"\s*\n\s*)sha256 "[^"]*"',
         r'\1sha256 "' + darwin_arm64 + '"',
         content
     )
 
-# Update SHA256 for linux-amd64 (line after linux-amd64.tar.gz)
+# Update SHA256 for linux-amd64 (line after linux-amd64)
 if linux_amd64:
     content = re.sub(
-        r'(linux-amd64\.tar\.gz"\s*\n\s*)sha256 "[^"]*"',
+        r'(linux-amd64"\s*\n\s*)sha256 "[^"]*"',
         r'\1sha256 "' + linux_amd64 + '"',
         content
     )
 
-# Update SHA256 for linux-arm64 (line after linux-arm64.tar.gz)
+# Update SHA256 for linux-arm64 (line after linux-arm64)
 if linux_arm64:
     content = re.sub(
-        r'(linux-arm64\.tar\.gz"\s*\n\s*)sha256 "[^"]*"',
+        r'(linux-arm64"\s*\n\s*)sha256 "[^"]*"',
         r'\1sha256 "' + linux_arm64 + '"',
         content
     )
 
-# Update SHA256 for linux-arm (line after linux-arm.tar.gz)
+# Update SHA256 for linux-arm (line after linux-arm, but not arm64)
 if linux_arm:
     content = re.sub(
-        r'(linux-arm\.tar\.gz"\s*\n\s*)sha256 "[^"]*"',
+        r'(linux-arm"\s*\n\s*)sha256 "[^"]*"',
         r'\1sha256 "' + linux_arm + '"',
         content
     )

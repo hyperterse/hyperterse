@@ -49,21 +49,44 @@ runs:
       shell: bash
       run: ./scripts/create-archives.sh dist
 
-    - name: Calculate SHA256 for all binaries
+    - name: Download checksums.txt from release
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        mkdir -p dist
+
+        # Download checksums.txt from GitHub release
+        echo "Downloading checksums.txt from release v${VERSION}..."
+        curl -L -f -o dist/checksums.txt \
+          "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/checksums.txt"
+        echo "✓ Downloaded checksums.txt"
+
+    - name: Parse checksums from checksums.txt
       id: sha256
       shell: bash
       run: |
         cd dist
-        SHA256_DARWIN_AMD64=$(sha256sum hyperterse-darwin-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-darwin-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
-        SHA256_DARWIN_ARM64=$(sha256sum hyperterse-darwin-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-darwin-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
-        SHA256_LINUX_AMD64=$(sha256sum hyperterse-linux-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
-        SHA256_LINUX_ARM64=$(sha256sum hyperterse-linux-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
-        SHA256_LINUX_ARM=$(sha256sum hyperterse-linux-arm.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-arm.tar.gz 2>/dev/null | cut -d' ' -f1 || echo "")
+        # Parse checksums for binaries (not tar.gz files)
+        # Match exact binary names to avoid matching arm64 when looking for arm
+        SHA256_DARWIN_AMD64=$(grep -E "hyperterse-darwin-amd64$" checksums.txt | awk '{print $1}' || echo "")
+        SHA256_DARWIN_ARM64=$(grep -E "hyperterse-darwin-arm64$" checksums.txt | awk '{print $1}' || echo "")
+        SHA256_LINUX_AMD64=$(grep -E "hyperterse-linux-amd64$" checksums.txt | awk '{print $1}' || echo "")
+        SHA256_LINUX_ARM64=$(grep -E "hyperterse-linux-arm64$" checksums.txt | awk '{print $1}' || echo "")
+        # For linux-arm, match exactly "hyperterse-linux-arm" (not arm64)
+        SHA256_LINUX_ARM=$(grep "hyperterse-linux-arm$" checksums.txt | grep -v "arm64" | awk '{print $1}' || echo "")
+
         echo "darwin_amd64=${SHA256_DARWIN_AMD64}" >> $GITHUB_OUTPUT
         echo "darwin_arm64=${SHA256_DARWIN_ARM64}" >> $GITHUB_OUTPUT
         echo "linux_amd64=${SHA256_LINUX_AMD64}" >> $GITHUB_OUTPUT
         echo "linux_arm64=${SHA256_LINUX_ARM64}" >> $GITHUB_OUTPUT
         echo "linux_arm=${SHA256_LINUX_ARM}" >> $GITHUB_OUTPUT
+
+        # Verify we got all checksums
+        if [ -z "${SHA256_DARWIN_AMD64}" ] || [ -z "${SHA256_DARWIN_ARM64}" ] || [ -z "${SHA256_LINUX_AMD64}" ] || [ -z "${SHA256_LINUX_ARM64}" ] || [ -z "${SHA256_LINUX_ARM}" ]; then
+          echo "❌ Failed to extract all checksums from checksums.txt"
+          exit 1
+        fi
+        echo "✓ Extracted all checksums from checksums.txt"
 
     - name: Verify version in formula
       shell: bash
