@@ -13,10 +13,10 @@
     "url": "https://github.com/hyperterse/hyperterse/issues"
   },
   "bin": {
-    "hyperterse": "./bin/hyperterse"
+    "hyperterse": "./bin.js"
   },
   "scripts": {
-    "postinstall": "node install.js"
+    "postinstall": "./install.js"
   },
   "keywords": [
     "hyperterse",

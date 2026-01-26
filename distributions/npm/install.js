@@ -8,7 +8,6 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const { execSync } = require('child_process');
 
 // Version is read from package.json (npm_package_version) or can be overridden via environment variable
 const VERSION = process.env.npm_package_version || '0.0.0';
@@ -41,12 +40,8 @@ const binaryName = platform === 'win32'
   ? `hyperterse-${goOS}-${goArch}.exe`
   : `hyperterse-${goOS}-${goArch}`;
 
-const archiveName = platform === 'win32'
-  ? `hyperterse-${goOS}-${goArch}.zip`
-  : `hyperterse-${goOS}-${goArch}.tar.gz`;
-
-const downloadUrl = `${BASE_URL}/${archiveName}`;
-const binDir = path.join(__dirname, 'bin');
+const downloadUrl = `${BASE_URL}/${binaryName}`;
+const binDir = path.join(__dirname, 'dist');
 const binPath = path.join(binDir, platform === 'win32' ? 'hyperterse.exe' : 'hyperterse');
 
 // Create bin directory if it doesn't exist
@@ -58,7 +53,7 @@ if (!fs.existsSync(binDir)) {
 function download(url, dest) {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith('https') ? https : http;
-    const file = fs.createWriteStream(dest);
+    const file = fs.createWriteStream(binPath);
 
     protocol.get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
@@ -83,27 +78,6 @@ function download(url, dest) {
   });
 }
 
-// Extract function
-function extract(archivePath, destDir) {
-  if (archivePath.endsWith('.zip')) {
-    // Use unzip command (Windows)
-    try {
-      execSync(`unzip -o "${archivePath}" -d "${destDir}"`, { stdio: 'inherit' });
-    } catch (err) {
-      console.error('Error extracting zip file. Make sure unzip is installed.');
-      throw err;
-    }
-  } else if (archivePath.endsWith('.tar.gz')) {
-    // Use tar command (Unix)
-    try {
-      execSync(`tar -xzf "${archivePath}" -C "${destDir}"`, { stdio: 'inherit' });
-    } catch (err) {
-      console.error('Error extracting tar.gz file. Make sure tar is installed.');
-      throw err;
-    }
-  }
-}
-
 // Main installation logic
 async function install() {
   // Check if binary already exists
@@ -115,41 +89,17 @@ async function install() {
   console.log(`Downloading hyperterse ${VERSION} for ${platform}-${arch}...`);
   console.log(`URL: ${downloadUrl}`);
 
-  const tempArchive = path.join(__dirname, archiveName);
-
   try {
     // Download archive
-    await download(downloadUrl, tempArchive);
-
-    // Extract archive
-    console.log('Extracting archive...');
-    extract(tempArchive, binDir);
-
-    // Find the extracted binary
-    const extractedBinary = path.join(binDir, binaryName);
-    if (fs.existsSync(extractedBinary)) {
-      // Move to final location
-      fs.renameSync(extractedBinary, binPath);
-    } else {
-      // Try finding any hyperterse binary in the directory
-      const files = fs.readdirSync(binDir);
-      const hyperterseFile = files.find(f => f.startsWith('hyperterse'));
-      if (hyperterseFile) {
-        fs.renameSync(path.join(binDir, hyperterseFile), binPath);
-      } else {
-        throw new Error('Could not find extracted binary');
-      }
-    }
+    await download(downloadUrl);
 
     // Make binary executable (Unix)
     if (platform !== 'win32') {
       fs.chmodSync(binPath, '755');
     }
 
-    // Clean up archive
-    fs.unlinkSync(tempArchive);
-
     console.log('✓ Installation complete!');
+    process.exit(0);
   } catch (error) {
     console.error('Error installing binary:', error.message);
     console.error('You may need to manually download the binary from:', downloadUrl);
