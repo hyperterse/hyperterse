@@ -4,11 +4,11 @@
  * This file is used to run the Hyperterse binary.
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
-const binPath = path.join(__dirname, 'bin', process.platform === 'win32' ? 'hyperterse.exe' : 'hyperterse');
+const binPath = path.join(import.meta.dirname, 'bin', process.platform === 'win32' ? 'hyperterse.exe' : 'hyperterse');
 
 if (!fs.existsSync(binPath)) {
   console.error('Hyperterse binary not found');

@@ -13,15 +13,16 @@
     "url": "https://github.com/hyperterse/hyperterse/issues"
   },
   "bin": {
-    "hyperterse": "bin.js"
+    "hyperterse": "bin.mjs"
   },
   "scripts": {
-    "postinstall": "./install.js"
+    "postinstall": "install.mjs"
   },
   "files": [
-    "bin.js",
-    "install.js",
-    "../../LICENSE"
+    "bin.mjs",
+    "install.mjs",
+    "LICENSE",
+    "README.md"
   ],
   "keywords": [
     "hyperterse",

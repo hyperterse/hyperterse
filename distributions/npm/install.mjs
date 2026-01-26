@@ -4,10 +4,10 @@
  * Post-install script to download the correct binary for the current platform
  */
 
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
-const http = require('http');
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import http from 'http';
 
 // Version is read from package.json (npm_package_version) or can be overridden via environment variable
 const VERSION = process.env.npm_package_version || '0.0.0';
