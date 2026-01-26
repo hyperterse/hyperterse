@@ -1,0 +1,32 @@
+{
+  "name": "hyperterse",
+  "version": "0.0.0",
+  "description": "A declarative interface to connect your database to your AI agents",
+  "author": "Samrith Shankar <samrith@outlook.com>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyperterse/hyperterse.git"
+  },
+  "homepage": "https://hyperterse.com",
+  "bugs": {
+    "url": "https://github.com/hyperterse/hyperterse/issues"
+  },
+  "bin": {
+    "hyperterse": "./bin/hyperterse"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "keywords": [
+    "hyperterse",
+    "database",
+    "api",
+    "mcp",
+    "ai",
+    "agents"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

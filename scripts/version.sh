@@ -178,6 +178,18 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check for uncommitted changes (excluding distribution manifests which we'll update)
+if ! git diff --quiet -- ':!distributions/' 2>/dev/null; then
+    echo "⚠️  Warning: You have uncommitted changes in your working directory"
+    echo "   (excluding distribution manifests)"
+    read -p "   Continue anyway? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "❌ Aborted"
+        exit 1
+    fi
+fi
+
 # Determine the new version
 if [ -n "$EXPLICIT_VERSION" ]; then
     NEW_VERSION="$EXPLICIT_VERSION"
@@ -185,6 +197,24 @@ else
     CURRENT_VERSION=$(get_latest_version)
     echo "📋 Current version: v${CURRENT_VERSION}"
     NEW_VERSION=$(bump_version "$CURRENT_VERSION" "$BUMP_TYPE" "$PRERELEASE_TAG")
+fi
+
+# Check if version actually changed
+CURRENT_MANIFEST_VERSION=""
+if [ -f "distributions/npm/package.json" ]; then
+    if command -v jq > /dev/null 2>&1; then
+        CURRENT_MANIFEST_VERSION=$(jq -r '.version' distributions/npm/package.json 2>/dev/null || echo "")
+    else
+        CURRENT_MANIFEST_VERSION=$(grep -o '"version": "[^"]*"' distributions/npm/package.json | cut -d'"' -f4 || echo "")
+    fi
+fi
+
+if [ "$NEW_VERSION" = "$CURRENT_MANIFEST_VERSION" ] && [ -n "$CURRENT_MANIFEST_VERSION" ]; then
+    echo "ℹ️  Version $NEW_VERSION is already set in manifests"
+    echo "   Skipping manifest updates"
+    SKIP_MANIFEST_UPDATE=true
+else
+    SKIP_MANIFEST_UPDATE=false
 fi
 
 # Validate version format (basic check)
@@ -201,12 +231,83 @@ if git rev-parse "$TAG_NAME" > /dev/null 2>&1; then
     exit 1
 fi
 
+# Function to update Homebrew formula
+update_homebrew_formula() {
+    local version=$1
+    local formula_file="distributions/homebrew/hyperterse.rb"
+
+    if [ ! -f "$formula_file" ]; then
+        echo "⚠️  Warning: Homebrew formula not found: $formula_file"
+        return
+    fi
+
+    echo "📝 Updating Homebrew formula..."
+
+    # Update version line (URLs use #{version} interpolation, so they update automatically)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS uses BSD sed
+        sed -i '' "s/^  version \".*\"/  version \"${version}\"/" "$formula_file"
+    else
+        # Linux uses GNU sed
+        sed -i "s/^  version \".*\"/  version \"${version}\"/" "$formula_file"
+    fi
+
+    echo "   ✓ Updated $formula_file"
+}
+
+# Function to update NPM package.json
+update_npm_package() {
+    local version=$1
+    local package_file="distributions/npm/package.json"
+
+    if [ ! -f "$package_file" ]; then
+        echo "⚠️  Warning: package.json not found: $package_file"
+        return
+    fi
+
+    echo "📝 Updating NPM package.json..."
+
+    # Use a temporary file for JSON editing (more reliable than sed for JSON)
+    if command -v jq > /dev/null 2>&1; then
+        # Use jq if available (most reliable)
+        jq ".version = \"${version}\"" "$package_file" > "${package_file}.tmp" && mv "${package_file}.tmp" "$package_file"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS sed fallback
+        sed -i '' "s/\"version\": \".*\"/\"version\": \"${version}\"/" "$package_file"
+    else
+        # Linux sed fallback
+        sed -i "s/\"version\": \".*\"/\"version\": \"${version}\"/" "$package_file"
+    fi
+
+    echo "   ✓ Updated $package_file"
+}
+
+# Update all distribution manifests
+if [ "$SKIP_MANIFEST_UPDATE" = false ]; then
+    echo ""
+    echo "📦 Updating distribution manifests..."
+    update_homebrew_formula "$NEW_VERSION"
+    update_npm_package "$NEW_VERSION"
+
+    # Check if there are any changes to commit
+    if git diff --quiet distributions/; then
+        echo "   ℹ️  No manifest changes detected"
+    else
+        echo ""
+        echo "💾 Committing manifest changes..."
+        git add distributions/homebrew/hyperterse.rb distributions/npm/package.json
+        git commit -m "Update distribution manifests to v${NEW_VERSION}"
+        echo "   ✓ Committed manifest changes"
+    fi
+fi
+
 # Get timestamp
 TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
 # Create annotated tag with timestamp
+echo ""
 echo "🏷️  Creating tag: $TAG_NAME"
-echo "   Timestamp: $TIMESTAMP"
+echo "    Timestamp: $TIMESTAMP"
 
 git tag -a "$TAG_NAME" -m "Release $TAG_NAME
 

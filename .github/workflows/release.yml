@@ -72,6 +72,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -86,6 +88,13 @@ jobs:
           cd dist
           sha256sum hyperterse-* > checksums.txt 2>/dev/null || shasum -a 256 hyperterse-* > checksums.txt
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Extracted version: ${VERSION}"
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
@@ -93,3 +102,113 @@ jobs:
           generateReleaseNotes: true
           draft: false
           prerelease: false
+
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    if: secrets.NPM_TOKEN != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to NPM
+        run: |
+          cd distributions/npm
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-homebrew:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten binaries
+        run: ./scripts/create-archives.sh dist
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Calculate SHA256 for all binaries
+        id: sha256
+        run: |
+          cd dist
+          SHA256_DARWIN_AMD64=$(sha256sum hyperterse-darwin-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-darwin-amd64.tar.gz | cut -d' ' -f1)
+          SHA256_DARWIN_ARM64=$(sha256sum hyperterse-darwin-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-darwin-arm64.tar.gz | cut -d' ' -f1)
+          SHA256_LINUX_AMD64=$(sha256sum hyperterse-linux-amd64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-amd64.tar.gz | cut -d' ' -f1)
+          SHA256_LINUX_ARM64=$(sha256sum hyperterse-linux-arm64.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-arm64.tar.gz | cut -d' ' -f1)
+          SHA256_LINUX_ARM=$(sha256sum hyperterse-linux-arm.tar.gz 2>/dev/null | cut -d' ' -f1 || shasum -a 256 hyperterse-linux-arm.tar.gz | cut -d' ' -f1)
+          echo "darwin_amd64=${SHA256_DARWIN_AMD64}" >> $GITHUB_OUTPUT
+          echo "darwin_arm64=${SHA256_DARWIN_ARM64}" >> $GITHUB_OUTPUT
+          echo "linux_amd64=${SHA256_LINUX_AMD64}" >> $GITHUB_OUTPUT
+          echo "linux_arm64=${SHA256_LINUX_ARM64}" >> $GITHUB_OUTPUT
+          echo "linux_arm=${SHA256_LINUX_ARM}" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew formula with SHA256
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          FORMULA_FILE="distributions/homebrew/hyperterse.rb"
+
+          # Update version
+          sed -i "s/^  version \".*\"/  version \"${VERSION}\"/" "$FORMULA_FILE"
+
+          # Update SHA256 checksums using helper script
+          ./scripts/update-homebrew-sha256.sh \
+            "$FORMULA_FILE" \
+            "${{ steps.sha256.outputs.darwin_amd64 }}" \
+            "${{ steps.sha256.outputs.darwin_arm64 }}" \
+            "${{ steps.sha256.outputs.linux_amd64 }}" \
+            "${{ steps.sha256.outputs.linux_arm64 }}" \
+            "${{ steps.sha256.outputs.linux_arm }}"
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: "hyperterse/tap"
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN || secrets.GITHUB_TOKEN }}
+          path: homebrew-tap
+
+      - name: Copy formula to tap
+        run: |
+          mkdir -p homebrew-tap/Formula
+          cp distributions/homebrew/hyperterse.rb homebrew-tap/Formula/hyperterse.rb
+
+      - name: Commit and push to tap
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/hyperterse.rb
+          if ! git diff --staged --quiet; then
+            git commit -m "Update hyperterse to v${{ steps.version.outputs.version }}"
+            git push
+          else
+            echo "No changes to commit"
+          fi
