@@ -117,7 +117,7 @@ jobs:
 
   publish-npm:
     name: "Publish: NPM"
-    needs: release
+    needs: [build, release]
     runs-on: ubuntu-latest
     permissions:
       contents: read
