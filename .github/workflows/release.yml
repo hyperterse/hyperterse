@@ -109,7 +109,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    if: secrets.NPM_TOKEN != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
