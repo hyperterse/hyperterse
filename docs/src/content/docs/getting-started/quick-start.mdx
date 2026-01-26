@@ -1,0 +1,120 @@
+---
+title: Quick start
+description: Build your first database API in 5 minutes with Hyperterse.
+icon: Zap
+sidebar:
+  order: 2
+---
+
+import Aside from '@/components/admonition.astro'
+import { Steps, TabItem, Tabs } from '@astrojs/starlight/components'
+
+This guide will walk you through creating your first Hyperterse API in under 5 minutes. By the end, you'll have a working REST endpoint that queries your database.
+
+<Aside>
+  This tutorial assumes you have [installed
+  Hyperterse](/getting-started/installation) and have access to a PostgreSQL,
+  MySQL, or Redis database.
+</Aside>
+
+## Create your first API
+
+<Steps>
+
+1. Initialize a new configuration
+
+   ```bash
+   hyperterse init -o config.terse
+   ```
+
+2. Define your database adapter(s)
+
+   ```yaml title="config.terse"
+   adapters:
+     my_database:
+       connector: postgres
+       connection_string: 'postgresql://user:password@localhost:5432/mydb'
+   ```
+
+3. Define your query
+
+   ```yaml title="config.terse" ins={5-13} collapse={2-4}
+   adapters:
+     my_database:
+       connector: postgres
+       connection_string: 'postgresql://user:password@localhost:5432/mydb'
+   queries:
+     get-users:
+       use: my_database
+       description: 'Retrieve all users'
+       statement: |
+         SELECT id, name, email, created_at
+         FROM users
+         ORDER BY created_at DESC
+         LIMIT 100
+   ```
+
+4. Start the server
+
+   ```bash
+   hyperterse dev -f config.terse
+   ```
+
+5. Your query is now available as a REST endpoint. Test it with curl:
+
+   ```bash
+   curl -X POST http://localhost:8080/query/get-users \
+     -H "Content-Type: application/json"
+   ```
+
+</Steps>
+
+## Accepting inputs
+
+Queries can also accept input parameters. These can be substituted in the query statement to create dynamic queries.
+
+```yaml title="config.terse" collapse={2-4, 6-13} ins={21-24}
+adapters:
+  my_database:
+    connector: postgres
+    connection_string: 'postgresql://user:password@localhost:5432/mydb'
+queries:
+  get-users:
+    use: my_database
+    description: 'Retrieve all users'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT 100
+  get-user-by-email:
+    use: my_database
+    description: 'Find a user by their email address'
+    statement: |
+      SELECT id, name, email, created_at
+      FROM users
+      WHERE email = {{ inputs.email }}
+    inputs:
+      email:
+        type: string
+        description: 'The email address to search for'
+```
+
+Now call it with an input:
+
+```bash
+curl -X POST http://localhost:8080/query/get-user-by-email \
+  -H "Content-Type: application/json" \
+  -d '{"email": "alice@example.com"}'
+```
+
+## Explore built-in endpoints
+
+Hyperterse automatically generates documentation and tooling. Try opening [`http://localhost:8080/docs`](http://localhost:8080/docs) in your browser to see the auto-generated OpenAPI specification.
+
+| Endpoint             | Description               |
+| -------------------- | ------------------------- |
+| `POST /query/{name}` | Execute a query           |
+| `GET /docs`          | OpenAPI 3.0 specification |
+| `GET /llms.txt`      | AI-friendly documentation |
+| `POST /mcp`          | MCP JSON-RPC 2.0 endpoint |

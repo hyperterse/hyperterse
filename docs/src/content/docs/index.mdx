@@ -3,56 +3,34 @@ title: Introduction
 description: The interface between production databases and AI agents.
 ---
 
-import { Card, CardGrid, TabItem, Tabs } from '@astrojs/starlight/components'
+import { LinkCard } from '@astrojs/starlight/components'
 
 Hyperterse is a high-performance runtime server that transforms database queries into **REST endpoints** and **MCP tools**. Define queries in a configuration file and Hyperterse handles execution, validation, documentation, and AI integration.
 
-<Tabs>
-  <TabItem label="curl">
-    
-    ```bash 
-    curl -fsSL https://hyperterse.com/install | bash 
-    ```
-
-  </TabItem>
-</Tabs>
-
 ## Why Hyperterse?
 
-<CardGrid>
-  <Card
-    title="Agent-ready by design"
-    icon="zap"
-  >
-    Connect your data to AI agents through discoverable, callable tools—without
-    exposing SQL, schemas, or credentials.
-    <a href="/concepts">Learn more →</a>
-  </Card>
-  <Card
-    title="Zero-boilerplate APIs"
-    icon="code"
-  >
-    Turn queries into production-ready APIs with typed inputs, predictable
-    outputs, and built-in documentation.
-    <a href="/getting-started/quickstart">Get started →</a>
-  </Card>
-  <Card
-    title="Single source of truth"
-    icon="file-text"
-  >
-    Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools
-    from one configuration file.
-    <a href="/reference/configuration">View docs →</a>
-  </Card>
-  <Card
-    title="Database independence"
-    icon="database"
-  >
-    Work across PostgreSQL, MySQL, and Redis using a consistent, unified
-    interface.
-    <a href="/databases">Explore →</a>
-  </Card>
-</CardGrid>
+Hyperterse is designed for AI-first applications. It serves multiple use cases, and is aimed to simplify the integration of your database with AI agents, LLMs or other systems.
+
+<LinkCard
+  title="Agent-ready by design"
+  href="/concepts"
+  description="Connect your data to AI agents through discoverable, callable tools—without exposing SQL, schemas, or credentials."
+/>
+<LinkCard
+  title="Zero-boilerplate APIs"
+  href="/getting-started/quickstart"
+  description="Turn queries into production-ready APIs with typed inputs, predictable outputs, and built-in documentation."
+/>
+<LinkCard
+  title="Single source of truth"
+  href="/reference/configuration"
+  description="Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools from one configuration file."
+/>
+<LinkCard
+  title="Database independence"
+  href="/databases"
+  description="Work across PostgreSQL, MySQL, and Redis using a consistent, unified interface."
+/>
 
 ## How it works
 
@@ -94,11 +72,10 @@ curl -X POST http://localhost:8080/query/get-user \
 
 ## What's included
 
-| Feature               | Description                             |
-| --------------------- | --------------------------------------- |
-| **REST Endpoints**    | Each query becomes `POST /query/{name}` |
-| **MCP Protocol**      | JSON-RPC 2.0 tools at `POST /mcp`       |
-| **OpenAPI Docs**      | Auto-generated at `GET /docs`           |
-| **LLM Documentation** | AI-friendly docs at `GET /llms.txt`     |
-| **Input Validation**  | Strong typing and validation by default |
-| **Hot Reload**        | Instant feedback during development     |
+- **REST Endpoints**: Each query becomes its own REST endpoint
+- **MCP Protocol**: JSON-RPC 2.0 tools
+- **OpenAPI Docs**: Auto-generated
+- **LLM Documentation**: AI-friendly
+- **Input Validation**: Strong typing and validation by default
+- **Security**: Connection strings and raw SQL never exposed to clients
+- **Hot reloading**: Development mode with automatic reload on configuration changes

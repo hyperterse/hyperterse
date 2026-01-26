@@ -13,50 +13,7 @@ This guide walks through building a complete Hyperterse configuration for a typi
 
 ## Configuration formats
 
-Hyperterse supports two configuration formats. Choose whichever you prefer:
-
-<Tabs>
-  <TabItem label="YAML (.terse)">
-```yaml title="config.terse"
-adapters:
-  main_db:
-    connector: postgres
-    connection_string: "postgresql://user:pass@localhost:5432/app"
-
-queries:
-get-user:
-use: main_db
-description: "Get user by ID"
-statement: "SELECT \* FROM users WHERE id = {{ inputs.userId }}"
-inputs:
-userId:
-type: int
-description: "User ID"
-
-````
-  </TabItem>
-  <TabItem label="Dsl (.Hyperterse)">
-```text title="config.hyperterse"
-adapter main_db {
-  connector: postgres
-  connection_string: "postgresql://user:pass@localhost:5432/app"
-}
-
-query get-user {
-  use: main_db
-  description: "Get user by ID"
-  statement: "SELECT * FROM users WHERE id = {{ inputs.userId }}"
-  inputs: {
-    userId: {
-      type: int
-      description: "User ID"
-    }
-  }
-}
-````
-
-  </TabItem>
-</Tabs>
+Hyperterse configuration is defined in a single YAML-like Terse file with the `.terse` extension. Read the [configuration reference](/reference/configuration) for more details.
 
 ## Building a user management API
 

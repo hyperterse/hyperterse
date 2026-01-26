@@ -6,83 +6,74 @@ sidebar:
   order: 1
 ---
 
-import { TabItem, Tabs } from '@astrojs/starlight/components'
+import { Icon, TabItem, Tabs } from '@astrojs/starlight/components'
 
 Hyperterse is a CLI tool for creating database APIs. Choose your preferred installation method below.
 
 ## Quick install
 
 <Tabs>
-  <TabItem label="curl">
+  <TabItem label="cURL">
 ```bash
 curl -fsSL https://hyperterse.com/install | bash
 ```
 
-This script automatically detects your operating system and architecture, downloads Hyperterse, and installs it to `/usr/local/bin`.
-
   </TabItem>
-  <TabItem label="npm">
+  <TabItem label="NPM">
 ```bash
 npm install -g hyperterse
 ```
-
-Installs Hyperterse globally via npm. Requires Node.js 18 or later.
-
   </TabItem>
-  <TabItem label="bun">
+  <TabItem label="Bun">
 ```bash
 bun add -g hyperterse
 ```
-
-Installs Hyperterse globally via Bun package manager.
-
   </TabItem>
   <TabItem label="Homebrew">
 ```bash
 brew install hyperterse/tap/hyperterse
 ```
-
-Installs via Homebrew on macOS or Linux.
-
   </TabItem>
 </Tabs>
 
 ## Supported platforms
 
-| Operating System | Architecture          | Status       |
-| ---------------- | --------------------- | ------------ |
-| Linux            | amd64, arm64, arm     | ✅ Supported |
-| macOS            | Intel (amd64)         | ✅ Supported |
-| macOS            | Apple Silicon (arm64) | ✅ Supported |
-| Windows          | amd64, arm64          | ✅ Supported |
+<div class="grid grid-cols-1 md:grid-cols-3 grid-rows-3 md:grid-rows-1 gap-4 items-start justify-stretch">
+  <div class="p-4 rounded-lg border-hairline border-border h-full bg-surface/50">
+    <div class="flex gap-2 items-center mb-2 text-xl font-medium">
+      <Icon
+        name="linux"
+      />
+      <span>Linux</span>
+    </div>
+    <span class="text-xs text-dim">amd64, arm64, arm</span>
+  </div>
+
+{' '}
+
+<div class="p-4 rounded-lg border-hairline border-border mt-0 h-full bg-surface/50">
+  <div class="flex gap-2 items-center mb-2 text-xl font-medium">
+    <Icon name="apple" />
+    <span>macOS</span>
+  </div>
+  <span class="text-xs text-dim">Intel (amd64), Apple Silicon (arm64)</span>
+</div>
+
+  <div class="p-4 rounded-lg border-hairline border-border mt-0 h-full bg-surface/50">
+    <div class="flex gap-2 items-center mb-2 text-xl font-medium">
+      <Icon
+        name="seti:windows"
+      />
+      <span>Windows</span>
+    </div>
+    <span class="text-xs text-dim">amd64, arm64</span>
+  </div>
+</div>
 
 ## Verify installation
 
-After installation, verify that Hyperterse is available:
+After installation, verify that Hyperterse is installed correctly by running the following command. It should output the version number of the installed Hyperterse binary:
 
 ```bash
 hyperterse --version
-```
-
-You should see output like:
-
-```
-hyperterse v1.0.0
-```
-
-## Manual installation
-
-If you prefer to install manually or need a specific version:
-
-### Download from releases
-
-1. Visit the [GitHub Releases](https://github.com/hyperterse/hyperterse/releases) page
-2. Download the package for your platform
-3. Extract and move to a directory in your `PATH`
-
-```bash
-# Example for Linux amd64
-wget https://github.com/hyperterse/hyperterse/releases/latest/download/hyperterse-linux-amd64.tar.gz
-tar -xzf hyperterse-linux-amd64.tar.gz
-sudo mv hyperterse /usr/local/bin/
 ```
