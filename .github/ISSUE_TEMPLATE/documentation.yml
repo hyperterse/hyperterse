@@ -1,0 +1,83 @@
+name: 📖 Documentation Issue
+description: Report an issue with the documentation (typos, unclear content, incorrect information, etc.)
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the Hyperterse documentation! Please fill out the form below to help us understand and fix the issue.
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Type of Issue
+      description: What kind of documentation issue is this?
+      options:
+        - Typo or grammatical error
+        - Unclear or confusing content
+        - Missing information
+        - Outdated information
+        - Broken link
+        - Code example error
+        - Formatting issue
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Please describe the issue in detail
+      placeholder: What's wrong with the documentation?
+    validations:
+      required: true
+
+  - type: input
+    id: page-url
+    attributes:
+      label: Documentation Page URL
+      description: The URL or path to the affected documentation page (if applicable)
+      placeholder: e.g., https://docs.hyperterse.com/deployment/where/railway or docs/src/content/docs/deployment/where/railway.mdx
+    validations:
+      required: false
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Content
+      description: Copy and paste the current content that has the issue (if applicable)
+      placeholder: The text or code that needs to be fixed...
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix
+      description: If you have a suggestion for how to fix this, please share it here
+      placeholder: How should this be fixed or improved?
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or information that might be helpful
+      placeholder: Add any other context about the issue here...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this hasn't been reported before
+          required: false
+        - label: I have checked that this issue is not already fixed in the latest version
+          required: false
+        - label: I am willing to submit a pull request to fix this issue
+          required: false

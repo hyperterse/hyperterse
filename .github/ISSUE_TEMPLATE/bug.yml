@@ -1,0 +1,192 @@
+name: 🐛 Bug Report
+description: Report a bug or issue with the Hyperterse runtime server
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the form below with as much detail as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what went wrong...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Start the runtime with 'hyperterse run -f config.terse'
+        2. Make a request to '/query/...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: The query should return results successfully...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: The runtime crashed with error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration File
+      description: |
+        Please provide your configuration file (`.terse` or `.yaml`).
+        **IMPORTANT:** Remove or redact any sensitive information like connection strings, passwords, or API keys.
+        Use environment variables or placeholders instead.
+      placeholder: |
+        adapters:
+          my_db:
+            connector: postgres
+            connection_string: ******
+
+        queries:
+          my-query:
+            use: my_db
+            statement: |
+              SELECT * FROM users WHERE id = {{ inputs.id }}
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Runtime Logs
+      description: |
+        Please include relevant logs from the runtime. Run with `--verbose` or `-v` flag for detailed logs.
+        Remove any sensitive information before pasting.
+      placeholder: |
+        [runtime] Starting server on port 8080
+        [runtime:executor] Executing query name: 'my-query'...
+        [ERROR] ...
+      render: shell
+
+  - type: textarea
+    id: request
+    attributes:
+      label: Request Details
+      description: |
+        If applicable, include the HTTP request details (method, endpoint, headers, body).
+        Remove any sensitive information.
+      placeholder: |
+        POST /query/my-query
+        Content-Type: application/json
+
+        {
+          "id": "123"
+        }
+      render: json
+
+  - type: textarea
+    id: response
+    attributes:
+      label: Response/Error Message
+      description: The full error message or response received
+      placeholder: |
+        {
+          "success": false,
+          "error": "..."
+        }
+      render: json
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the runtime is affected?
+      options:
+        - Query Execution
+        - Connector/Adapter (PostgreSQL)
+        - Connector/Adapter (MySQL)
+        - Connector/Adapter (Redis)
+        - HTTP Server/Endpoints
+        - MCP
+        - OpenAPI Specification
+        - Input Validation
+        - Configuration Parsing
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical (runtime crashes or data corruption)
+        - High (runtime fails to start or queries fail)
+        - Medium (runtime works but with incorrect behavior)
+        - Low (minor issue, workaround available)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Hyperterse Version
+      description: The version of Hyperterse you're using (run `hyperterse --version`)
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: Your operating system and version
+      placeholder: macOS 14.0, Ubuntu 22.04, Windows 11, etc.
+    validations:
+      required: true
+
+  - type: input
+    id: go_version
+    attributes:
+      label: Go Version (if building from source)
+      description: Go version if you built from source (run `go version`)
+      placeholder: go1.21.0
+
+  - type: textarea
+    id: database
+    attributes:
+      label: Database Information
+      description: |
+        Database type and version (if applicable)
+        Example: PostgreSQL 15.2, MySQL 8.0.33, Redis 7.0
+      placeholder: PostgreSQL 15.2
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: If you've found a workaround, please describe it here
+      placeholder: Temporarily fixed by...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or information that might be helpful
+      placeholder: Add any other context about the problem here...
