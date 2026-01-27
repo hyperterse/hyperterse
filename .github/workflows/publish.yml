@@ -48,7 +48,6 @@ jobs:
         uses: ./.github/actions/publish-homebrew
         with:
           version: ${{ steps.version.outputs.version }}
-          tap_repo: "hyperterse/tap"
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
   publish-npm:

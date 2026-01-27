@@ -10,45 +10,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Download release artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: release-binaries
-        path: dist
-      continue-on-error: true
-
-    - name: Check if binaries exist locally
-      id: check_binaries
-      shell: bash
-      run: |
-        if [ -d "dist" ] && [ "$(ls -A dist/* 2>/dev/null)" ]; then
-          echo "found=true" >> $GITHUB_OUTPUT
-          echo "✓ Found local binaries"
-        else
-          echo "found=false" >> $GITHUB_OUTPUT
-          echo "⚠️ No local binaries found, will download from release"
-        fi
-
-    - name: Download binaries from release
-      if: steps.check_binaries.outputs.found != 'true'
-      shell: bash
-      run: |
-        VERSION="${{ inputs.version }}"
-        mkdir -p dist
-        cd dist
-
-        # Download binaries from GitHub release
-        for arch in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64 linux-arm; do
-          echo "Downloading hyperterse-${arch}..."
-          curl -L -o "hyperterse-${arch}" \
-            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/hyperterse-${arch}" || true
-        done
-
-    - name: Flatten binaries
-      if: steps.check_binaries.outputs.found == 'true'
-      shell: bash
-      run: ./scripts/create-archives.sh dist
-
     - name: Download checksums.txt from release
       shell: bash
       run: |
@@ -120,8 +81,8 @@ runs:
     - name: Checkout homebrew-tap
       uses: actions/checkout@v4
       with:
-        repository: ${{ inputs.tap_repo }}
-        token: ${{ inputs.token || github.token }}
+        repository: 'hyperterse/homebrew-tap'
+        token: ${{ inputs.token }}
         path: homebrew-tap
 
     - name: Copy formula to tap

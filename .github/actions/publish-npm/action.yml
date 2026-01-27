@@ -16,6 +16,7 @@ runs:
       with:
         node-version: "20"
         registry-url: "https://registry.npmjs.org"
+        token: ${{ inputs.token }}
 
     - name: Verify version in package.json
       shell: bash
