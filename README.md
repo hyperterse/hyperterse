@@ -1,12 +1,14 @@
 <div align="center">
 
+![Hyperterse](docs/public/og.png)
+
 # Hyperterse
 
-**A declarative interface between your data and modern software.**
+**Connect your data to your agents.**
 
-Turn database queries into stable APIs and AI-ready tools—without exposing SQL, writing boilerplate, or coupling your application to your database.
+A declarative interface between your data and modern software. Turn database queries into stable APIs and AI-ready tools—without exposing SQL, writing boilerplate, or coupling your application to your database.
 
-[Website](https://hyperterse.com) • [Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [Contributing](#contributing)
+[Website](https://hyperterse.com) • [Documentation](https://docs.hyperterse.com) • [Quick Start](#quick-start) • [Features](#features) • [Examples](#examples)
 
 </div>
 
@@ -24,8 +26,6 @@ You describe your queries once, in a simple configuration file. Hyperterse does 
 * Exposes queries safely to AI systems
 
 No ORMs. No boilerplate. No exposed SQL.
-
----
 
 ## Designed for Modern Systems
 
@@ -48,40 +48,45 @@ Hyperterse is built with AI in mind.
 * **Lightweight microservices** without ORM overhead
 * **Rapid prototyping** with configuration-first workflows
 
----
-
 ## Features
 
-| | |
-|--- | --- |
-| **Declarative Data Interfaces** | Define the shape and intent of data access once, and let Hyperterse handle execution, validation, and exposure. |
-| **Agent-Ready by Design** | Connect your data to AI agents through discoverable, callable tools—without exposing SQL, schemas, or credentials. |
-| **Zero-Boilerplate APIs** | Turn queries into production-ready APIs with typed inputs, predictable outputs, and built-in documentation. |
-| **Single Source of Truth** | Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools from one configuration file. |
-| **Security as a Baseline** | Keep raw SQL, connection strings, and internal errors fully contained within the runtime. |
-| **Database Independence** | Work across PostgreSQL, MySQL, and Redis using a consistent, unified interface. |
-| **Fast Iteration** | Update queries and schemas with immediate feedback during development. |
-| **Portable Deployment** | Ship a self-contained runtime that moves cleanly from local development to production. |
-| **Built to Scale** | Support everything from prototypes to multi-agent systems without changing your architecture. |
-<!--
+Hyperterse comes several features that help you leverage accessing your data in a secure manner for your AI agents and LLMs.
 
-|                                   |                                         |
-| --------------------------------- | --------------------------------------- |
-| **Automatic endpoint generation** | Each query becomes `POST /query/{name}` |
-| **OpenAPI 3.0 support**           | Swagger UI available at `/docs`         |
-| **MCP protocol support**          | JSON-RPC 2.0 tools for AI assistants    |
-| **Multiple databases**            | PostgreSQL, MySQL, Redis                |
-| **Input validation**              | Strong typing and validation by default |
-| **LLM-friendly docs**             | Auto-generated at `/llms.txt`           |
-| **Secure by design**              | No exposed SQL or credentials           |
-| **Hot reload**                    | Instant feedback during development     |
-| **Portable exports**              | Ship self-contained deployments         | -->
+### Declarative data interfaces
 
----
+Define the shape and intent of data access once, and let Hyperterse handle execution, validation, and exposure.
+
+### Agent-ready by design
+
+Connect your data to AI agents through discoverable, callable tools—without exposing SQL, schemas, or credentials.
+
+### Zero-boilerplate API
+
+Turn queries into production-ready APIs with typed inputs, predictable outputs, and built-in documentation.
+
+### Single source of truth
+
+Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools from one configuration file.
+
+### Database independence
+
+Work across PostgreSQL, MySQL, and Redis using a consistent, unified interface.
+
+### Fast and iterative development
+
+Update queries and schemas with immediate feedback during development.
+
+### Portable deployment
+
+Ship a self-contained runtime that moves cleanly from local development to production.
+
+### Built to scale
+
+Support everything from prototypes to multi-agent systems without changing your architecture.
 
 ## Quick Start
 
-### Install
+### Installation
 
 Install Hyperterse with a single command:
 
@@ -89,13 +94,13 @@ Install Hyperterse with a single command:
 curl -fsSL https://hyperterse.com/install | bash
 ```
 
-**Supported platforms**
+**Supported platforms:**
 
 * Linux (amd64, arm64, arm)
 * macOS (Intel, Apple Silicon)
 * Windows (amd64, arm64)
 
----
+For more installation options, see the [installation guide](https://docs.hyperterse.com/getting-started/installation).
 
 ### Your First Query
 
@@ -152,29 +157,25 @@ Response:
 }
 ```
 
----
-
 ## Documentation
 
-* **Full documentation**
-  [https://docs.hyperterse.com](https://docs.hyperterse.com)
+📚 **[Read the docs →](https://docs.hyperterse.com)**
 
-* **CLI reference**
-  [https://docs.hyperterse.com/cli](https://docs.hyperterse.com/cli)
-
-* **Configuration guide**
-  [https://docs.hyperterse.com/configuration](https://docs.hyperterse.com/configuration)
-
-* **Practical guides**
-  [https://docs.hyperterse.com/guides](https://docs.hyperterse.com/guides)
+* **[Getting Started](https://docs.hyperterse.com/getting-started/quick-start)** - Quick start guide and installation
+* **[CLI Reference](https://docs.hyperterse.com/reference/cli)** - Complete command-line interface reference
+* **[Configuration Guide](https://docs.hyperterse.com/reference/configuration)** - Configuration file reference
+* **[Guides](https://docs.hyperterse.com/guides)** - Practical guides for AI integration, OpenAPI, and MCP
+* **[Concepts](https://docs.hyperterse.com/concepts)** - Core concepts: adapters, queries, and inputs
+* **[Databases](https://docs.hyperterse.com/databases)** - Database-specific documentation
+* **[Deployment](https://docs.hyperterse.com/deployment)** - Deployment guides for various platforms
 
 ### Runtime Endpoints
 
-* OpenAPI: `GET /docs`
-* LLM docs: `GET /llms.txt`
-* MCP: `POST /mcp`
+When running, Hyperterse exposes several endpoints:
 
----
+* **OpenAPI Documentation**: `GET /docs` - Interactive API documentation
+* **LLM Documentation**: `GET /llms.txt` - AI-friendly documentation format
+* **MCP Protocol**: `POST /mcp` - Model Context Protocol JSON-RPC endpoint
 
 ## Examples
 
@@ -210,8 +211,6 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
----
-
 ### User Management
 
 ```yaml
@@ -224,8 +223,6 @@ queries:
       FROM users
       WHERE id = {{ inputs.userId }}
 ```
-
----
 
 ### Analytics
 
@@ -243,8 +240,6 @@ queries:
       GROUP BY DATE(created_at)
       ORDER BY date DESC
 ```
-
----
 
 ## CLI
 
@@ -285,88 +280,69 @@ Export:
 hyperterse export -f config.terse -o dist
 ```
 
----
-
 ## Configuration
 
-### Supported Types
+Hyperterse uses a simple YAML-like configuration format (`.terse` files) to define your database adapters and queries.
 
-`string`, `int`, `float`, `boolean`, `uuid`, `datetime`
+**Supported input types:** `string`, `int`, `float`, `boolean`, `uuid`, `datetime`
 
-### Templates
+**Template syntax:**
 
 ```sql
 WHERE price <= {{ inputs.maxPrice }}
 ```
 
-### Optional Inputs
+**Optional inputs:**
 
 ```yaml
 optional: true
 default: "20"
 ```
 
-### Multiple Databases
+**Multiple databases:** Hyperterse supports multiple adapters in a single configuration file.
 
-Hyperterse supports multiple adapters in a single configuration.
-
----
+For complete configuration reference, see the [configuration guide](https://docs.hyperterse.com/reference/configuration).
 
 ## Security
 
-* Credentials are never exposed
-* SQL is never returned to clients
-* Inputs are validated and escaped
-* Errors are sanitized by default
+Hyperterse is designed with security as a baseline:
 
-For production deployments, place Hyperterse behind a reverse proxy for authentication, rate limiting, and TLS.
+* 🔒 **Credentials are never exposed** - Connection strings stay server-side
+* 🛡️ **SQL is never returned to clients** - Raw queries remain hidden
+* ✅ **Inputs are validated and escaped** - Strong typing prevents injection
+* 🔇 **Errors are sanitized by default** - Internal details stay internal
 
----
-
-## Development
-
-Requirements:
-
-* Go 1.25.1+
-* `protoc`
-* `protoc-gen-go`
-
-Setup:
-
-```bash
-make setup
-make build
-go test ./...
-```
-
----
+For production deployments, place Hyperterse behind a reverse proxy for authentication, rate limiting, and TLS. See the [production security guide](https://docs.hyperterse.com/security/production) for best practices.
 
 ## Contributing
 
-Contributions are welcome.
+Contributions are welcome! We appreciate your help in making Hyperterse better.
 
 1. Fork the repository
-2. Create a feature branch
-3. Add tests
-4. Open a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Add tests for your changes
+4. Ensure code follows standard Go formatting
+5. Open a pull request
 
-Follow standard Go formatting and keep changes focused.
+Please keep changes focused and well-tested. For major changes, open an issue first to discuss your proposal. See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development guidelines.
 
----
+**Please note**: By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md). We are committed to providing a welcoming and inclusive environment for all contributors.
 
 ## Support
 
-* Website: [https://hyperterse.com](https://hyperterse.com)
-* Docs: [https://docs.hyperterse.com](https://docs.hyperterse.com)
-* Issues: [https://github.com/hyperterse/hyperterse/issues](https://github.com/hyperterse/hyperterse/issues)
-* Discussions: [https://github.com/hyperterse/hyperterse/discussions](https://github.com/hyperterse/hyperterse/discussions)
+* 🌐 **Website**: [hyperterse.com](https://hyperterse.com)
+* 📖 **Documentation**: [docs.hyperterse.com](https://docs.hyperterse.com)
+* 🐛 **Issues**: [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
+* 💬 **Discussions**: [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
+
 
 ---
 
 <div align="center">
 
+
 Made with care by the Hyperterse team.
 
-[Website](https://hyperterse.com) • [GitHub](https://github.com/hyperterse/hyperterse) • [Docs](https://docs.hyperterse.com)
+[Website](https://hyperterse.com) • [GitHub](https://github.com/hyperterse/hyperterse) • [Documentation](https://docs.hyperterse.com)
 
 </div>
