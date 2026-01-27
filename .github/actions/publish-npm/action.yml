@@ -12,7 +12,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: "24"
         registry-url: "https://registry.npmjs.org"
@@ -47,4 +47,4 @@ runs:
         cd distributions/npm
         cp ../../LICENSE .
         cp ../../README.md .
-        npm publish --access public --tag ${{ steps.dist-tag.outputs.tag }}
+        NODE_AUTH_TOKEN="" npm publish --access public --tag ${{ steps.dist-tag.outputs.tag }}
