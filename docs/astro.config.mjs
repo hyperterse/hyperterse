@@ -6,18 +6,23 @@ import tailwindcss from '@tailwindcss/vite'
 
 import expressiveCode from 'astro-expressive-code'
 
-import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections'
+// import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections'
 import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers'
+
+const TITLE = 'Hyperterse - The Production Database Interface for AI Agents'
+const DESCRIPTION = 'Connect AI agents to production databases safely. Define queries once with Hyperterse for a high-performance, reliable, and structured SQL engine. Stop hallucinations.'
+const KEYWORDS = 'Hyperterse, AI agents, database interface, SQL engine, PostgreSQL, MySQL, Redis, REST API, MCP, Model Context Protocol, LLM integration, RAG, AI tools, database queries, production database, OpenAPI, type-safe queries, database gateway, AI-first, chatbot, multi-agent systems, Docker, Kubernetes, AWS, Azure, GCP, Vercel, Railway, DigitalOcean, Cloudflare, database security, query validation, configuration-driven API'
+const OG_IMAGE = '/og.png'
 
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://docs.hyperterse.com',
   integrations: [
     expressiveCode({
-      themeCssSelector: (theme) => `.${theme.type}`,
       themes: ['vesper'],
       styleOverrides: {
-        borderWidth: '0.1px',
+        borderWidth: '0.5px',
         frames: {
           editorTabBarBackground: 'var(--color-surface)',
           editorActiveTabBackground: 'var(--color-surface)',
@@ -26,29 +31,84 @@ export default defineConfig({
           terminalTitlebarBackground: 'var(--color-surface)',
         }
       },
-
       frames: {
         extractFileNameFromCode: false,
         removeCommentsWhenCopyingTerminalFrames: true,
         showCopyToClipboardButton: true,
       },
-      plugins: [pluginCollapsibleSections(), pluginLineNumbers()],
+      plugins: [pluginLineNumbers()],
       defaultProps: {
-        // Disable line numbers by default
-        showLineNumbers: false,
-        // But enable line numbers for certain languages
+        showLineNumbers: true,
         overridesByLang: {
-          'bash,sh,shell': {
+          'bash,sh,shell,text': {
             showLineNumbers: false,
           },
         },
       }
     }),
     starlight({
-      title: 'Hyperterse',
+      title: 'Hyperterse - The Production Database Interface for AI Agents',
       titleDelimiter: ' - ',
       description:
-        'The interface between production databases and AI agents. Define queries once, get a high-performant engine that is reliable, interpretable, and structured.',
+        'Connect AI agents to production databases safely. Define queries once with Hyperterse for a high-performance, reliable, and structured SQL engine. Stop hallucinations.',
+      head: [
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:title',
+            content: TITLE,
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:description',
+            content: DESCRIPTION,
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:image',
+            content: OG_IMAGE,
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:card',
+            content: 'summary_large_image',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:title',
+            content: TITLE,
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:description',
+            content: DESCRIPTION,
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:image',
+            content: OG_IMAGE,
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'keywords',
+            content: KEYWORDS,
+          },
+        },
+      ],
       social: [
         {
           icon: 'github',
@@ -95,10 +155,6 @@ export default defineConfig({
         {
           label: 'Security',
           autogenerate: { directory: 'security' },
-        },
-        {
-          label: 'Troubleshooting',
-          autogenerate: { directory: 'troubleshooting' },
         },
       ],
       components: {

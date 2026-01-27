@@ -6,10 +6,13 @@ sidebar:
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Steps } from '@astrojs/starlight/components'
 
-Redis is supported in Hyperterse for executing commands against key-value data, caching, and data structures.
+Redis is an in-memory data structure store used as a database, cache, and message broker. Hyperterse provides support for Redis, enabling you to execute Redis commands for key-value operations, caching, session storage, rate limiting, and working with Redis data structures like hashes, lists, sets, and sorted sets.
 
-## Connection string
+## Connecting to your server
+
+Redis adapters use the standard Redis URI format:
 
 ```yaml
 adapters:
@@ -18,31 +21,9 @@ adapters:
     connection_string: 'redis://localhost:6379/0'
 ```
 
-### Format
+### Adapter options
 
-```
-redis://[:password@]host:port/db
-```
-
-### Examples
-
-```yaml
-# Local development
-connection_string: "redis://localhost:6379/0"
-
-# With password
-connection_string: "redis://:mypassword@localhost:6379/0"
-
-# Redis cloud / AWS ElastiCache
-connection_string: "redis://:${REDIS_PASS}@my-redis.cache.amazonaws.com:6379/0"
-
-# With TLS
-connection_string: "rediss://:password@host:6379/0"
-```
-
-<Aside>Use `rediss://` (with double 's') for TLS connections.</Aside>
-
-## Adapter options
+Configure connection pooling and other settings:
 
 ```yaml
 adapters:
@@ -50,48 +31,79 @@ adapters:
     connector: redis
     connection_string: 'redis://localhost:6379/0'
     options:
-      pool_size: '10'
+      pool_size: 10
 ```
 
-| Option      | Default | Description          |
-| ----------- | ------- | -------------------- |
-| `pool_size` | `10`    | Connection pool size |
+For connection string format and authentication options, see the [Redis connection documentation](https://redis.io/docs/management/security/authentication/).
 
-## Setup guide
+## Setting up a database
 
-### Step 1: Start Redis
+It is very easy to set up a database for Hyperterse. You can use your existing database or create a new one and wire it up to Hyperterse.
 
-```bash
-# Docker
-docker run -d -p 6379:6379 redis:latest
+<Steps>
 
-# macOS with homebrew
-brew services start redis
+1. **Start Redis**
 
-# Linux
-sudo systemctl start redis
-```
+   Start Redis using your preferred method:
 
-### Step 2: Configure Hyperterse
+   ```bash
+   # Docker
+   docker run -d -p 6379:6379 redis:latest
 
-```yaml
-adapters:
-  cache:
-    connector: redis
-    connection_string: 'redis://localhost:6379/0'
-```
+   # macOS with Homebrew
+   brew services start redis
 
-### Step 3: Test connection
+   # Linux (systemd)
+   sudo systemctl start redis
 
-```bash
-hyperterse dev -f config.terse
-```
+   # Or run directly
+   redis-server
+   ```
 
-## Query examples
+2. **Configure Hyperterse**
 
-Redis queries use Redis commands directly. The `statement` field contains the command to execute.
+   Add the Redis adapter to your configuration:
 
-### Get / SET
+   ```yaml
+   adapters:
+     cache:
+       connector: redis
+       connection_string: 'redis://localhost:6379/0'
+       options:
+         pool_size: 10
+   ```
+
+   For password-protected Redis instances:
+
+   ```yaml
+   connection_string: 'redis://:password@localhost:6379/0'
+   ```
+
+   For TLS-enabled Redis (cloud providers):
+
+   ```yaml
+   connection_string: 'rediss://:password@host:6379/0'
+   ```
+
+3. **Verify connection**
+
+   Test the connection using the development server:
+
+   ```bash
+   hyperterse dev -f config.terse
+   ```
+
+   Look for a successful connection message:
+
+   ```
+   INFO  Connected to adapter: cache
+   ```
+
+</Steps>
+
+## Usage
+
+Redis queries in Hyperterse execute Redis commands directly. The `statement` field contains the Redis command to execute:
 
 ```yaml
 queries:
@@ -103,280 +115,46 @@ queries:
       key:
         type: string
         description: 'Cache key'
-
-  set-value:
-    use: cache
-    description: 'Set a cached value'
-    statement: 'SET {{ inputs.key }} {{ inputs.value }}'
-    inputs:
-      key:
-        type: string
-        description: 'Cache key'
-      value:
-        type: string
-        description: 'Value to cache'
 ```
 
-### Key expiration
+Hyperterse supports all standard Redis commands including strings, hashes, lists, sets, sorted sets, and key management operations. Use parameterized inputs for dynamic values in commands. Redis commands return results in JSON format, with multiple values returned as arrays or key-value pairs depending on the command type.
 
-```yaml
-queries:
-  set-with-expiry:
-    use: cache
-    description: 'Set value with TTL'
-    statement: 'SETEX {{ inputs.key }} {{ inputs.ttl }} {{ inputs.value }}'
-    inputs:
-      key:
-        type: string
-      value:
-        type: string
-      ttl:
-        type: int
-        description: 'Time-to-live in seconds'
-```
+## Performance
 
-### Hash operations
+Hyperterse inherently does not limit any performance optimizations. You can optimize your queries and database to whatever degree Redis allows.
 
-```yaml
-queries:
-  get-user-session:
-    use: cache
-    description: 'Get user session data'
-    statement: 'HGETALL session:{{ inputs.userId }}'
-    inputs:
-      userId:
-        type: string
-
-  set-session-field:
-    use: cache
-    description: 'Set session field'
-    statement: 'HSET session:{{ inputs.userId }} {{ inputs.field }} {{ inputs.value }}'
-    inputs:
-      userId:
-        type: string
-      field:
-        type: string
-      value:
-        type: string
-```
-
-### Lists
-
-```yaml
-queries:
-  get-recent-events:
-    use: cache
-    description: 'Get recent events from list'
-    statement: 'LRANGE events:{{ inputs.channel }} 0 {{ inputs.count }}'
-    inputs:
-      channel:
-        type: string
-      count:
-        type: int
-        description: 'Number of events to retrieve'
-
-  push-event:
-    use: cache
-    description: 'Push event to list'
-    statement: 'LPUSH events:{{ inputs.channel }} {{ inputs.event }}'
-    inputs:
-      channel:
-        type: string
-      event:
-        type: string
-```
-
-### Sets
-
-```yaml
-queries:
-  check-membership:
-    use: cache
-    description: 'Check if user is in a set'
-    statement: 'SISMEMBER active_users {{ inputs.userId }}'
-    inputs:
-      userId:
-        type: string
-
-  get-active-users:
-    use: cache
-    description: 'Get all active users'
-    statement: 'SMEMBERS active_users'
-```
-
-### Sorted sets
-
-```yaml
-queries:
-  get-leaderboard:
-    use: cache
-    description: 'Get top players'
-    statement: 'ZREVRANGE leaderboard 0 {{ inputs.count }} WITHSCORES'
-    inputs:
-      count:
-        type: int
-        description: 'Number of top players'
-        optional: true
-        default: '10'
-
-  update-score:
-    use: cache
-    description: 'Update player score'
-    statement: 'ZINCRBY leaderboard {{ inputs.points }} {{ inputs.playerId }}'
-    inputs:
-      playerId:
-        type: string
-      points:
-        type: int
-```
-
-### Key management
-
-```yaml
-queries:
-  delete-key:
-    use: cache
-    description: 'Delete a key'
-    statement: 'DEL {{ inputs.key }}'
-    inputs:
-      key:
-        type: string
-
-  check-exists:
-    use: cache
-    description: 'Check if key exists'
-    statement: 'EXISTS {{ inputs.key }}'
-    inputs:
-      key:
-        type: string
-
-  get-ttl:
-    use: cache
-    description: 'Get remaining TTL'
-    statement: 'TTL {{ inputs.key }}'
-    inputs:
-      key:
-        type: string
-```
-
-## Common use cases
-
-### Session storage
-
-```yaml
-queries:
-  get-session:
-    use: cache
-    description: 'Get user session'
-    statement: 'GET session:{{ inputs.sessionId }}'
-    inputs:
-      sessionId:
-        type: string
-
-  invalidate-session:
-    use: cache
-    description: 'Invalidate session'
-    statement: 'DEL session:{{ inputs.sessionId }}'
-    inputs:
-      sessionId:
-        type: string
-```
-
-### Rate limiting
-
-```yaml
-queries:
-  check-rate-limit:
-    use: cache
-    description: 'Check and increment rate limit'
-    statement: 'INCR ratelimit:{{ inputs.clientId }}'
-    inputs:
-      clientId:
-        type: string
-
-  set-rate-limit-expiry:
-    use: cache
-    description: 'Set rate limit key expiry'
-    statement: 'EXPIRE ratelimit:{{ inputs.clientId }} {{ inputs.window }}'
-    inputs:
-      clientId:
-        type: string
-      window:
-        type: int
-        description: 'Window in seconds'
-```
-
-### Caching database queries
-
-Combine Redis with PostgreSQL/MySQL for caching:
-
-```yaml
-adapters:
-  main_db:
-    connector: postgres
-    connection_string: '${DATABASE_URL}'
-  cache:
-    connector: redis
-    connection_string: 'redis://localhost:6379/0'
-
-queries:
-  # Check cache first
-  get-cached-user:
-    use: cache
-    statement: 'GET user:{{ inputs.userId }}'
-    inputs:
-      userId:
-        type: string
-
-  # Fallback to database
-  get-user-from-db:
-    use: main_db
-    statement: 'SELECT * FROM users WHERE id = {{ inputs.userId }}'
-    inputs:
-      userId:
-        type: int
-```
-
-## Response format
-
-Redis responses are formatted as JSON:
-
-```json
-{
-  "success": true,
-  "error": "",
-  "results": [
-    {
-      "value": "cached_data"
-    }
-  ]
-}
-```
-
-For commands that return multiple values (like `HGETALL`), results are returned as key-value pairs.
-
-## Common issues
+## Troubleshooting
 
 ### Connection refused
 
-Ensure Redis is running:
+Verify Redis is running and accessible:
 
 ```bash
 redis-cli ping
 ```
 
+Should return `PONG`. Check firewall rules and network connectivity for remote Redis instances.
+
 ### Authentication failed
 
-Check password in connection string:
+Verify the password in the connection string:
 
 ```yaml
 connection_string: 'redis://:correct_password@localhost:6379/0'
 ```
 
+Ensure the Redis server has authentication enabled and the password matches.
+
 ### TLS required
 
-For cloud Redis with TLS:
+For cloud Redis providers that require TLS, use `rediss://` protocol:
 
 ```yaml
 connection_string: 'rediss://:password@host:6379/0'
 ```
+
+Note the double `s` in `rediss://` for secure connections.
+
+### Memory issues
+
+Monitor Redis memory usage and set appropriate expiration times for keys. Use `INFO memory` command to check memory statistics and configure `maxmemory` policy if needed.

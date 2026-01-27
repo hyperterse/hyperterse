@@ -6,10 +6,13 @@ sidebar:
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Steps } from '@astrojs/starlight/components'
 
-PostgreSQL is fully supported in Hyperterse with connection pooling, SSL/TLS, and all standard SQL features.
+PostgreSQL is a powerful, open-source relational database system known for its reliability, feature richness, and standards compliance. Hyperterse provides full support for PostgreSQL with connection pooling, SSL/TLS encryption, transaction support, and all standard SQL features including JSON operations, full-text search, and advanced data types.
 
-## Defining a PostgreSQL adapter
+## Connecting to your server
+
+PostgreSQL adapters use the standard PostgreSQL connection URI format:
 
 ```yaml
 adapters:
@@ -18,9 +21,9 @@ adapters:
     connection_string: 'postgresql://user:password@host:5432/database'
 ```
 
-## Adapter options
+### Adapter options
 
-You can configure connection options like `max_connections`, `ssl_mode`, and `connect_timeout`:
+Configure connection behavior and performance settings through adapter options:
 
 ```yaml
 adapters:
@@ -37,83 +40,85 @@ For a complete list of connector options and SSL modes, see the [PostgreSQL conn
 
 <Aside type="caution">
   Use `require` or stricter SSL modes in production. Never use `disable` with
-  cloud databases.
+  cloud databases or production environments.
 </Aside>
 
-## Setup guide
+## Setting up a database
 
-### Step 1: Create your database
+It is very easy to set up a database for Hyperterse. You can use your existing database or create a new one and wire it up to Hyperterse.
 
-```sql
-CREATE DATABASE myapp;
-CREATE USER hyperterse WITH PASSWORD 'secure_password';
-GRANT CONNECT ON DATABASE myapp TO hyperterse;
-```
+<Steps>
 
-### Step 2: Grant permissions
+1. **Create database and user**
 
-Grant only the permissions Hyperterse needs:
+   Create a dedicated database and user for Hyperterse:
 
-```sql
--- Read-only access
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO hyperterse;
-GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO hyperterse;
+   ```sql
+   CREATE DATABASE myapp;
+   CREATE USER hyperterse WITH PASSWORD 'secure_password';
+   GRANT CONNECT ON DATABASE myapp TO hyperterse;
+   ```
 
--- Or specific tables
-GRANT SELECT ON users, products, orders TO hyperterse;
+2. **Grant permissions**
 
--- For future tables
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO hyperterse;
-```
+   Grant only the permissions Hyperterse needs based on your use case:
 
-### Step 3: Configure Hyperterse
+   ```sql
+   -- Read-only access for all tables
+   GRANT SELECT ON ALL TABLES IN SCHEMA public TO hyperterse;
+   GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO hyperterse;
 
-```yaml
-adapters:
-  main_db:
-    connector: postgres
-    connection_string: 'postgresql://hyperterse:secure_password@localhost:5432/myapp'
-    options:
-      ssl_mode: 'prefer'
-```
+   -- For future tables
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO hyperterse;
+   ```
 
-### Step 4: Test connection
+   For write operations, grant additional permissions as needed:
 
-```bash
-hyperterse dev -f config.terse
-```
+   ```sql
+   GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hyperterse;
+   ```
 
-Look for:
+3. **Configure Hyperterse**
 
-```
-INFO  Connected to adapter: main_db
-```
+   Add the PostgreSQL adapter to your configuration:
 
-## Query examples
+   ```yaml
+   adapters:
+     main_db:
+       connector: postgres
+       connection_string: 'postgresql://hyperterse:secure_password@localhost:5432/myapp'
+       options:
+         ssl_mode: 'prefer'
+         max_connections: 10
+   ```
 
-### Basic queries
+4. **Verify connection**
+
+   Test the connection using the development server:
+
+   ```bash
+   hyperterse dev -f config.terse
+   ```
+
+   Look for a successful connection message:
+
+   ```
+   INFO  Connected to adapter: main_db
+   ```
+
+</Steps>
+
+## Usage
+
+PostgreSQL queries in Hyperterse support all standard SQL features. Use parameterized queries with input variables for safe execution:
 
 ```yaml
 queries:
-  list-users:
+  get-user:
     use: main_db
-    description: 'List all users'
+    description: 'Retrieve user by ID'
     statement: |
       SELECT id, name, email, created_at
-      FROM users
-      ORDER BY created_at DESC
-      LIMIT 100
-```
-
-### Parameterized queries
-
-```yaml
-queries:
-  get-user-by-id:
-    use: main_db
-    description: 'Get user by ID'
-    statement: |
-      SELECT id, name, email, role
       FROM users
       WHERE id = {{ inputs.userId }}
     inputs:
@@ -122,128 +127,60 @@ queries:
         description: 'User ID'
 ```
 
-### JSON operations
+PostgreSQL-specific features like JSON operations, full-text search, array operations, and window functions are fully supported. Use standard PostgreSQL syntax in your query statements.
 
-```yaml
-queries:
-  get-user-preferences:
-    use: main_db
-    description: 'Get user preferences'
-    statement: |
-      SELECT id, preferences->>'theme' as theme
-      FROM users
-      WHERE id = {{ inputs.userId }}
-    inputs:
-      userId:
-        type: int
-```
+## Performance
 
-### Date range queries
+Hyperterse inherently does not limit any performance optimizations. You can optimize your queries and database to whatever degree Postgres allows.
 
-```yaml
-queries:
-  events-in-range:
-    use: main_db
-    description: 'Get events in date range'
-    statement: |
-      SELECT *
-      FROM events
-      WHERE created_at >= {{ inputs.startDate }}::timestamp
-        AND created_at <= {{ inputs.endDate }}::timestamp
-      ORDER BY created_at DESC
-    inputs:
-      startDate:
-        type: datetime
-        description: 'Start date (ISO 8601)'
-      endDate:
-        type: datetime
-        description: 'End date (ISO 8601)'
-```
+### Read replicas
 
-### Full-text search
-
-```yaml
-queries:
-  search-products:
-    use: main_db
-    description: 'Full-text search products'
-    statement: |
-      SELECT id, name, description
-      FROM products
-      WHERE to_tsvector('english', name || ' ' || description) 
-            @@ plainto_tsquery('english', {{ inputs.query }})
-      LIMIT 20
-    inputs:
-      query:
-        type: string
-        description: 'Search query'
-```
-
-## Performance tips
-
-### Use read replicas
+For read-heavy workloads, you can configure separate adapters for primary and replica databases:
 
 ```yaml
 adapters:
   primary:
     connector: postgres
     connection_string: '${PRIMARY_DB_URL}'
-
   replica:
     connector: postgres
     connection_string: '${REPLICA_DB_URL}'
-
-queries:
-  # Write operations use primary
-  create-order:
-    use: primary
-    statement: 'INSERT INTO orders ...'
-
-  # Read operations use replica
-  list-orders:
-    use: replica
-    statement: 'SELECT * FROM orders ...'
 ```
 
-### Optimize queries
+Route read queries to the replica and write queries to the primary.
 
-- Add indexes for frequently filtered columns
-- Use `LIMIT` to control result size
-- Avoid `SELECT *` — specify columns
-
-### Connection pooling
-
-Tune `max_connections` based on workload:
-
-```yaml
-options:
-  max_connections: '20' # Increase for high concurrency
-```
-
-## Common issues
+## Troubleshooting
 
 ### Connection refused
 
-Check that PostgreSQL is running and accessible:
+Verify PostgreSQL is running and accessible:
 
 ```bash
 psql -h localhost -U user -d database
 ```
 
-### SSL certificate error
+Check firewall rules and network connectivity if connecting to a remote server.
 
-For self-signed certificates:
+### SSL certificate errors
+
+For self-signed certificates or custom CA certificates, adjust the SSL mode:
 
 ```yaml
 connection_string: 'postgresql://user:pass@host:5432/db?sslmode=require'
 ```
 
-For full verification, ensure the CA certificate is installed.
+For full certificate verification, ensure the CA certificate is properly installed and use `verify-ca` or `verify-full` SSL modes.
 
 ### Permission denied
 
-Grant necessary permissions:
+Verify user permissions:
 
 ```sql
+-- Check current grants
+\dp table_name
+
+-- Grant if needed
 GRANT SELECT ON table_name TO hyperterse;
 ```
+
+Ensure the user has `CONNECT` privilege on the database and appropriate table-level permissions.

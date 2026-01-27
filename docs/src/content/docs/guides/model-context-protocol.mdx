@@ -1,9 +1,18 @@
 ---
-title: MCP protocol
+title: Model Context Protocol
 description: Connect AI assistants to your database using Model Context Protocol.
 ---
 
 import Aside from '@/components/admonition.astro'
+
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
+</Aside>
 
 Hyperterse implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) to expose your database queries as tools for AI assistants like Claude, ChatGPT, and custom agents.
 
@@ -47,7 +56,7 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-**Response:**
+**Example response:**
 
 ```json
 {
@@ -112,7 +121,7 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-**Response:**
+**Example response:**
 
 ```json
 {

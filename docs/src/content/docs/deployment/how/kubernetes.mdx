@@ -4,70 +4,75 @@ description: Deploy Hyperterse to Kubernetes clusters.
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Steps, TabItem, Tabs } from '@astrojs/starlight/components'
 
-<Aside>**First**: Run `hyperterse export` and build a Docker image.</Aside>
+Hyperterse is a standalone binary, so you can run it in a Kubernetes cluster. It requires no external dependencies, it can also be easily scaled up and down.
 
-## Prerequisites
-
-1. Kubernetes cluster (local, cloud, or managed)
-2. `kubectl` configured
-3. Docker image in a registry
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
+</Aside>
 
 ## Quick start
 
-### Step 1: Build and push image
+<Steps>
 
-```bash
-# Export bundle
-hyperterse export -f config.terse -o dist
+1. **Build and push image**
 
-# Build image
-docker build -t your-registry/hyperterse:latest .
+   ```bash
+   # Export bundle
+   hyperterse export -f my-query-gateway.terse -o dist
 
-# Push to registry
-docker push your-registry/hyperterse:latest
-```
+   # Build image
+   docker build -t your-registry/my-query-gateway:latest .
 
-### Step 2: Create secrets
+   # Push to registry
+   docker push your-registry/my-query-gateway:latest
+   ```
 
-```bash
-kubectl create secret generic hyperterse-secrets \
-  --from-literal=DATABASE_URL="postgresql://user:pass@db:5432/app"
-```
+2. **Create secrets**
 
-### Step 3: Deploy
+   ```bash
+   kubectl create secret generic my-query-gateway-secrets \
+     --from-literal=DATABASE_URL="postgresql://user:pass@db:5432/app"
+   ```
 
-Apply the manifests below.
+</Steps>
 
 ## Kubernetes manifests
 
-### Deployment
+<Tabs>
+  <TabItem label="deployment.yaml">
 
-```yaml title="deployment.yaml"
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hyperterse
+  name: my-query-gateway
   labels:
-    app: hyperterse
+    app: my-query-gateway
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: hyperterse
+      app: my-query-gateway
   template:
     metadata:
       labels:
-        app: hyperterse
+        app: my-query-gateway
     spec:
       containers:
-        - name: hyperterse
+        - name: my-query-gateway
           image: your-registry/hyperterse:latest
           ports:
             - containerPort: 8080
           envFrom:
             - secretRef:
-                name: hyperterse-secrets
+                name: my-query-gateway-secrets
           resources:
             requests:
               memory: '128Mi'
@@ -89,29 +94,31 @@ spec:
             periodSeconds: 5
 ```
 
-### Service
+  </TabItem>
+  <TabItem label="service.yaml">
 
-```yaml title="service.yaml"
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: hyperterse
+  name: my-query-gateway
 spec:
   selector:
-    app: hyperterse
+    app: my-query-gateway
   ports:
     - port: 80
       targetPort: 8080
   type: ClusterIP
 ```
 
-### Ingress
+  </TabItem>
+  <TabItem label="ingress.yaml">
 
-```yaml title="ingress.yaml"
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: hyperterse
+  name: my-query-gateway
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -119,7 +126,7 @@ spec:
   tls:
     - hosts:
         - api.example.com
-      secretName: hyperterse-tls
+      secretName: my-query-gateway-tls
   rules:
     - host: api.example.com
       http:
@@ -128,32 +135,59 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: hyperterse
+                name: my-query-gateway
                 port:
                   number: 80
 ```
 
+  </TabItem>
+</Tabs>
+
 ## Apply manifests
 
-```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
-kubectl apply -f ingress.yaml
-```
+<Steps>
+
+1. **Apply all manifests**
+
+   ```bash
+   kubectl apply -f deployment.yaml
+   kubectl apply -f service.yaml
+   kubectl apply -f ingress.yaml
+   ```
+
+2. **Verify deployment**
+
+   ```bash
+   kubectl get pods -l app=my-query-gateway
+   kubectl get svc my-query-gateway
+   kubectl get ingress my-query-gateway
+   ```
+
+</Steps>
 
 ## Secrets management
 
-### Kubernetes secrets
+<Steps>
 
-```yaml title="secrets.yaml"
-apiVersion: v1
-kind: Secret
-metadata:
-  name: hyperterse-secrets
-type: Opaque
-stringData:
-  DATABASE_URL: 'postgresql://user:pass@db:5432/app'
-```
+1. **Create secrets**
+
+   ```yaml title="secrets.yaml"
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: my-query-gateway-secrets
+   type: Opaque
+   stringData:
+     DATABASE_URL: 'postgresql://user:pass@db:5432/app'
+   ```
+
+2. **Apply secrets**
+
+   ```bash
+   kubectl apply -f secrets.yaml
+   ```
+
+</Steps>
 
 ### External secrets operator
 
@@ -163,18 +197,18 @@ For production, use External Secrets with AWS Secrets Manager, HashiCorp Vault, 
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: hyperterse-secrets
+  name: my-query-gateway-secrets
 spec:
   refreshInterval: 1h
   secretStoreRef:
     kind: ClusterSecretStore
     name: aws-secrets
   target:
-    name: hyperterse-secrets
+    name: my-query-gateway-secrets
   data:
     - secretKey: DATABASE_URL
       remoteRef:
-        key: prod/hyperterse/database-url
+        key: prod/my-query-gateway/database-url
 ```
 
 ## Scaling
@@ -185,12 +219,12 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: hyperterse
+  name: my-query-gateway
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: hyperterse
+    name: my-query-gateway
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -213,21 +247,35 @@ Both use the `/docs` endpoint which returns the OpenAPI spec.
 
 ## Rolling updates
 
-```yaml
-spec:
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 1
-```
+<Steps>
 
-Update image:
+1. **Configure rolling update strategy**
 
-```bash
-kubectl set image deployment/hyperterse \
-  hyperterse=your-registry/hyperterse:v1.2.0
-```
+   Add to your deployment:
+
+   ```yaml
+   spec:
+     strategy:
+       type: RollingUpdate
+       rollingUpdate:
+         maxUnavailable: 1
+         maxSurge: 1
+   ```
+
+2. **Update image**
+
+   ```bash
+   kubectl set image deployment/my-query-gateway \
+     my-query-gateway=your-registry/my-query-gateway:v1.2.0
+   ```
+
+3. **Monitor rollout**
+
+   ```bash
+   kubectl rollout status deployment/my-query-gateway
+   ```
+
+</Steps>
 
 ## Monitoring
 
@@ -251,11 +299,11 @@ Restrict traffic:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: hyperterse-policy
+  name: my-query-gateway-policy
 spec:
   podSelector:
     matchLabels:
-      app: hyperterse
+      app: my-query-gateway
   policyTypes:
     - Ingress
     - Egress

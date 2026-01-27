@@ -3,40 +3,25 @@ title: AI integration
 description: Patterns for integrating Hyperterse with LLMs, RAG systems, and multi-agent architectures.
 ---
 
-
 Hyperterse is designed for AI-first applications. This guide covers patterns for LLMs, retrieval-augmented generation (RAG), and multi-agent systems.
 
 ## Why Hyperterse for AI?
 
 Traditional database access in AI systems is problematic:
 
-| Challenge | Traditional Approach | Hyperterse Approach |
-|-----------|---------------------|---------------------|
-| SQL exposure | LLM generates raw SQL | LLM calls typed tools |
-| Injection risk | Must sanitize LLM output | Automatic validation |
-| Schema leakage | LLM needs schema knowledge | Tools are self-describing |
-| Credential security | Connection strings in prompts | Fully contained runtime |
+| Challenge           | Traditional Approach          | Hyperterse Approach       |
+| ------------------- | ----------------------------- | ------------------------- |
+| SQL exposure        | LLM generates raw SQL         | LLM calls typed tools     |
+| Injection risk      | Must sanitize LLM output      | Automatic validation      |
+| Schema leakage      | LLM needs schema knowledge    | Tools are self-describing |
+| Credential security | Connection strings in prompts | Fully contained runtime   |
 
 ## Use cases
 
-<div class="card-grid">
-  <div class="card">
-    <h3>Tool calling</h3>
-    <p>Let LLMs discover and call database queries autonomously.</p>
-  </div>
-  <div class="card">
-    <h3>RAG systems</h3>
-    <p>Use structured queries for reliable context retrieval.</p>
-  </div>
-  <div class="card">
-    <h3>Chatbots</h3>
-    <p>Power conversational interfaces with live data.</p>
-  </div>
-  <div class="card">
-    <h3>Multi-agent</h3>
-    <p>Share consistent data access across agent teams.</p>
-  </div>
-</div>
+- **Tool calling** - Let LLMs discover and call database queries autonomously.
+- **RAG systems** - Use structured queries for reliable context retrieval.
+- **Chatbots** - Power conversational interfaces with live data.
+- **Multi-agent** - Share consistent data access across agent teams.
 
 ## Tool calling
 
@@ -48,7 +33,7 @@ LLMs like GPT-4 and Claude support function/tool calling. Hyperterse queries bec
 queries:
   get-customer-orders:
     use: main_db
-    description: "Get recent orders for a customer. Use when customers ask about their order history."
+    description: 'Get recent orders for a customer. Use when customers ask about their order history.'
     statement: |
       SELECT id, status, total, created_at
       FROM orders
@@ -62,7 +47,7 @@ queries:
 
   get-order-details:
     use: main_db
-    description: "Get detailed information about a specific order including items."
+    description: 'Get detailed information about a specific order including items.'
     statement: |
       SELECT o.*, oi.product_name, oi.quantity, oi.price
       FROM orders o
@@ -71,11 +56,11 @@ queries:
     inputs:
       orderId:
         type: int
-        description: "Order ID"
+        description: 'Order ID'
 
   check-product-availability:
     use: main_db
-    description: "Check if a product is in stock. Use when customers ask about availability."
+    description: 'Check if a product is in stock. Use when customers ask about availability.'
     statement: |
       SELECT id, name, stock_quantity, price
       FROM products
@@ -102,7 +87,7 @@ For RAG systems, Hyperterse provides reliable, structured context retrieval.
 queries:
   search-knowledge-base:
     use: main_db
-    description: "Semantic search over documentation"
+    description: 'Semantic search over documentation'
     statement: |
       SELECT id, title, content, 
              1 - (embedding <=> {{ inputs.queryEmbedding }}::vector) as similarity
@@ -112,11 +97,11 @@ queries:
     inputs:
       queryEmbedding:
         type: string
-        description: "Query embedding as JSON array"
+        description: 'Query embedding as JSON array'
       limit:
         type: int
         optional: true
-        default: "5"
+        default: '5'
 ```
 
 ### Rag pipeline
@@ -146,7 +131,7 @@ Combine semantic and keyword search:
 queries:
   hybrid-search:
     use: main_db
-    description: "Combined semantic and keyword search"
+    description: 'Combined semantic and keyword search'
     statement: |
       SELECT id, title, content,
         (0.7 * (1 - (embedding <=> {{ inputs.queryEmbedding }}::vector))) +
@@ -184,15 +169,15 @@ In multi-agent architectures, Hyperterse provides a shared data layer:
                         └─────────────┘
 ```
 
-### Example: research + analyst agents
+### Example: Research + Analyst agents
 
 ```yaml
 queries:
   # Research agent queries
   get-market-data:
     use: analytics_db
-    description: "Get market data for analysis"
-    statement: "SELECT * FROM market_data WHERE date >= {{ inputs.startDate }}"
+    description: 'Get market data for analysis'
+    statement: 'SELECT * FROM market_data WHERE date >= {{ inputs.startDate }}'
     inputs:
       startDate:
         type: datetime
@@ -200,8 +185,8 @@ queries:
   # Planning agent queries
   get-portfolio:
     use: main_db
-    description: "Get current portfolio holdings"
-    statement: "SELECT * FROM portfolio WHERE user_id = {{ inputs.userId }}"
+    description: 'Get current portfolio holdings'
+    statement: 'SELECT * FROM portfolio WHERE user_id = {{ inputs.userId }}'
     inputs:
       userId:
         type: int
@@ -209,8 +194,8 @@ queries:
   # Execution agent queries
   log-trade:
     use: main_db
-    description: "Log a trade execution"
-    statement: "INSERT INTO trades (symbol, quantity, price) VALUES ({{ inputs.symbol }}, {{ inputs.qty }}, {{ inputs.price }})"
+    description: 'Log a trade execution'
+    statement: 'INSERT INTO trades (symbol, quantity, price) VALUES ({{ inputs.symbol }}, {{ inputs.qty }}, {{ inputs.price }})'
     inputs:
       symbol:
         type: string
@@ -253,7 +238,7 @@ This creates a portable package for AI platforms that support skill imports.
 
 ## Best practices
 
-### 1. write AI-Friendly descriptions
+### Write AI-friendly descriptions
 
 ```yaml
 # Good - explains when to use
@@ -263,7 +248,7 @@ description: "Search products by category. Use when customers ask about what pro
 description: "Get products"
 ```
 
-### 2. limit result sizes
+### 2. Limit result sizes
 
 ```yaml
 # Prevent overwhelming LLM context Windows
@@ -273,7 +258,7 @@ statement: |
   LIMIT 100  -- Always limit
 ```
 
-### 3. return relevant fields only
+### 3. Return relevant fields only
 
 ```yaml
 # Good - only useful fields
@@ -283,7 +268,7 @@ statement: "SELECT id, name, summary FROM articles WHERE ..."
 statement: "SELECT * FROM articles WHERE ..."
 ```
 
-### 4. group related queries
+### 4. Group related queries
 
 Organize queries logically so AI can understand the available operations:
 
@@ -293,11 +278,9 @@ queries:
   get-customer: ...
   list-customers: ...
   search-customers: ...
-  
+
   # Order queries
   get-order: ...
   list-orders: ...
   get-order-items: ...
 ```
-
-

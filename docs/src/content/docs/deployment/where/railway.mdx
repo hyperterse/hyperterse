@@ -1,98 +1,274 @@
 ---
 title: Railway
 description: Deploy Hyperterse to Railway with one click.
+sidebar:
+  order: 6
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Badge, Steps } from '@astrojs/starlight/components'
 
-Railway is one of the easiest ways to deploy Hyperterse.
+Railway is one of the easiest ways to deploy Hyperterse. It provides automatic deployments from GitHub, built-in PostgreSQL, SSL certificates, and zero-configuration setup.
 
-<Aside>
-  **First**: Run `hyperterse export -f config.terse -o dist` to create a
-  deployment bundle.
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
 </Aside>
 
 ## Quick deploy
 
-### Step 1: Create dockerfile
+<Steps>
 
-```dockerfile title="Dockerfile"
-FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
-WORKDIR /app
-COPY dist/hyperterse /app/hyperterse
-COPY dist/config.terse /app/config.terse
-RUN chmod +x /app/hyperterse
-EXPOSE 8080
-CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
-```
+1. **Export bundle**
 
-### Step 2: Push to GitHub
+   ```bash
+   hyperterse export -f config.terse -o dist
+   ```
 
-```bash
-git add .
-git commit -m "Add Hyperterse deployment"
-git push
-```
+2. **Create `Dockerfile`**
 
-### Step 3: Deploy on Railway
+   ```dockerfile
+   FROM alpine:3.19
 
-1. Go to [railway.app](https://railway.app)
-2. Click "New Project" → "Deploy from GitHub repo"
-3. Select your repository
-4. Railway auto-detects Dockerfile and deploys
+   # Install bash and ca-certificates for HTTPS database connections
+   RUN apk --no-cache add bash ca-certificates
 
-### Step 3: Add environment variables
+   WORKDIR /app
 
-In Railway dashboard:
+   # Copy the exported script (replace 'config' with your actual script name)
+   COPY dist/config /app/config
 
-- Add `DATABASE_URL` with your database connection string
-- Or connect a Railway PostgreSQL database
+   # Make script executable
+   RUN chmod +x /app/config
 
-## Railway PostgreSQL
+   EXPOSE 8080
 
-Add a PostgreSQL database directly in Railway:
+   # Run the script
+   CMD ["/app/config"]
+   ```
 
-1. Click "New" → "Database" → "Add PostgreSQL"
-2. Railway provides `DATABASE_URL` automatically
-3. Link to your Hyperterse service
+   **Note**: Replace `config` with the actual name of your exported script (it matches your config filename without the `.terse` extension).
+
+3. **Push to GitHub**
+
+   Commit and push your code to a GitHub repository:
+
+   ```bash
+   git add Dockerfile dist/
+   git commit -m "Add Hyperterse deployment"
+   git push origin main
+   ```
+
+   Ensure your repository is public or connected to Railway.
+
+4. **Create Railway project**
+
+   - Go to [Railway dashboard](https://railway.app)
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Authorize Railway to access your GitHub account if needed
+   - Select your repository
+
+5. **Configure deployment**
+
+   Railway will automatically:
+
+   - Detect your Dockerfile
+   - Build your Docker image
+   - Deploy your container
+   - Assign a public URL with SSL
+
+   No additional configuration needed!
+
+6. **Add environment variables**
+
+   In the Railway dashboard:
+
+   - Go to your service → Variables
+   - Add `DATABASE_URL` with your database connection string
+   - Click "Add" to save
+
+   **Security**: Railway encrypts environment variables automatically.
+
+</Steps>
+
+## Railway PostgreSQL <Badge text='Recommended' variant='success' />
+
+Railway makes it easy to add a managed PostgreSQL database:
+
+<Steps>
+
+1. **Add PostgreSQL database**
+
+   In your Railway project:
+
+   - Click "New" → "Database" → "Add PostgreSQL"
+   - Railway automatically creates a PostgreSQL instance
+
+2. **Automatic connection**
+
+   Railway automatically:
+
+   - Creates a `DATABASE_URL` environment variable
+   - Links it to your Hyperterse service
+   - Handles connection pooling
+
+   No manual configuration needed!
+
+3. **Access database**
+
+   - Click on the PostgreSQL service
+   - Use the "Query" tab to run SQL queries
+   - Or connect using any PostgreSQL client with the connection string
+
+</Steps>
 
 ## Configuration
 
-Railway automatically:
+Railway automatically handles:
 
-- Assigns a public URL
-- Provides SSL
-- Handles restarts
-- Streams logs
+- **Public URL**: Every deployment gets a `*.railway.app` URL
+- **SSL certificates**: Automatic HTTPS with Let's Encrypt
+- **Restarts**: Automatically restarts on crashes
+- **Logs**: Real-time log streaming in the dashboard
+- **Deployments**: Automatic deployments on every Git push
 
 ## Environment variables
 
+Railway provides multiple ways to manage environment variables.
+
+### Via Railway Dashboard
+
+- Go to your service → Variables
+- Add, edit, or delete variables
+- Changes take effect immediately
+
+### Via Railway CLI
+
 ```bash
-# Via Railway CLI
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Login
+railway login
+
+# Link to your project
+railway link
+
+# Set variable
 railway variables set DATABASE_URL="postgresql://..."
 
-# Or in dashboard
-# Settings → variables
+# View all variables
+railway variables
+```
+
+### Via `railway.toml`
+
+Create a `railway.toml` file in your project root:
+
+```toml title="railway.toml"
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "/app/config"
+healthcheckPath = "/docs"
+healthcheckTimeout = 100
+restartPolicyType = "always"
 ```
 
 ## Custom domain
 
-1. Add domain in Railway dashboard
-2. Configure DNS CNAME to Railway's domain
-3. SSL is automatic
+Add your own domain to Railway:
+
+<Steps>
+
+1. **Add domain in Railway**
+
+   - Go to your service → Settings → Domains
+   - Click "Add Domain"
+   - Enter your domain (e.g., `api.example.com`)
+
+2. **Configure DNS**
+
+   Railway provides DNS instructions:
+
+   - Add a CNAME record pointing to Railway's domain
+   - Or add an A record with Railway's IP
+
+3. **SSL certificate**
+
+   Railway automatically provisions and renews SSL certificates via Let's Encrypt.
+
+</Steps>
 
 ## Scaling
 
 Railway supports horizontal scaling:
 
-- Adjust replica count in dashboard
-- Configure health checks
+<Steps>
 
-## Logs
+1. **Adjust replica count**
 
-```bash
-railway logs
-```
+   - Go to your service → Settings → Scaling
+   - Increase the replica count
+   - Railway will distribute traffic across instances
 
-Or view in Railway dashboard.
+2. **Configure health checks**
+
+   Railway automatically health checks your service:
+
+   - Default: Checks root path `/`
+   - Customize in `railway.toml`:
+
+   ```toml
+   [deploy]
+   healthcheckPath = "/docs"
+   healthcheckTimeout = 100
+   ```
+
+</Steps>
+
+## Monitoring and logs
+
+**View logs**:
+
+- **Dashboard**: Go to your service → Logs tab
+- **CLI**: `railway logs` (streams logs in real-time)
+
+**Metrics**:
+
+Railway provides basic metrics in the dashboard:
+
+- Request count
+- Response times
+- Error rates
+- Resource usage
+
+For advanced monitoring, integrate with external services like Datadog or New Relic.
+
+## Continuous deployment
+
+Railway automatically deploys on every Git push:
+
+- **Main branch**: Deploys to production
+- **Other branches**: Can be configured for preview deployments
+- **Rollbacks**: Click "Redeploy" → Select a previous deployment
+
+## Troubleshooting
+
+**Deployment fails**: Check build logs in Railway dashboard. Common issues include incorrect Dockerfile paths or missing files.
+
+**Can't connect to database**: Verify `DATABASE_URL` is set correctly and that the database service is running.
+
+**Service won't start**: Check logs for errors. Common issues include incorrect port configuration (should be 8080) or missing environment variables.
+
+**High costs**: Railway charges based on usage. Monitor your usage in the dashboard and consider:
+
+- Using Railway's free tier for development
+- Optimizing resource usage
+- Setting up usage alerts

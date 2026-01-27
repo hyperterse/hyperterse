@@ -1,81 +1,327 @@
 ---
 title: Vercel
-description: Deploy Hyperterse with Vercel.
+description: Deploy Hyperterse on Vercel's serverless platform.
+sidebar:
+  order: 5
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Badge, Steps } from '@astrojs/starlight/components'
 
-<Aside type="caution">
-  Hyperterse requires a persistent server to run. The `hyperterse export`
-  command produces a bash script that cannot run on Vercel's serverless
-  infrastructure. For production, deploy Hyperterse on a persistent server and
-  use Vercel as a frontend.
+Deploy Hyperterse directly on Vercel using serverless functions. Since Hyperterse is a single executable binary, it works beautifully with Vercel's [Fluid compute](https://vercel.com/docs/fluid-compute) infrastructure, providing automatic scaling, zero-configuration deployment, and pay-per-use pricing.
+
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
 </Aside>
 
-## Architecture options
+## Option 1: Deploy Hyperterse on Vercel <Badge text='Recommended' variant='success' />
 
-### Option 1: external Hyperterse (recommended)
+Deploy Hyperterse directly as a serverless function on Vercel. Since Hyperterse is a single executable binary, it works excellently with Vercel's [Fluid compute](https://vercel.com/docs/fluid-compute) infrastructure.
 
-Frontend on Vercel, Hyperterse on another platform:
+<Steps>
 
-```
-┌──────────┐      ┌─────────────┐      ┌─────────────┐
-│  Client  │─────▶│   Vercel    │─────▶│ Hyperterse  │
-│          │      │  (Frontend) │ API  │ (Railway/   │
-└──────────┘      └─────────────┘      │  AWS/etc)   │
-                                       └─────────────┘
-```
+1. **Export your Hyperterse bundle**
 
-Configure in `next.config.js`:
+   ```bash
+   hyperterse export -f config.terse -o dist
+   ```
 
-```js
-module.exports = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'https://hyperterse.your-domain.com/:path*',
-      },
-    ]
-  },
-}
-```
+   This creates a self-contained script in the `dist/` directory. The script name matches your config file name (without the `.terse` extension).
 
-### Option 2: Docker on Vercel (experimental)
+2. **Create a Vercel serverless function**
 
-Vercel now supports Docker deployments:
+   Create an Express adapter that runs Hyperterse:
 
-```dockerfile title="Dockerfile"
-FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
-WORKDIR /app
-COPY dist/hyperterse /app/hyperterse
-COPY dist/config.terse /app/config.terse
-RUN chmod +x /app/hyperterse
-EXPOSE 8080
-CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
-```
+   ```js title="api/index.js"
+   import express from 'express'
+   import { spawn } from 'child_process'
+   import { fileURLToPath } from 'url'
+   import { dirname, join } from 'path'
+
+   const __filename = fileURLToPath(import.meta.url)
+   const __dirname = dirname(__filename)
+
+   const app = express()
+   app.use(express.json())
+
+   // Path to the exported Hyperterse script
+   const scriptPath = join(__dirname, '../dist/config') // Adjust to your script name
+   let hyperterseProcess = null
+
+   // Start Hyperterse on first request (lazy initialization)
+   function ensureHyperterseRunning() {
+     if (!hyperterseProcess || hyperterseProcess.killed) {
+       hyperterseProcess = spawn('bash', [scriptPath], {
+         env: {
+           ...process.env,
+           PORT: process.env.PORT || '8080',
+         },
+         stdio: ['ignore', 'pipe', 'pipe'],
+       })
+
+       hyperterseProcess.on('error', (err) => {
+         console.error('Failed to start Hyperterse:', err)
+       })
+     }
+     return hyperterseProcess
+   }
+
+   // Proxy all requests to Hyperterse
+   app.all('*', async (req, res) => {
+     ensureHyperterseRunning()
+
+     // Wait a moment for Hyperterse to start
+     await new Promise((resolve) => setTimeout(resolve, 100))
+
+     try {
+       const response = await fetch(
+         `http://localhost:${process.env.PORT || 8080}${req.path}`,
+         {
+           method: req.method,
+           headers: {
+             ...req.headers,
+             host: undefined, // Remove host header
+           },
+           body:
+             req.method !== 'GET' && req.method !== 'HEAD'
+               ? JSON.stringify(req.body)
+               : undefined,
+         },
+       )
+
+       const data = await response.json().catch(() => response.text())
+       res.status(response.status).json(data)
+     } catch (error) {
+       res.status(500).json({ error: error.message })
+     }
+   })
+
+   export default app
+   ```
+
+3. **Configure Vercel**
+
+   Create a `vercel.json` configuration:
+
+   ```json title="vercel.json"
+   {
+     "functions": {
+       "api/index.js": {
+         "runtime": "nodejs20.x",
+         "memory": 1024,
+         "maxDuration": 30
+       }
+     }
+   }
+   ```
+
+4. **Set environment variables**
+
+   In Vercel dashboard:
+
+   - Go to Settings → Environment Variables
+   - Add `DATABASE_URL` with your database connection string
+   - Add any other required environment variables from your config
+
+5. **Deploy**
+
+   ```bash
+   # Install Vercel CLI
+   npm i -g vercel
+
+   # Deploy
+   vercel --prod
+   ```
+
+   Or connect your GitHub repository for automatic deployments on every push.
+
+</Steps>
+
+<Aside>
+  **Note**: The exported script embeds both the Hyperterse binary and your
+  config as base64. Vercel's serverless functions can execute this script
+  directly. For production, consider extracting just the binary if you need
+  faster cold starts.
+</Aside>
+
+## Option 2: Frontend proxy to external Hyperterse
+
+Deploy your frontend on Vercel and connect it to your Hyperterse API running elsewhere.
+
+Deploy your frontend on Vercel and connect it to your Hyperterse API running elsewhere.
+
+<Steps>
+
+1. **Deploy Hyperterse on a persistent platform**
+
+   First, deploy Hyperterse on a platform that supports persistent servers:
+
+   - [Railway](/deployment/where/railway) — Simplest option
+   - [AWS](/deployment/where/aws) — Production-grade
+   - [DigitalOcean](/deployment/where/digital-ocean) — Good balance
+   - [Google Cloud](/deployment/where/gcp) — Enterprise-ready
+
+   Make note of your Hyperterse API URL (e.g., `https://hyperterse.railway.app`).
+
+2. **Create or update your frontend**
+
+   If using Next.js, configure API rewrites to proxy requests to Hyperterse:
+
+   ```js title="next.config.js"
+   module.exports = {
+     async rewrites() {
+       return [
+         {
+           source: '/api/:path*',
+           destination: 'https://hyperterse.railway.app/:path*',
+         },
+       ]
+     },
+   }
+   ```
+
+   This allows your frontend to call `/api/query/get-user` and it will be proxied to your Hyperterse server.
+
+3. **Use environment variables**
+
+   Store your Hyperterse URL in environment variables:
+
+   ```bash
+   # .env.local
+   NEXT_PUBLIC_HYPERTERSE_URL=https://hyperterse.railway.app
+   ```
+
+   Then use it in your code:
+
+   ```js
+   const response = await fetch(
+     `${process.env.NEXT_PUBLIC_HYPERTERSE_URL}/query/get-user`,
+     {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ email: 'user@example.com' }),
+     },
+   )
+   ```
+
+4. **Deploy to Vercel**
+
+   - Push your code to GitHub
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your repository
+   - Vercel will auto-detect Next.js and deploy
+
+5. **Configure environment variables**
+
+   In Vercel dashboard:
+
+   - Go to your project → Settings → Environment Variables
+   - Add `NEXT_PUBLIC_HYPERTERSE_URL` with your Hyperterse URL
+   - Redeploy to apply changes
+
+</Steps>
+
+## Option 3: Next.js API Routes
+
+If you're using Next.js, create API routes that proxy to Hyperterse:
+
+<Steps>
+
+1. **Create API route**
+
+   ```js title="pages/api/query/[queryName].js"
+   export default async function handler(req, res) {
+     const { queryName } = req.query
+     const hyperterseUrl = process.env.HYPERTERSE_URL
+
+     try {
+       const response = await fetch(`${hyperterseUrl}/query/${queryName}`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify(req.body),
+       })
+
+       const data = await response.json()
+       res.status(response.status).json(data)
+     } catch (error) {
+       res.status(500).json({ error: error.message })
+     }
+   }
+   ```
+
+2. **Set environment variable**
+
+   In Vercel dashboard, add `HYPERTERSE_URL` (without `NEXT_PUBLIC_` prefix since it's server-side only).
+
+3. **Use in your frontend**
+
+   ```js
+   const response = await fetch('/api/query/get-user', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({ email: 'user@example.com' }),
+   })
+   ```
+
+</Steps>
 
 ## Environment variables
 
-Set via Vercel CLI or dashboard:
+Manage environment variables in Vercel:
+
+**Via Dashboard**:
+
+- Go to your project → Settings → Environment Variables
+- Add variables for each environment (Production, Preview, Development)
+- Variables are encrypted and secure
+
+**Via Vercel CLI**:
 
 ```bash
-vercel env add DATABASE_URL production
+# Install Vercel CLI
+npm i -g vercel
+
+# Login
+vercel login
+
+# Link project
+vercel link
+
+# Add environment variable
+vercel env add HYPERTERSE_URL production
+
+# Pull environment variables locally
+vercel env pull .env.local
 ```
 
-## First: export
+## Custom domain
 
-```bash
-hyperterse export -f config.terse -o dist
-```
+Add your own domain to Vercel:
 
-## Recommendation
+<Steps>
 
-For the best experience, deploy Hyperterse on:
+1. **Add domain**
 
-- [Railway](/deployment/where/railway) — Simple, integrates well with Vercel
-- [AWS](/deployment/where/aws) — Production-grade
-- [Docker](/deployment/how/docker) — Flexible
+   - Go to your project → Settings → Domains
+   - Add your domain (e.g., `api.example.com`)
 
-Then connect from your Vercel frontend.
+2. **Configure DNS**
+
+   Vercel provides DNS instructions:
+
+   - Add a CNAME record pointing to Vercel
+   - Or add an A record with Vercel's IP
+
+3. **SSL certificate**
+
+   Vercel automatically provisions and renews SSL certificates.
+
+</Steps>

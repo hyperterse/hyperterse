@@ -6,6 +6,15 @@ description: Protect database credentials and connections in Hyperterse.
 import Aside from '@/components/admonition.astro'
 import { Danger } from '@astrojs/starlight/components'
 
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
+</Aside>
+
 ## Environment variables
 
 <Aside type="danger">
@@ -21,7 +30,7 @@ Reference environment variables in connection strings:
 adapters:
   production_db:
     connector: postgres
-    connection_string: '${DATABASE_URL}'
+    connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 Or construct from multiple variables:

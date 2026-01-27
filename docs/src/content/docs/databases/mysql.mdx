@@ -6,10 +6,13 @@ sidebar:
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Steps } from '@astrojs/starlight/components'
 
-MySQL is fully supported in Hyperterse with connection pooling, character set configuration, and all standard SQL features.
+MySQL is a widely-used open-source relational database management system known for its performance, reliability, and ease of use. Hyperterse provides full support for MySQL with connection pooling, character set configuration, transaction support, and all standard SQL features including joins, aggregations, and subqueries.
 
-## Connection string
+## Connecting to your server
+
+MySQL adapters use the Go MySQL driver connection format:
 
 ```yaml
 adapters:
@@ -18,29 +21,17 @@ adapters:
     connection_string: 'user:password@tcp(host:3306)/database'
 ```
 
-### Format
+### Connection parameters
 
-```
-[user]:[password]@tcp([host]:[port])/[database]?[params]
-```
-
-### Examples
+Add parameters to the connection string for fine-tuning:
 
 ```yaml
-# Local development
-connection_string: "root:password@tcp(localhost:3306)/myapp"
-
-# With parameters
-connection_string: "user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true"
-
-# AWS RDS
-connection_string: "admin:${DB_PASS}@tcp(mydb.abc123.us-east-1.rds.amazonaws.com:3306)/prod"
-
-# Unix socket
-connection_string: "user:pass@unix(/var/run/mysqld/mysqld.sock)/database"
+connection_string: 'user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC&timeout=10s'
 ```
 
-## Adapter options
+### Adapter options
+
+Configure connection pooling and other settings:
 
 ```yaml
 adapters:
@@ -52,68 +43,80 @@ adapters:
       charset: 'utf8mb4'
 ```
 
-| Option            | Default   | Description                   |
-| ----------------- | --------- | ----------------------------- |
-| `max_connections` | `10`      | Maximum connections in pool   |
-| `charset`         | `utf8mb4` | Character set for connections |
+For a complete list of connection parameters, see the [MySQL connection documentation](https://dev.mysql.com/doc/refman/8.0/en/connecting.html).
 
-## Setup guide
+## Setting up a database
 
-### Step 1: Create your database
+It is very easy to set up a database for Hyperterse. You can use your existing database or create a new one and wire it up to Hyperterse.
 
-```sql
-CREATE DATABASE myapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'hyperterse'@'%' IDENTIFIED BY 'secure_password';
-GRANT SELECT ON myapp.* TO 'hyperterse'@'%';
-FLUSH PRIVILEGES;
-```
+<Steps>
 
-### Step 2: Configure Hyperterse
+1. **Create database and user**
 
-```yaml
-adapters:
-  main_db:
-    connector: mysql
-    connection_string: 'hyperterse:secure_password@tcp(localhost:3306)/myapp'
-    options:
-      charset: 'utf8mb4'
-```
+   Create a dedicated database and user for Hyperterse:
 
-### Step 3: Test connection
+   ```sql
+   CREATE DATABASE myapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'hyperterse'@'%' IDENTIFIED BY 'secure_password';
+   GRANT SELECT ON myapp.* TO 'hyperterse'@'%';
+   FLUSH PRIVILEGES;
+   ```
 
-```bash
-hyperterse dev -f config.terse
-```
+   Adjust the host (`%` allows any host) based on your security requirements. For local-only access, use `'hyperterse'@'localhost'`.
 
-Look for:
+2. **Grant permissions**
 
-```
-INFO  Connected to adapter: main_db
-```
+   Grant only the permissions needed for your use case:
 
-## Query examples
+   ```sql
+   -- Read-only access
+   GRANT SELECT ON myapp.* TO 'hyperterse'@'%';
 
-### Basic queries
+   -- For write operations
+   GRANT INSERT, UPDATE, DELETE ON myapp.* TO 'hyperterse'@'%';
 
-```yaml
-queries:
-  list-products:
-    use: main_db
-    description: 'List all products'
-    statement: |
-      SELECT id, name, price, stock
-      FROM products
-      ORDER BY name ASC
-      LIMIT 100
-```
+   -- For specific tables only
+   GRANT SELECT ON myapp.users, myapp.products TO 'hyperterse'@'%';
+   ```
 
-### Parameterized queries
+3. **Configure Hyperterse**
+
+   Add the MySQL adapter to your configuration:
+
+   ```yaml
+   adapters:
+     main_db:
+       connector: mysql
+       connection_string: 'hyperterse:secure_password@tcp(localhost:3306)/myapp?charset=utf8mb4&parseTime=true'
+       options:
+         max_connections: '10'
+   ```
+
+4. **Verify connection**
+
+   Verify connectionTest the connection using the development server:
+
+   ```bash
+   hyperterse dev -f config.terse
+   ```
+
+   Look for a successful connection message:
+
+   ```
+   INFO  Connected to adapter: main_db
+   ```
+
+</Steps>
+
+## Usage
+
+MySQL queries in Hyperterse support all standard SQL features. Use parameterized queries with input variables for safe execution:
 
 ```yaml
 queries:
   get-product:
     use: main_db
-    description: 'Get product by ID'
+    description: 'Retrieve product by ID'
     statement: |
       SELECT id, name, price, description
       FROM products
@@ -124,146 +127,76 @@ queries:
         description: 'Product ID'
 ```
 
-### Like queries
+MySQL-specific features like JSON functions, window functions, and stored procedures are fully supported. Use standard MySQL syntax in your query statements.
+
+## Performance
+
+Hyperterse inherently does not limit any performance optimizations. You can optimize your queries and database to whatever degree MySQL allows.
+
+### Read replicas
+
+For read-heavy workloads, you can configure separate adapters for primary and replica databases:
 
 ```yaml
-queries:
-  search-products:
-    use: main_db
-    description: 'Search products by name'
-    statement: |
-      SELECT id, name, price
-      FROM products
-      WHERE name LIKE {{ inputs.searchTerm }}
-      LIMIT 20
-    inputs:
-      searchTerm:
-        type: string
-        description: 'Search term (use % for wildcards)'
+adapters:
+  primary:
+    connector: mysql
+    connection_string: '${PRIMARY_DB_URL}'
+  replica:
+    connector: mysql
+    connection_string: '${REPLICA_DB_URL}'
 ```
 
-### Date queries
+Route read queries to the replica and write queries to the primary.
 
-```yaml
-queries:
-  orders-by-date:
-    use: main_db
-    description: 'Get orders in date range'
-    statement: |
-      SELECT id, customer_id, total, created_at
-      FROM orders
-      WHERE created_at >= {{ inputs.startDate }}
-        AND created_at <= {{ inputs.endDate }}
-      ORDER BY created_at DESC
-    inputs:
-      startDate:
-        type: datetime
-      endDate:
-        type: datetime
-```
-
-### Aggregations
-
-```yaml
-queries:
-  sales-summary:
-    use: main_db
-    description: 'Daily sales summary'
-    statement: |
-      SELECT 
-        DATE(created_at) as order_date,
-        COUNT(*) as order_count,
-        SUM(total) as total_sales
-      FROM orders
-      WHERE created_at >= {{ inputs.startDate }}
-      GROUP BY DATE(created_at)
-      ORDER BY order_date DESC
-    inputs:
-      startDate:
-        type: datetime
-```
-
-### Joins
-
-```yaml
-queries:
-  order-details:
-    use: main_db
-    description: 'Get order with customer details'
-    statement: |
-      SELECT 
-        o.id, o.total, o.created_at,
-        c.name as customer_name, c.email as customer_email
-      FROM orders o
-      JOIN customers c ON o.customer_id = c.id
-      WHERE o.id = {{ inputs.orderId }}
-    inputs:
-      orderId:
-        type: int
-```
-
-## Connection parameters
-
-Add parameters to the connection string for fine-tuning:
-
-```yaml
-connection_string: 'user:pass@tcp(host:3306)/db?parseTime=true&loc=UTC&timeout=10s'
-```
-
-| Parameter      | Description                             |
-| -------------- | --------------------------------------- |
-| `charset`      | Character set (e.g., `utf8mb4`)         |
-| `parseTime`    | Parse `DATE`/`DATETIME` to Go time.Time |
-| `loc`          | Timezone for time parsing               |
-| `timeout`      | Connection timeout                      |
-| `readTimeout`  | Read timeout                            |
-| `writeTimeout` | Write timeout                           |
-
-<Aside>
-  Use `parseTime=true` if your queries return datetime columns and you want
-  proper formatting.
-</Aside>
-
-## Performance tips
-
-### Optimize queries
-
-- Add indexes for frequently filtered columns
-- Use `LIMIT` on list queries
-- Specify columns instead of `SELECT *`
-
-### Connection pooling
-
-```yaml
-options:
-  max_connections: '20' # Adjust based on workload
-```
-
-## Common issues
+## Troubleshooting
 
 ### Access denied
 
-Check user permissions:
+Verify user permissions:
 
 ```sql
+-- Check grants
 SHOW GRANTS FOR 'hyperterse'@'%';
 
 -- Grant if needed
 GRANT SELECT ON myapp.* TO 'hyperterse'@'%';
+FLUSH PRIVILEGES;
 ```
+
+Ensure the user exists and has the correct host permissions.
 
 ### Character set issues
 
-Ensure UTF-8 support:
+Ensure UTF-8 support by using `utf8mb4` charset:
 
 ```yaml
 connection_string: 'user:pass@tcp(host:3306)/db?charset=utf8mb4'
 ```
 
+Also verify the database and table character sets:
+
+```sql
+SHOW CREATE DATABASE myapp;
+SHOW CREATE TABLE table_name;
+```
+
 ### Connection timeout
 
-Increase timeout in connection string:
+Increase timeout values in the connection string:
 
 ```yaml
-connection_string: 'user:pass@tcp(host:3306)/db?timeout=30s'
+connection_string: 'user:pass@tcp(host:3306)/db?timeout=30s&readTimeout=30s&writeTimeout=30s'
 ```
+
+Check network connectivity and MySQL server status if timeouts persist.
+
+### Timezone issues
+
+Set the timezone explicitly for consistent datetime handling:
+
+```yaml
+connection_string: 'user:pass@tcp(host:3306)/db?parseTime=true&loc=UTC'
+```
+
+This ensures datetime values are parsed consistently regardless of server timezone settings.

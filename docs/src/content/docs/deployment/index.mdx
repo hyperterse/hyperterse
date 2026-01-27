@@ -6,93 +6,11 @@ slug: deployment
 ---
 
 import Aside from '@/components/admonition.astro'
+import { LinkCard } from '@astrojs/starlight/components'
 
 Deploy Hyperterse to production environments. Choose how you want to run it and where you want to host it.
 
-<Aside>
-  **First Step**: Always run `hyperterse export` before deploying. This creates
-  an optimized, self-contained bundle.
-</Aside>
-
-```bash
-hyperterse export -f config.terse -o dist
-```
-
-## How to deploy
-
-Choose your deployment method:
-
-<div class="card-grid">
-  <div class="card">
-    <h3>
-      <a href="/deployment/how/docker">Docker</a>
-    </h3>
-    <p>Containerized deployment for portability.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/how/kubernetes">Kubernetes</a>
-    </h3>
-    <p>Orchestrated deployment for scale.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/how/bare-metal">Bare metal</a>
-    </h3>
-    <p>Direct deployment on servers.</p>
-  </div>
-</div>
-
-## Where to deploy
-
-Choose your hosting platform:
-
-<div class="card-grid">
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/aws">AWS</a>
-    </h3>
-    <p>Deploy on Amazon Web Services.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/gcp">Google Cloud</a>
-    </h3>
-    <p>Deploy on Google Cloud Platform.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/azure">Azure</a>
-    </h3>
-    <p>Deploy on Microsoft Azure.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/cloudflare">Cloudflare</a>
-    </h3>
-    <p>Deploy at the edge with Cloudflare.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/vercel">Vercel</a>
-    </h3>
-    <p>Serverless deployment on Vercel.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/railway">Railway</a>
-    </h3>
-    <p>Simple deployment with Railway.</p>
-  </div>
-  <div class="card">
-    <h3>
-      <a href="/deployment/where/digital-ocean">DigitalOcean</a>
-    </h3>
-    <p>Deploy on DigitalOcean.</p>
-  </div>
-</div>
-
-## Export command
+## Preparing for deployment
 
 The `hyperterse export` command is the **recommended first step** for any deployment:
 
@@ -100,20 +18,72 @@ The `hyperterse export` command is the **recommended first step** for any deploy
 hyperterse export -f config.terse -o dist
 ```
 
-This creates:
-
-| File                | Description                          |
-| ------------------- | ------------------------------------ |
-| `dist/hyperterse`   | Self-contained bash script           |
-| `dist/config.terse` | Configuration (credentials stripped) |
-| `dist/README.md`    | Deployment instructions              |
-
 ### Why export?
 
 - **No CLI required** — The script runs standalone
 - **Optimized** — Production-ready deployment
 - **Portable** — Move between environments easily
 - **Secure** — Credentials handled via environment variables
+
+## How to deploy
+
+Choose your deployment method:
+
+<LinkCard
+  title="Docker"
+  href="/deployment/how/docker"
+  description="Containerized deployment for portability."
+/>
+<LinkCard
+  title="Kubernetes"
+  href="/deployment/how/kubernetes"
+  description="Orchestrated deployment for scale."
+/>
+<LinkCard
+  title="Bare metal"
+  href="/deployment/how/bare-metal"
+  description="Direct deployment on servers."
+/>
+
+## Where to deploy
+
+Choose your hosting platform:
+
+<LinkCard
+  title="AWS"
+  href="/deployment/where/aws"
+  description="Deploy on Amazon Web Services."
+/>
+<LinkCard
+  title="Google Cloud"
+  href="/deployment/where/gcp"
+  description="Deploy on Google Cloud Platform."
+/>
+<LinkCard
+  title="Azure"
+  href="/deployment/where/azure"
+  description="Deploy on Microsoft Azure."
+/>
+<LinkCard
+  title="Cloudflare"
+  href="/deployment/where/cloudflare"
+  description="Deploy at the edge with Cloudflare."
+/>
+<LinkCard
+  title="Vercel"
+  href="/deployment/where/vercel"
+  description="Serverless deployment on Vercel."
+/>
+<LinkCard
+  title="Railway"
+  href="/deployment/where/railway"
+  description="Simple deployment with Railway."
+/>
+<LinkCard
+  title="DigitalOcean"
+  href="/deployment/where/digital-ocean"
+  description="Deploy on DigitalOcean."
+/>
 
 ## Quick start
 

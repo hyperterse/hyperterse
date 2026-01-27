@@ -3,11 +3,6 @@ import Button from './button.astro'
 import Logo from './logo.astro'
 import Search from './search.astro'
 import MobileMenuToggle from '@astrojs/starlight/components/MobileMenuToggle.astro'
-// Sticky header with logo and CTAs
-
-const currentPath = Astro.url.pathname
-const isActive = (path: string) =>
-  currentPath === path || currentPath === path + '/'
 
 // Fetch GitHub stars
 let githubStars = 0
@@ -68,43 +63,24 @@ const MENU_ITEMS = [
   <!-- Desktop navigation links -->
   <div class="md:flex items-center gap-2 hidden leading-4">
     {
-      MENU_ITEMS.map((item) => (
-        <>
-          <a
-            href={item.href}
-            target={item.target}
-            rel={item.rel}
-            class:list={[
-              'nav-link px-1.5 py-1.5 text-sm flex items-center gap-1',
-              isActive(item.href)
-                ? 'bg-white/10 text-fg'
-                : 'text-fg hover:text-fg/50',
-            ]}
-          >
-            {item.label}
-            {item.stars > 0 && (
-              <span class="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-lg bg-fg/10">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  class="w-3.5 h-3.5"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span>{humanizeNumber(item.stars)}</span>
+    <a
+          href="https://github.com/hyperterse/hyperterse"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="nav-link py-1.5 text-sm text-fg hover:text-fg/50 flex items-center gap-1.5"
+        >
+          <span>GitHub</span>
+          {githubStars > 0 && (
+            <span class="flex items-center gap-1 text-xs text-dim px-1 py-0.5 rounded-lg bg-fg/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>
+              </svg>
+              <span class="tracking-tight">
+                {humanizeNumber(githubStars)}
               </span>
-            )}
-          </a>
-          <span>·</span>
-        </>
-      ))
-    }
+            </span>
+          )}
+        </a>
 
     <Button
       href="/getting-started/installation"
@@ -137,41 +113,24 @@ const MENU_ITEMS = [
       <span>&rarr;</span>
     </Button>
 
-    {
-      MENU_ITEMS.map((item) => (
-        <a
-          href={item.href}
-          target={item.target}
-          rel={item.rel}
-          class:list={[
-            'nav-link px-1.5 py-1.5 flex items-center gap-1',
-            isActive(item.href)
-              ? 'bg-white/10 text-fg'
-              : 'text-fg hover:text-fg/50',
-          ]}
-        >
-          {item.label}
-          {item.stars > 0 && (
-            <span class="flex items-center gap-0.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                class="w-3.5 h-3.5"
-                aria-hidden="true"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-              <span>{humanizeNumber(item.stars)}</span>
-            </span>
-          )}
-        </a>
-      ))
-    }
+    <a
+      href="https://github.com/hyperterse/hyperterse"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="nav-link py-1.5 text-sm text-fg hover:text-fg/50 flex items-center gap-1.5"
+    >
+      <span>GitHub</span>
+      {githubStars > 0 && (
+        <span class="flex items-center gap-1 text-xs text-dim px-1 py-0.5 rounded-lg bg-fg/10">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor"/>
+          </svg>
+          <span class="tracking-tight">
+            {humanizeNumber(githubStars)}
+          </span>
+        </span>
+      )}
+    </a>
   </nav>
 </div>
 

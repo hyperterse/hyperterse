@@ -1,13 +1,22 @@
 ---
 title: AWS
 description: Deploy Hyperterse to Amazon Web Services.
+sidebar:
+  order: 1
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Steps } from '@astrojs/starlight/components'
 
-<Aside>
-  **First**: Run `hyperterse export -f config.terse -o dist` to create a
-  deployment bundle.
+Deploy Hyperterse on Amazon Web Services (AWS) using ECS Fargate, EKS, or EC2. This guide covers the recommended ECS Fargate deployment, which provides serverless containers without managing infrastructure.
+
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
 </Aside>
 
 ## Deployment options
@@ -18,113 +27,264 @@ import Aside from '@/components/admonition.astro'
 | **EKS**         | Kubernetes workloads, team familiarity |
 | **EC2**         | Full control, custom networking        |
 
-## Ecs fargate
+## ECS Fargate deployment
 
-### Step 1: Push image to ECR
+ECS Fargate is the simplest way to deploy Hyperterse on AWS. It runs containers without managing servers or clusters.
 
-```bash
-# Create repository
-aws ecr create-repository --repository-name hyperterse
+<Steps>
 
-# Login
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin <account>.dkr.ecr.us-east-1.amazonaws.com
+1. **Export your Hyperterse bundle**
 
-# Build and push
-docker build -t hyperterse .
-docker tag hyperterse:latest <account>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
-docker push <account>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
-```
+   First, create a deployment-ready bundle from your configuration:
 
-### Step 2: Create task definition
+   ```bash
+   hyperterse export -f config.terse -o dist
+   ```
 
-```json title="task-definition.json"
-{
-  "family": "hyperterse",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
-  "executionRoleArn": "arn:aws:iam::<account>:role/ecsTaskExecutionRole",
-  "containerDefinitions": [
-    {
-      "name": "hyperterse",
-      "image": "<account>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest",
-      "portMappings": [
-        {
-          "containerPort": 8080,
-          "protocol": "tcp"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:<account>:secret:prod/hyperterse/db"
-        }
-      ],
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/hyperterse",
-          "awslogs-region": "us-east-1",
-          "awslogs-stream-prefix": "ecs"
-        }
-      }
-    }
-  ]
-}
-```
+   This creates a self-contained script in the `dist/` directory. The script name matches your config file name (without the `.terse` extension).
 
-### Step 3: Create service
+2. **Create a Dockerfile**
 
-```bash
-aws ecs create-service \
-  --cluster default \
-  --service-name hyperterse \
-  --task-definition hyperterse \
-  --desired-count 2 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
-```
+   Create a Dockerfile in your project root:
 
-## Secrets Manager
+   ```dockerfile title="Dockerfile"
+   FROM alpine:3.19
 
-Store credentials securely:
+   # Install bash and ca-certificates for HTTPS database connections
+   RUN apk --no-cache add bash ca-certificates
 
-```bash
-aws secretsmanager create-secret \
-  --name prod/hyperterse/db \
-  --secret-string "postgresql://user:pass@rds-host:5432/app"
-```
+   WORKDIR /app
 
-Reference in task definition as shown above.
+   # Copy the exported script (replace 'config' with your actual script name)
+   COPY dist/config /app/config
 
-## Rds integration
+   # Make script executable
+   RUN chmod +x /app/config
 
-Use RDS for PostgreSQL/MySQL:
+   EXPOSE 8080
 
-1. Create RDS in same VPC as ECS
-2. Security group allowing ECS → RDS on port 5432/3306
-3. Use RDS endpoint in DATABASE_URL
+   # Run the script
+   CMD ["/app/config"]
+   ```
 
-## Application load balancer
+   **Note**: Replace `config` with the actual name of your exported script (it matches your config filename without the `.terse` extension).
 
-```bash
-# Create target group
-aws elbv2 create-target-group \
-  --name hyperterse \
-  --protocol HTTP \
-  --port 8080 \
-  --vpc-id vpc-xxx \
-  --target-type ip \
-  --health-check-path /docs
+3. **Create ECR repository**
 
-# Create ALB and listener
-# ... configure HTTPS with ACM certificate
-```
+   Create an Amazon Elastic Container Registry (ECR) repository to store your Docker image:
 
-## Cost optimization
+   ```bash
+   aws ecr create-repository --repository-name hyperterse --region us-east-1
+   ```
 
-- Use Fargate Spot for non-critical workloads
-- Right-size CPU/memory based on usage
-- Use Application Load Balancer instead of NLB
+   Note the repository URI (format: `<account-id>.dkr.ecr.<region>.amazonaws.com/hyperterse`).
+
+4. **Authenticate Docker with ECR**
+
+   Log in to ECR so you can push images:
+
+   ```bash
+   aws ecr get-login-password --region us-east-1 | \
+     docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+   ```
+
+   Replace `<account-id>` with your AWS account ID.
+
+5. **Build and push Docker image**
+
+   Build your Docker image and push it to ECR:
+
+   ```bash
+   # Build the image
+   docker build -t hyperterse .
+
+   # Tag for ECR
+   docker tag hyperterse:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
+
+   # Push to ECR
+   docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
+   ```
+
+6. **Store database credentials in Secrets Manager**
+
+   Store your database connection string securely in AWS Secrets Manager:
+
+   ```bash
+   aws secretsmanager create-secret \
+     --name prod/hyperterse/db \
+     --secret-string "postgresql://user:pass@rds-host:5432/app" \
+     --region us-east-1
+   ```
+
+   **Security best practice**: Never hardcode credentials. Always use Secrets Manager or environment variables.
+
+7. **Create ECS task definition**
+
+   Create a task definition file that describes your container:
+
+   ```json title="task-definition.json"
+   {
+     "family": "hyperterse",
+     "networkMode": "awsvpc",
+     "requiresCompatibilities": ["FARGATE"],
+     "cpu": "256",
+     "memory": "512",
+     "executionRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskExecutionRole",
+     "containerDefinitions": [
+       {
+         "name": "hyperterse",
+         "image": "<account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest",
+         "portMappings": [
+           {
+             "containerPort": 8080,
+             "protocol": "tcp"
+           }
+         ],
+         "secrets": [
+           {
+             "name": "DATABASE_URL",
+             "valueFrom": "arn:aws:secretsmanager:us-east-1:<account-id>:secret:prod/hyperterse/db"
+           }
+         ],
+         "logConfiguration": {
+           "logDriver": "awslogs",
+           "options": {
+             "awslogs-group": "/ecs/hyperterse",
+             "awslogs-region": "us-east-1",
+             "awslogs-stream-prefix": "ecs"
+           }
+         }
+       }
+     ]
+   }
+   ```
+
+   Replace `<account-id>` with your AWS account ID. Register the task definition:
+
+   ```bash
+   aws ecs register-task-definition --cli-input-json file://task-definition.json
+   ```
+
+8. **Create CloudWatch log group**
+
+   Create a log group for container logs:
+
+   ```bash
+   aws logs create-log-group --log-group-name /ecs/hyperterse --region us-east-1
+   ```
+
+9. **Create ECS service**
+
+   Create an ECS service to run and maintain your tasks:
+
+   ```bash
+   aws ecs create-service \
+     --cluster default \
+     --service-name hyperterse \
+     --task-definition hyperterse \
+     --desired-count 2 \
+     --launch-type FARGATE \
+     --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
+   ```
+
+   Replace `subnet-xxx` and `sg-xxx` with your actual subnet IDs and security group ID.
+
+</Steps>
+
+## RDS integration
+
+Connect Hyperterse to Amazon RDS for managed PostgreSQL or MySQL:
+
+<Steps>
+
+1. **Create RDS instance**
+
+   Create an RDS database instance in the same VPC as your ECS tasks. Use the AWS Console or CLI:
+
+   ```bash
+   aws rds create-db-instance \
+     --db-instance-identifier hyperterse-db \
+     --db-instance-class db.t3.micro \
+     --engine postgres \
+     --master-username admin \
+     --master-user-password YourSecurePassword \
+     --allocated-storage 20
+   ```
+
+2. **Configure security groups**
+
+   Ensure your ECS security group can access RDS:
+
+   - Allow inbound traffic from ECS security group on port 5432 (PostgreSQL) or 3306 (MySQL)
+   - Ensure both are in the same VPC
+
+3. **Update connection string**
+
+   Update your Secrets Manager secret with the RDS endpoint:
+
+   ```bash
+   aws secretsmanager update-secret \
+     --secret-id prod/hyperterse/db \
+     --secret-string "postgresql://admin:YourSecurePassword@hyperterse-db.xxxxx.us-east-1.rds.amazonaws.com:5432/postgres"
+   ```
+
+</Steps>
+
+## Application Load Balancer
+
+Expose your service through an Application Load Balancer for HTTPS and better traffic distribution:
+
+<Steps>
+
+1. **Create target group**
+
+   ```bash
+   aws elbv2 create-target-group \
+     --name hyperterse \
+     --protocol HTTP \
+     --port 8080 \
+     --vpc-id vpc-xxx \
+     --target-type ip \
+     --health-check-path /docs \
+     --health-check-interval-seconds 30
+   ```
+
+2. **Create Application Load Balancer**
+
+   Create an ALB with HTTPS support using AWS Certificate Manager (ACM):
+
+   ```bash
+   # Create ALB
+   aws elbv2 create-load-balancer \
+     --name hyperterse-alb \
+     --subnets subnet-xxx subnet-yyy \
+     --security-groups sg-xxx
+
+   # Create HTTPS listener with ACM certificate
+   aws elbv2 create-listener \
+     --load-balancer-arn <alb-arn> \
+     --protocol HTTPS \
+     --port 443 \
+     --certificates CertificateArn=<acm-cert-arn> \
+     --default-actions Type=forward,TargetGroupArn=<target-group-arn>
+   ```
+
+3. **Register ECS service with target group**
+
+   Update your ECS service to register with the target group automatically, or configure service discovery.
+
+</Steps>
+
+## Cost optimization tips
+
+- **Use Fargate Spot**: For non-critical workloads, use Fargate Spot to save up to 70% on compute costs
+- **Right-size resources**: Monitor CPU and memory usage and adjust task definitions accordingly
+- **Auto-scaling**: Configure ECS auto-scaling based on CloudWatch metrics to scale down during low traffic
+
+## Troubleshooting
+
+**Container won't start**: Check CloudWatch logs for errors. Common issues include incorrect `DATABASE_URL` or missing permissions.
+
+**Can't connect to database**: Verify security groups allow traffic between ECS and RDS, and that both are in the same VPC.
+
+**High costs**: Review CloudWatch metrics and consider using Fargate Spot or reducing task count during off-peak hours.

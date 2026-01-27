@@ -1,5 +1,5 @@
 ---
-title: Configuration reference
+title: Configuration
 description: Complete reference for Hyperterse configuration files.
 icon: Settings
 ---
@@ -66,36 +66,21 @@ adapters:
 
 ### Connector options
 
-#### PostgreSQL
+For connector-specific options, see the adapter documentation:
 
-| Option            | Description                                                                   |
-| ----------------- | ----------------------------------------------------------------------------- |
-| `max_connections` | Maximum connection pool size                                                  |
-| `ssl_mode`        | SSL mode: `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full` |
-| `connect_timeout` | Connection timeout in seconds                                                 |
-
-#### MySQL
-
-| Option            | Description                     |
-| ----------------- | ------------------------------- |
-| `max_connections` | Maximum connection pool size    |
-| `charset`         | Character set (e.g., `utf8mb4`) |
-
-#### Redis
-
-| Option      | Description          |
-| ----------- | -------------------- |
-| `pool_size` | Connection pool size |
+- [PostgreSQL adapter options](/databases/postgresql)
+- [MySQL adapter options](/databases/mysql)
+- [Redis adapter options](/databases/redis)
 
 ### Environment variables
 
-Use `${VAR}` syntax to reference environment variables:
+Use `{{ env.VARIABLE_NAME }}` syntax to reference environment variables:
 
 ```yaml
 adapters:
   production_db:
     connector: postgres
-    connection_string: '${DATABASE_URL}'
+    connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 ## Queries

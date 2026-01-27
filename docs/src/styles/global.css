@@ -93,8 +93,7 @@ body {
   min-height: 100vh;
   line-height: 1.5;
 }
-
-/* Headings use sans-serif */
+/*
 h1,
 h2,
 h3,
@@ -140,7 +139,7 @@ strong {
 
 div.main-pane {
   width: 100%;
-}
+} */
 
 /*
 Add additional Tailwind styles to this file:
@@ -173,12 +172,6 @@ https://tailwindcss.com/docs/adding-custom-styles#using-custom-css
           display: none;
         }
       }
-    }
-  }
-
-  & .ec-section.collapsible-start {
-    & summary::before {
-      display: none;
     }
   }
 }
@@ -254,10 +247,6 @@ starlight-tabs {
   }
 }
 
-/* a:not([aria-current='page']) {
-  @apply text-dim;
-} */
-
 table {
   @apply table w-full rounded-lg overflow-hidden border-hairline border-border;
 
@@ -283,8 +272,15 @@ table {
   }
 }
 
-a {
+a, li.tab > a,  .sl-link-card a {
   text-decoration: none;
+  border-bottom: 0!important;
+}
+
+.sl-markdown-content a {
+  display: inline;
+  border-bottom: 0.5px dashed;
+  @apply text-inherit;
 }
 
 .pagination-links {
@@ -320,4 +316,28 @@ a {
 
 ol.sl-steps > li:last-child::after {
   display: none;
+}
+
+site-search {
+  dialog {
+    @apply bg-bg outline-0 border-hairline border-border shadow;
+
+    &::backdrop {
+      @apply bg-surface/50;
+    }
+  }
+}
+
+.sl-badge {
+  color: var(--sl-color-border-badge);
+  border: 0;
+  @apply font-sans font-semibold font-normal uppercase text-xs;
+}
+
+ul:not([role="tablist"]) {
+  @apply my-4;
+}
+
+starlight-toc ul {
+  @apply my-1;
 }

@@ -4,115 +4,104 @@ description: Deploy Hyperterse using Docker containers.
 ---
 
 import Aside from '@/components/admonition.astro'
+import { Steps } from '@astrojs/starlight/components'
 
-<Aside>**First**: Run `hyperterse export` to create a deployment bundle.</Aside>
+Since Hyperterse is a standalone binary, you can run it in a Docker container. There are no external dependencies required.
 
-## Quick start
+<Aside
+  type="caution"
+  title="CAUTION"
+>
+  These instructions are a work in progress. Please report any issues or
+  suggestions to the [GitHub
+  repository](https://github.com/hyperterse/hyperterse/issues/new?template=documentation.yml).
+</Aside>
 
-### Step 1: Export your configuration
+## Dockerfile
 
-```bash
-hyperterse export -f config.terse -o dist
-```
+<Steps>
 
-### Step 2: Create dockerfile
+1. **Export bundle**
 
-```dockerfile title="Dockerfile"
-FROM alpine:3.19
+   ```bash
+   hyperterse export -f my-query-gateway.terse -o dist
+   ```
 
-# Install ca-certificates for HTTPS database connections
-RUN apk --no-cache add ca-certificates
+2. **Create `dockerfile`**
 
-WORKDIR /app
+   ```dockerfile title="Dockerfile"
+   FROM alpine:3.19
 
-# Copy exported bundle
-COPY dist/hyperterse /app/hyperterse
-COPY dist/config.terse /app/config.terse
+   # Install bash and ca-certificates for HTTPS database connections
+   RUN apk --no-cache add bash ca-certificates
 
-# Make script executable
-RUN chmod +x /app/hyperterse
+   WORKDIR /app
 
-EXPOSE 8080
+   # Copy exported bundle
+   COPY dist/my-query-gateway /app/my-query-gateway
 
-CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
-```
+   # Make script executable
+   RUN chmod +x /app/my-query-gateway
 
-### Step 3: Build image
+   EXPOSE 8080
 
-```bash
-docker build -t hyperterse-app .
-```
+   CMD ["/app/my-query-gateway"]
+   ```
 
-### Step 4: Run container
+3. **Build image**
 
-```bash
-docker run -d \
-  -p 8080:8080 \
-  -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
-  --name hyperterse \
-  hyperterse-app
-```
+   ```bash
+   docker build -t my-query-gateway-app .
+   ```
 
-## Docker compose
+4. **Run container**
 
-For local development with database:
+   ```bash
+   docker run -d \
+     -p 8080:8080 \
+     -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
+     --name hyperterse \
+     my-query-gateway-app
+   ```
 
-```yaml title="docker-compose.yml"
-version: '3.8'
+</Steps>
 
-services:
-  hyperterse:
-    build: .
-    ports:
-      - '8080:8080'
-    environment:
-      - DATABASE_URL=postgresql://app:app@postgres:5432/myapp
-    depends_on:
-      - postgres
-    restart: unless-stopped
+## Docker Compose
 
-  postgres:
-    image: postgres:16
-    environment:
-      - POSTGRES_USER=app
-      - POSTGRES_PASSWORD=app
-      - POSTGRES_DB=myapp
+<Steps>
+
+1. **Create `docker-compose.yml`**
+
+   ```yaml title="docker-compose.yml"
+   version: '3.8'
+
+
+    services:
+      my-query-gateway:
+        build: .
+        ports: - '8080:8080'
+        environment: - DATABASE_URL=postgresql://user:pass@localhost:5432/app
+        depends_on: - postgres
+        restart: unless-stopped
+
+    # For local development with database
+    postgres:
+        image: postgres:16
+        environment: - POSTGRES_USER=user - POSTGRES_PASSWORD=pass - POSTGRES_DB=app
+        volumes: - postgres_data:/var/lib/postgresql/data
+        ports: - '5432:5432'
+
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - '5432:5432'
+      postgres_data:
+   ```
 
-volumes:
-  postgres_data:
-```
+2. **Start services**
 
-Run:
+   ```bash
+   docker-compose up -d
+   ```
 
-```bash
-docker-compose up -d
-```
-
-## Multi-stage build
-
-For smaller images:
-
-```dockerfile title="Dockerfile"
-# Build stage (if building from source)
-FROM golang:1.25-alpine AS builder
-WORKDIR /src
-COPY . .
-RUN make build
-
-# Production stage
-FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
-WORKDIR /app
-COPY --from=builder /src/dist/hyperterse /app/hyperterse
-COPY config.terse /app/config.terse
-RUN chmod +x /app/hyperterse
-EXPOSE 8080
-CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
-```
+</Steps>
 
 ## Environment variables
 
@@ -123,16 +112,16 @@ docker run -d \
   -p 8080:8080 \
   -e DATABASE_URL="${DATABASE_URL}" \
   -e REDIS_URL="${REDIS_URL}" \
-  hyperterse-app
+  my-query-gateway-app
 ```
 
-Or use env file:
+Or use `.env` file:
 
 ```bash
 docker run -d \
   -p 8080:8080 \
   --env-file .env.production \
-  hyperterse-app
+  my-query-gateway-app
 ```
 
 ## Health checks
@@ -142,57 +131,11 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/docs || exit 1
 ```
 
-## Production tips
-
-### Use Read-Only root filesystem
-
-```bash
-docker run -d \
-  --read-only \
-  --tmpfs /tmp \
-  -p 8080:8080 \
-  hyperterse-app
-```
-
-### Resource limits
-
-```bash
-docker run -d \
-  --memory=512m \
-  --cpus=1 \
-  -p 8080:8080 \
-  hyperterse-app
-```
-
-### Non-root user
+Note: If using Alpine, install `wget` or use `curl` instead:
 
 ```dockerfile
-FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
-RUN addgroup -S app && adduser -S app -G app
-WORKDIR /app
-COPY --chown=app:app dist/hyperterse /app/hyperterse
-COPY --chown=app:app config.terse /app/config.terse
-RUN chmod +x /app/hyperterse
-USER app
-EXPOSE 8080
-CMD ["/app/hyperterse", "run", "-f", "/app/config.terse"]
-```
-
-## Logging
-
-View container logs:
-
-```bash
-docker logs -f hyperterse
-```
-
-For production, use logging drivers:
-
-```bash
-docker run -d \
-  --log-driver=json-file \
-  --log-opt max-size=10m \
-  --log-opt max-file=3 \
-  hyperterse-app
+RUN apk --no-cache add bash ca-certificates wget
+# or
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/docs || exit 1
 ```

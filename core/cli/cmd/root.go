@@ -32,9 +32,7 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "hyperterse",
-	Short: "Hyperterse - High-performance runtime server for database queries",
-	Long: `Hyperterse is a high-performance runtime server that exposes database queries
-as RESTful API endpoints and MCP (Model Context Protocol) tools.`,
+	Short: "Hyperterse\nConnect your data to your AI agents",
 }
 
 // completionCmd is a hidden command used by install.sh to generate shell completions
