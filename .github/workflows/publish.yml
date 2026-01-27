@@ -1,6 +1,18 @@
 name: Publish
 
 on:
+  workflow_call:
+    inputs:
+      homebrew:
+        description: "Publish to Homebrew"
+        required: true
+        default: true
+        type: boolean
+      npm:
+        description: "Publish to NPM"
+        required: true
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       homebrew:

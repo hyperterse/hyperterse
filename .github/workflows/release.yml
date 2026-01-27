@@ -115,34 +115,10 @@ jobs:
         run: |
           echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
 
-  publish-npm:
-    name: "Publish: NPM"
+  publish:
+    name: "Publish"
     needs: [build, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: ./.github/actions/publish-npm
-        with:
-          version: ${{ needs.release.outputs.version }}
-          token: ${{ secrets.NPM_TOKEN }}
-
-  publish-homebrew:
-    name: "Publish: Homebrew"
-    needs: [build, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - uses: ./.github/actions/publish-homebrew
-        with:
-          version: ${{ needs.release.outputs.version }}
-          tap_repo: "hyperterse/tap"
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    uses: ./.github/workflows/publish.yml
+    with:
+      homebrew: true
+      npm: true
