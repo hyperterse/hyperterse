@@ -39,7 +39,7 @@ Or construct from multiple variables:
 adapters:
   production_db:
     connector: postgres
-    connection_string: 'postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}'
+    connection_string: 'postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}'
 ```
 
 ### Setting environment variables
@@ -53,10 +53,11 @@ hyperterse dev -f config.terse
 
 **Using .env files:**
 
-```bash
-# .Env
+```bash title=".env"
 DATABASE_URL=postgresql://dev:dev@localhost:5432/myapp
+```
 
+```bash
 # Load before running
 source .env && hyperterse dev -f config.terse
 ```
@@ -234,7 +235,7 @@ Configure connection pools appropriately:
 adapters:
   production_db:
     connector: postgres
-    connection_string: '${DATABASE_URL}'
+    connection_string: '{{ env.DATABASE_URL }}'
     options:
       max_connections: '10' # Match expected concurrency
 ```

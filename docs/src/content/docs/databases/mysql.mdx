@@ -94,7 +94,7 @@ It is very easy to set up a database for Hyperterse. You can use your existing d
 
 4. **Verify connection**
 
-   Verify connectionTest the connection using the development server:
+   Test the connection using the development server:
 
    ```bash
    hyperterse dev -f config.terse
@@ -141,10 +141,10 @@ For read-heavy workloads, you can configure separate adapters for primary and re
 adapters:
   primary:
     connector: mysql
-    connection_string: '${PRIMARY_DB_URL}'
+    connection_string: '{{ env.PRIMARY_DB_URL }}'
   replica:
     connector: mysql
-    connection_string: '${REPLICA_DB_URL}'
+    connection_string: '{{ env.REPLICA_DB_URL }}'
 ```
 
 Route read queries to the replica and write queries to the primary.

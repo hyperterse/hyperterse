@@ -141,10 +141,10 @@ For read-heavy workloads, you can configure separate adapters for primary and re
 adapters:
   primary:
     connector: postgres
-    connection_string: '${PRIMARY_DB_URL}'
+    connection_string: '{{ env.PRIMARY_DB_URL }}'
   replica:
     connector: postgres
-    connection_string: '${REPLICA_DB_URL}'
+    connection_string: '{{ env.REPLICA_DB_URL }}'
 ```
 
 Route read queries to the replica and write queries to the primary.

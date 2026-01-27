@@ -151,7 +151,7 @@ Reference environment variables in connection strings:
 adapters:
   production_db:
     connector: postgres
-    connection_string: '${DATABASE_URL}'
+    connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 Or construct from multiple variables:
@@ -160,7 +160,7 @@ Or construct from multiple variables:
 adapters:
   production_db:
     connector: postgres
-    connection_string: 'postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}'
+    connection_string: 'postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}'
 ```
 
 ## Naming conventions

@@ -20,7 +20,7 @@ These flags are available for all commands:
 
 ## Commands
 
-### `Hyperterse Run`
+### `hyperterse run`
 
 Run the Hyperterse server in production mode.
 
@@ -62,7 +62,7 @@ Server settings are applied in this order (highest to lowest):
 
 ---
 
-### `Hyperterse dev`
+### `hyperterse dev`
 
 Run the server in development mode with hot reload.
 
@@ -90,7 +90,7 @@ Same as `run` command.
 
 ---
 
-### `Hyperterse init`
+### `hyperterse init`
 
 Initialize a new Hyperterse configuration file.
 
@@ -102,7 +102,7 @@ Creates a `config.terse` file in the current directory with a basic template.
 
 ---
 
-### `Hyperterse upgrade`
+### `hyperterse upgrade`
 
 Upgrade Hyperterse to the latest version.
 
@@ -114,7 +114,7 @@ Downloads and installs the latest version of Hyperterse.
 
 ---
 
-### `Hyperterse export`
+### `hyperterse export`
 
 Export a self-contained deployment bundle.
 
@@ -144,7 +144,7 @@ Creates a distribution directory containing everything needed to run Hyperterse 
 
 ---
 
-### `Hyperterse generate LLMs`
+### `hyperterse generate llms`
 
 Generate an `llms.txt` documentation file for AI/LLM consumption.
 
@@ -169,7 +169,7 @@ The generated file contains markdown documentation optimized for AI consumption,
 
 ---
 
-### `Hyperterse generate skills`
+### `hyperterse generate skills`
 
 Generate an Agent Skills archive (`.zip`) for AI platforms.
 
@@ -202,7 +202,7 @@ Use environment variables in configuration files:
 adapters:
   production_db:
     connector: postgres
-    connection_string: '${DATABASE_URL}'
+    connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 ---

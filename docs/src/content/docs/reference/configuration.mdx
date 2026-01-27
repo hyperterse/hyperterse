@@ -212,7 +212,7 @@ server:
 adapters:
   main_db:
     connector: postgres
-    connection_string: '${DATABASE_URL}'
+    connection_string: '{{ env.DATABASE_URL }}'
     options:
       max_connections: '10'
       ssl_mode: 'require'
