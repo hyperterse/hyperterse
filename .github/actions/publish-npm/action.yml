@@ -28,10 +28,23 @@ runs:
         fi
         echo "✓ Version matches: $PACKAGE_VERSION"
 
+    - name: Determine dist-tag
+      shell: bash
+      id: dist-tag
+      run: |
+        VERSION="${{ inputs.version }}"
+        if [[ "$VERSION" =~ (beta|alpha|rc) ]]; then
+          echo "tag=next" >> $GITHUB_OUTPUT
+          echo "📦 Pre-release version detected, publishing to 'next' dist-tag"
+        else
+          echo "tag=latest" >> $GITHUB_OUTPUT
+          echo "📦 Stable version detected, publishing to 'latest' dist-tag"
+        fi
+
     - name: Publish to NPM
       shell: bash
       run: |
         cd distributions/npm
         cp ../../LICENSE .
         cp ../../README.md .
-        npm publish --access public
+        npm publish --access public --tag ${{ steps.dist-tag.outputs.tag }}
