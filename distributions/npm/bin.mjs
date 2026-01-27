@@ -2,17 +2,36 @@
 
 /**
  * This file is used to run the Hyperterse binary.
+ * If the binary doesn't exist, it will automatically install it.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
 
-const binPath = path.join(import.meta.dirname, 'bin', process.platform === 'win32' ? 'hyperterse.exe' : 'hyperterse');
+import { install } from './install.mjs';
 
-if (!fs.existsSync(binPath)) {
-  console.error('Hyperterse binary not found');
-  process.exit(1);
-}
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const binPath = path.join(__dirname, 'bin', process.platform === 'win32' ? 'hyperterse.exe' : 'hyperterse');
 
-execSync(binPath, { stdio: 'inherit' });
+(async () => {
+  if (!fs.existsSync(binPath)) {
+    console.log('Hyperterse binary not found. Installing...');
+
+    try {
+      await install();
+    } catch (error) {
+      console.error('Error: Binary installation failed');
+      process.exit(1);
+    }
+
+    // Verify binary was installed
+    if (!fs.existsSync(binPath)) {
+      console.error('Error: Binary installation failed');
+      process.exit(1);
+    }
+  }
+
+  execSync(binPath, { stdio: 'inherit' });
+})();

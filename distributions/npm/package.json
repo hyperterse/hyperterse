@@ -15,9 +15,6 @@
   "bin": {
     "hyperterse": "bin.mjs"
   },
-  "scripts": {
-    "postinstall": "install.mjs"
-  },
   "files": [
     "bin.mjs",
     "install.mjs",

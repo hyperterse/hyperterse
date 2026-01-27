@@ -8,9 +8,22 @@ import fs from 'fs';
 import path from 'path';
 import https from 'https';
 import http from 'http';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Version is read from package.json (npm_package_version) or can be overridden via environment variable
-const VERSION = process.env.npm_package_version || '0.0.0';
+let VERSION = process.env.npm_package_version;
+if (!VERSION) {
+  // Fallback: read from package.json if env var not set
+  const packageJsonPath = path.join(__dirname, 'package.json');
+  if (fs.existsSync(packageJsonPath)) {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    VERSION = packageJson.version || '0.0.0';
+  } else {
+    VERSION = '0.0.0';
+  }
+}
 const BASE_URL = `https://github.com/hyperterse/hyperterse/releases/download/v${VERSION}`;
 
 // Detect platform and architecture
@@ -41,7 +54,7 @@ const binaryName = platform === 'win32'
   : `hyperterse-${goOS}-${goArch}`;
 
 const downloadUrl = `${BASE_URL}/${binaryName}`;
-const binDir = path.join(__dirname, 'dist');
+const binDir = path.join(__dirname, 'bin');
 const binPath = path.join(binDir, platform === 'win32' ? 'hyperterse.exe' : 'hyperterse');
 
 // Create bin directory if it doesn't exist
@@ -53,7 +66,7 @@ if (!fs.existsSync(binDir)) {
 function download(url, dest) {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith('https') ? https : http;
-    const file = fs.createWriteStream(binPath);
+    const file = fs.createWriteStream(dest);
 
     protocol.get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
@@ -78,8 +91,8 @@ function download(url, dest) {
   });
 }
 
-// Main installation logic
-async function install() {
+// Main installation function
+export async function install() {
   // Check if binary already exists
   if (fs.existsSync(binPath)) {
     console.log('Binary already exists, skipping download.');
@@ -91,7 +104,7 @@ async function install() {
 
   try {
     // Download archive
-    await download(downloadUrl);
+    await download(downloadUrl, binPath);
 
     // Make binary executable (Unix)
     if (platform !== 'win32') {
@@ -99,16 +112,10 @@ async function install() {
     }
 
     console.log('✓ Installation complete!');
-    process.exit(0);
   } catch (error) {
     console.error('Error installing binary:', error.message);
     console.error('You may need to manually download the binary from:', downloadUrl);
-    process.exit(1);
+    throw error;
   }
 }
 
-// Run installation
-install().catch((err) => {
-  console.error('Installation failed:', err);
-  process.exit(1);
-});
