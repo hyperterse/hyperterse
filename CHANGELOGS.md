@@ -1,3 +1,65 @@
+# v1.0.0
+
+Timestamp: 2026-01-28 UTC
+
+🎉 **Hyperterse v1.0.0 — Production Ready!**
+
+We're thrilled to announce the first stable release of Hyperterse! After months of development, testing, and community feedback through our alpha and beta releases, Hyperterse v1.0.0 is now production-ready and available for everyone.
+
+This release represents a major milestone in making database queries accessible as RESTful APIs and MCP tools. Whether you're building AI applications, microservices, or modern APIs, Hyperterse provides a powerful, flexible foundation for transforming your database queries into production-ready endpoints.
+
+## 🚀 What's New in v1.0.0
+
+### Production-Ready Features
+
+- **Stable API** — All APIs are now stable and ready for production use
+- **Multi-Package Manager Support** — Install via NPM (`npm install -g hyperterse`) or Homebrew (`brew install hyperterse/tap/hyperterse`)
+- **Enterprise-Grade Security** — Runtime environment variable substitution for secure configuration management
+- **Model Context Protocol** — Full Streamable HTTP transport support for seamless AI integrations
+
+### Core Capabilities
+
+- **Automatic Endpoint Generation** — Transform database queries into RESTful API endpoints instantly
+- **Multi-Database Support** — PostgreSQL, MySQL, and Redis connectors with automatic connection management
+- **MCP Integration** — Expose queries as MCP tools via JSON-RPC 2.0 for AI/LLM applications
+- **OpenAPI Documentation** — Auto-generated OpenAPI 3.0 specifications for all endpoints
+- **Type-Safe Configuration** — JSON schema validation with IDE support for `.terse` configuration files
+- **Developer Experience** — Hot reload development mode, upgrade command, and init templates
+
+### Installation & Getting Started
+
+Get started with Hyperterse in seconds:
+
+```bash
+# Via NPM
+npm install -g hyperterse
+
+# Via Homebrew
+brew install hyperterse/tap/hyperterse
+
+# Or download directly
+curl -fsSL https://hyperterse.com/install | bash
+```
+
+Create your first configuration:
+
+```bash
+hyperterse init
+hyperterse run -f config.terse
+```
+
+## 🙏 Thank You
+
+A huge thank you to everyone who tested the alpha and beta releases, reported issues, and provided feedback. Your contributions have been invaluable in making Hyperterse production-ready.
+
+## 📚 Resources
+
+- **Documentation**: [Full Documentation](https://github.com/hyperterse/hyperterse/blob/main/HYPERTERSE.md)
+- **GitHub**: [hyperterse/hyperterse](https://github.com/hyperterse/hyperterse)
+- **Issues**: [Report Issues](https://github.com/hyperterse/hyperterse/issues)
+
+---
+
 # v1.0.0-beta.5
 
 Timestamp: 2026-01-26 10:23:27 UTC
