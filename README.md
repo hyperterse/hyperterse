@@ -1,6 +1,6 @@
 <div align="center">
 
-![Hyperterse](docs/public/og.png)
+![Hyperterse](https://docs.hyperterse.com)
 
 # Hyperterse
 
