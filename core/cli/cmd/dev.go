@@ -13,10 +13,11 @@ import (
 )
 
 var devCmd = &cobra.Command{
-	Use:   "dev",
-	Short: "Run the Hyperterse server in development mode",
-	Long:  `Run the Hyperterse server and restart it when the config file changes.`,
-	RunE:  runDevServer,
+	Use:          "dev",
+	Short:        "Run the Hyperterse server in development mode",
+	Long:         `Run the Hyperterse server and restart it when the config file changes.`,
+	RunE:         runDevServer,
+	SilenceUsage: true,
 }
 
 func init() {

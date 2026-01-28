@@ -14,11 +14,10 @@ import (
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the Hyperterse server",
-	Long: `Run the Hyperterse server with the specified configuration file.
-The server will start and listen for incoming requests.`,
-	RunE: runServer,
+	Use:          "run",
+	Short:        "Run the Hyperterse server",
+	RunE:         runServer,
+	SilenceUsage: true,
 }
 
 func init() {

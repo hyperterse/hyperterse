@@ -17,11 +17,10 @@ var (
 
 // llmsCmd represents the llms command
 var llmsCmd = &cobra.Command{
-	Use:   "llms",
-	Short: "Generate llms.txt documentation file",
-	Long: `Generate a complete llms.txt documentation file from your configuration.
-This file contains markdown documentation describing all endpoints and queries.`,
-	RunE: generateLLMs,
+	Use:          "llms",
+	Short:        "Generate llms.txt documentation file",
+	RunE:         generateLLMs,
+	SilenceUsage: true,
 }
 
 func init() {

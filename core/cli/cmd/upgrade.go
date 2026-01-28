@@ -20,18 +20,10 @@ var (
 )
 
 var upgradeCmd = &cobra.Command{
-	Use:   "upgrade",
-	Short: "Upgrade hyperterse to the latest version",
-	Long: `Upgrade hyperterse to the latest available version.
-By default, this command will only upgrade within the same major version (e.g., 1.x.x -> 1.y.z, but not 1.x.x -> 2.y.z).
-
-The command will:
-1. Check the current installed version
-2. Find the latest release (optionally including pre-releases)
-3. Download and install the new version
-
-Use --major to upgrade to a different major version, or --prerelease to include pre-releases.`,
-	RunE: runUpgrade,
+	Use:          "upgrade",
+	Short:        "Upgrade Hyperterse to the latest version",
+	RunE:         runUpgrade,
+	SilenceUsage: true,
 }
 
 func init() {

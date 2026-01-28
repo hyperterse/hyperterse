@@ -22,11 +22,10 @@ var (
 
 // skillsCmd represents the skills command
 var skillsCmd = &cobra.Command{
-	Use:   "skills",
-	Short: "Generate an Agent Skills compatible archive",
-	Long: `Generate a downloadable Agent Skills compatible archive (.zip) from your configuration.
-The archive will contain a SKILL.md file with YAML frontmatter and documentation.`,
-	RunE: generateSkills,
+	Use:          "skills",
+	Short:        "Generate an Agent Skills compatible archive",
+	RunE:         generateSkills,
+	SilenceUsage: true,
 }
 
 func init() {

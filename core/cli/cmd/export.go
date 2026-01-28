@@ -16,12 +16,10 @@ var (
 
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
-	Use:   "export",
-	Short: "Export a portable script with config and binary",
-	Long: `Export creates a portable bash script with the configuration file and
-hyperterse binary embedded. The generated script can be run in any environment
-without requiring the hyperterse binary to be installed separately.`,
-	RunE: exportBundle,
+	Use:          "export",
+	Short:        "Export a portable runtime bundle",
+	RunE:         exportBundle,
+	SilenceUsage: true,
 }
 
 func init() {

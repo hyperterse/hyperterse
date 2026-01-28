@@ -14,18 +14,10 @@ var (
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
-	Use:   "init",
-	Short: "Initialize a new Hyperterse configuration file",
-	Long: `Initialize a new Hyperterse configuration file with a sample adapter and query.
-
-This command creates a .terse configuration file with:
-- A sample adapter configuration
-- A sample query definition
-
-Example:
-  hyperterse init
-  hyperterse init -o config.terse`,
-	RunE: runInit,
+	Use:          "init",
+	Short:        "Initialize a new Hyperterse configuration file",
+	RunE:         runInit,
+	SilenceUsage: true,
 }
 
 func init() {

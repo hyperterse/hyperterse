@@ -41,9 +41,10 @@ var completionCmd = &cobra.Command{
 	Short: "Generate shell completion script",
 	Long: `Generate shell completion script for hyperterse.
 This command is used internally by install.sh and is hidden from help.`,
-	Hidden:    true,
-	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
-	Args:      cobra.ExactValidArgs(1),
+	Hidden:       true,
+	ValidArgs:    []string{"bash", "zsh", "fish", "powershell"},
+	Args:         cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":
