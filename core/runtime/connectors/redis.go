@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/redis/go-redis/v9"
 )
@@ -16,9 +17,13 @@ type RedisConnector struct {
 
 // NewRedisConnector creates a new Redis connector
 func NewRedisConnector(connectionString string, options *hyperterse.AdapterOptions) (*RedisConnector, error) {
+	log := logger.New("connector:redis")
+	log.Debugf("Opening Redis connection")
+
 	// Parse connection string (format: redis://user:password@host:port/db)
 	opt, err := redis.ParseURL(connectionString)
 	if err != nil {
+		log.Errorf("Failed to parse Redis connection string: %v", err)
 		return nil, fmt.Errorf("failed to parse redis connection string: %w", err)
 	}
 
@@ -31,11 +36,14 @@ func NewRedisConnector(connectionString string, options *hyperterse.AdapterOptio
 	client := redis.NewClient(opt)
 
 	// Test the connection
+	log.Debugf("Testing connection with ping")
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		client.Close()
+		log.Errorf("Failed to ping Redis: %v", err)
 		return nil, fmt.Errorf("failed to ping redis: %w", err)
 	}
 
+	log.Debugf("Redis connection opened successfully")
 	return &RedisConnector{
 		client: client,
 	}, nil
@@ -105,7 +113,15 @@ func (r *RedisConnector) Execute(ctx context.Context, statement string, params m
 // Close closes the Redis connection
 func (r *RedisConnector) Close() error {
 	if r.client != nil {
-		return r.client.Close()
+		log := logger.New("connector:redis")
+		log.Debugf("Closing Redis connection")
+		err := r.client.Close()
+		if err != nil {
+			log.Errorf("Error closing Redis connection: %v", err)
+		} else {
+			log.Debugf("Redis connection closed")
+		}
+		return err
 	}
 	return nil
 }

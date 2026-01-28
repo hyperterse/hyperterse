@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hyperterse/hyperterse/core/logger"
 	_ "github.com/lib/pq"
 )
 
@@ -55,17 +56,24 @@ func NewPostgresConnector(connectionString string, options map[string]string) (*
 		}
 	}
 
+	log := logger.New("connector:postgres")
+	log.Debugf("Opening PostgreSQL connection pool")
+
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
+		log.Errorf("Failed to open PostgreSQL connection: %v", err)
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
 
 	// Test the connection
+	log.Debugf("Testing connection with ping")
 	if err := db.Ping(); err != nil {
 		db.Close()
+		log.Errorf("Failed to ping PostgreSQL database: %v", err)
 		return nil, fmt.Errorf("failed to ping postgres database: %w", err)
 	}
 
+	log.Debugf("PostgreSQL connection pool opened successfully")
 	return &PostgresConnector{db: db}, nil
 }
 
@@ -127,7 +135,15 @@ func (p *PostgresConnector) Execute(ctx context.Context, statement string, param
 // Close closes the database connection
 func (p *PostgresConnector) Close() error {
 	if p.db != nil {
-		return p.db.Close()
+		log := logger.New("connector:postgres")
+		log.Debugf("Closing PostgreSQL connection pool")
+		err := p.db.Close()
+		if err != nil {
+			log.Errorf("Error closing PostgreSQL connection: %v", err)
+		} else {
+			log.Debugf("PostgreSQL connection pool closed")
+		}
+		return err
 	}
 	return nil
 }

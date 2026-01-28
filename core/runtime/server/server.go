@@ -45,22 +45,27 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 
 	log := logger.New("runtime")
 
+	log.Infof("Initializing runtime")
+	log.Debugf("Port: %s", port)
+
 	// Initialize connectors using ConnectorManager (parallel initialization)
 	manager := connectors.NewConnectorManager()
 	if err := manager.InitializeAll(model.Adapters); err != nil {
+		log.Errorf("Failed to initialize connectors: %v", err)
 		return nil, err
 	}
 
 	if len(model.Adapters) == 0 {
-		log.Println("Initializing Adapters:")
-		log.Println("\t  (no adapters to initialize)")
+		log.Debugf("No adapters to initialize")
 	}
 
 	// Create executor with connector manager
 	exec := executor.NewExecutor(model, manager)
+	log.Debugf("Executor created")
 
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
+	log.Infof("Runtime initialized successfully")
 	return &Runtime{
 		model:            model,
 		executor:         exec,
@@ -88,10 +93,14 @@ func (r *Runtime) Start() error {
 // StartAsync starts the runtime server without blocking
 func (r *Runtime) StartAsync() error {
 	r.mux = http.NewServeMux()
-	log := logger.New("runtime")
+	log := logger.New("server")
+
+	log.Infof("Starting engine")
+	log.Debugf("Creating HTTP server on port %s", r.port)
 
 	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
 	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
+	log.Debugf("Handlers created")
 	r.registerRoutes()
 
 	r.server = &http.Server{
@@ -102,10 +111,12 @@ func (r *Runtime) StartAsync() error {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	log.Debugf("Engine configuration: ReadTimeout=15s, WriteTimeout=0 (unlimited), IdleTimeout=60s")
+
 	go func() {
-		log.Printf("Starting Hyperterse runtime on port http://127.0.0.1:%s", r.port)
+		log.Successf("Hyperterse engine listening on http://127.0.0.1:%s", r.port)
 		if err := r.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.PrintError("Server error", err)
+			log.Errorf("Engine error: %v", err)
 		}
 	}()
 
@@ -115,6 +126,8 @@ func (r *Runtime) StartAsync() error {
 // registerRoutes registers all HTTP routes
 func (r *Runtime) registerRoutes() {
 	log := logger.New("runtime")
+
+	log.Infof("Registering routes")
 
 	// Create ConnectRPC service implementations
 	queryService := &queryServiceServer{handler: r.queryHandler}
@@ -150,7 +163,8 @@ func (r *Runtime) registerRoutes() {
 			// Accept both Streamable HTTP and legacy versions
 			if protocolVersion != "2025-03-26" && protocolVersion != "2024-11-05" {
 				// Log warning but don't reject - some clients might not send this header
-				logger.New("runtime").Warnf("Unsupported protocol version: %s, defaulting to 2025-03-26", protocolVersion)
+				mcpLog := logger.New("mcp")
+				mcpLog.Warnf("Unsupported protocol version: %s, defaulting to 2025-03-26", protocolVersion)
 				protocolVersion = "2025-03-26"
 			}
 
@@ -329,6 +343,10 @@ func (r *Runtime) registerRoutes() {
 
 		r.mux.HandleFunc(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
 			return func(w http.ResponseWriter, req *http.Request) {
+				handlerLog := logger.New("handler")
+				handlerLog.Infof("Request: %s %s", req.Method, req.URL.Path)
+				handlerLog.Debugf("Query: %s", q.Name)
+
 				// Helper function to return error in documented format
 				writeErrorResponse := func(w http.ResponseWriter, statusCode int, errorMsg string) {
 					w.Header().Set("Content-Type", "application/json")
@@ -342,6 +360,7 @@ func (r *Runtime) registerRoutes() {
 				}
 
 				if req.Method != http.MethodPost {
+					handlerLog.Warnf("Method not allowed: %s", req.Method)
 					writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 					return
 				}
@@ -349,9 +368,11 @@ func (r *Runtime) registerRoutes() {
 				// Parse JSON body
 				var requestBody map[string]any
 				if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
+					handlerLog.Errorf("Failed to parse JSON body: %v", err)
 					writeErrorResponse(w, http.StatusBadRequest, "Invalid JSON")
 					return
 				}
+				handlerLog.Debugf("Request body parsed, %d input(s)", len(requestBody))
 
 				// Convert inputs to map[string]string (JSON-encoded)
 				inputs := make(map[string]string)
@@ -367,17 +388,22 @@ func (r *Runtime) registerRoutes() {
 				}
 				resp, err := queryService.ExecuteQuery(req.Context(), connect.NewRequest(reqProto))
 				if err != nil {
+					handlerLog.Errorf("Query execution failed: %v", err)
 					writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 					return
 				}
 
 				// Return response
 				w.Header().Set("Content-Type", "application/json")
-				if resp.Msg.Success {
-					w.WriteHeader(http.StatusOK)
+				statusCode := http.StatusOK
+				if !resp.Msg.Success {
+					statusCode = http.StatusBadRequest
+					handlerLog.Warnf("Query returned error: %s", resp.Msg.Error)
 				} else {
-					w.WriteHeader(http.StatusBadRequest)
+					handlerLog.Debugf("Query executed successfully, %d result(s)", len(resp.Msg.Results))
 				}
+				handlerLog.Infof("Response: %d", statusCode)
+				w.WriteHeader(statusCode)
 
 				// Manually construct response to ensure 'results' is always included
 				// (protobuf's omitempty tag would omit empty slices)
@@ -413,27 +439,23 @@ func (r *Runtime) registerRoutes() {
 	}
 
 	// Log all registered routes
-	log.Println("Registered Routes:")
-	log.Println("\tUtility Routes:")
+	log.Infof("Routes registered: %d utility, %d query", len(utilityRoutes), len(queryRoutes))
+	log.Debugf("Utility routes:")
 	for _, route := range utilityRoutes {
-		log.Printf("\t  %s", route)
+		log.Debugf("  %s", route)
 	}
-	log.Println("")
-	log.Println("\tQuery Routes:")
-	if len(queryRoutes) == 0 {
-		log.Println("\t  (no query routes)")
-	} else {
+	if len(queryRoutes) > 0 {
+		log.Debugf("Query routes:")
 		for _, route := range queryRoutes {
-			log.Printf("\t  %s", route)
+			log.Debugf("  %s", route)
 		}
 	}
-	log.Println("")
 }
 
 // ReloadModel reloads the model without restarting the HTTP server
 func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
-	log := logger.New("runtime")
-	log.Println("Reloading model...")
+	log := logger.New("engine")
+	log.Infof("Reloading model")
 
 	// Close existing connectors in parallel
 	if err := r.connectorManager.CloseAll(); err != nil {
@@ -443,6 +465,7 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	// Initialize new connectors in parallel using a new manager
 	newManager := connectors.NewConnectorManager()
 	if err := newManager.InitializeAll(model.Adapters); err != nil {
+		log.Errorf("Failed to initialize new connectors: %v", err)
 		return err
 	}
 
@@ -451,6 +474,7 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 
 	// Create new executor with the new manager
 	r.executor = executor.NewExecutor(model, newManager)
+	log.Debugf("Executor recreated")
 
 	// Update connector manager
 	r.connectorManager = newManager
@@ -458,6 +482,7 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	// Update handlers
 	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
 	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
+	log.Debugf("Handlers recreated")
 
 	// Re-register routes (this will update the handlers)
 	r.mux = http.NewServeMux()
@@ -466,21 +491,26 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	// Update server handler
 	if r.server != nil {
 		r.server.Handler = r.mux
+		log.Debugf("Server handler updated")
 	}
 
-	log.PrintSuccess("Model reloaded successfully")
+	log.Infof("Model reloaded successfully")
 	return nil
 }
 
 // Stop stops the runtime server gracefully
 func (r *Runtime) Stop() error {
-	log := logger.New("runtime")
-	log.Println("Shutting down server...")
-	log.Debugln("Initiating graceful shutdown...")
+	// Print newline to ensure shutdown logs start on a fresh line after Ctrl+C
+	fmt.Print("\n")
+
+	log := logger.New("engine")
+	log.Infof("Shutting down engine")
+	log.Debugf("Initiating graceful shutdown")
 
 	// Signal shutdown to all SSE connections and other long-lived handlers
 	if r.shutdownCancel != nil {
 		r.shutdownCancel()
+		log.Debugf("Shutdown signal sent to handlers")
 	}
 
 	// Give connections a moment to close gracefully
@@ -493,23 +523,25 @@ func (r *Runtime) Stop() error {
 	// Close all connectors in parallel
 	if err := r.connectorManager.CloseAll(); err != nil {
 		log.Warnf("Errors closing connectors: %v", err)
+	} else {
+		log.Debugf("All connectors closed")
 	}
 
 	// Shutdown HTTP server
 	if r.server != nil {
-		log.Debugln("Shutting down HTTP server...")
+		log.Debugf("Shutting down engine")
 		if err := r.server.Shutdown(ctx); err != nil {
-			log.Printf("Error shutting down HTTP server: %v", err)
+			log.Errorf("Error shutting down engine: %v", err)
 			// If graceful shutdown fails, force close
 			if closeErr := r.server.Close(); closeErr != nil {
-				log.Printf("Error force closing HTTP server: %v", closeErr)
+				log.Errorf("Error force closing engine: %v", closeErr)
 			}
 			return err
 		}
-		log.Debugln("HTTP server stopped")
+		log.Debugf("Engine stopped")
 	}
 
-	log.Debugln("Shutdown complete")
+	log.Infof("Engine shutdown complete")
 	return nil
 }
 

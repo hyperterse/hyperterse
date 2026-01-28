@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/hyperterse/hyperterse/core/logger"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -37,17 +38,24 @@ func NewMySQLConnector(connectionString string, options map[string]string) (*MyS
 		connectionString = parsedURL.String()
 	}
 
+	log := logger.New("connector:mysql")
+	log.Debugf("Opening MySQL connection pool")
+
 	db, err := sql.Open("mysql", connectionString)
 	if err != nil {
+		log.Errorf("Failed to open MySQL connection: %v", err)
 		return nil, fmt.Errorf("failed to open mysql connection: %w", err)
 	}
 
 	// Test the connection
+	log.Debugf("Testing connection with ping")
 	if err := db.Ping(); err != nil {
 		db.Close()
+		log.Errorf("Failed to ping MySQL database: %v", err)
 		return nil, fmt.Errorf("failed to ping mysql database: %w", err)
 	}
 
+	log.Debugf("MySQL connection pool opened successfully")
 	return &MySQLConnector{db: db}, nil
 }
 
@@ -105,7 +113,15 @@ func (m *MySQLConnector) Execute(ctx context.Context, statement string, params m
 // Close closes the database connection
 func (m *MySQLConnector) Close() error {
 	if m.db != nil {
-		return m.db.Close()
+		log := logger.New("connector:mysql")
+		log.Debugf("Closing MySQL connection pool")
+		err := m.db.Close()
+		if err != nil {
+			log.Errorf("Error closing MySQL connection: %v", err)
+		} else {
+			log.Debugf("MySQL connection pool closed")
+		}
+		return err
 	}
 	return nil
 }

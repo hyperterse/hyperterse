@@ -12,37 +12,63 @@ import (
 
 // LoadConfig loads and parses a configuration file, returning the model (which includes server config)
 func LoadConfig(filePath string) (*hyperterse.Model, error) {
+	log := logger.New("parser")
+
+	log.Infof("Loading configuration file")
+	log.Debugf("File path: %s", filePath)
+
 	content, err := os.ReadFile(filePath)
 	if err != nil {
+		log.Errorf("Failed to read configuration file: %v", err)
 		return nil, fmt.Errorf("error reading file: %w", err)
 	}
 
+	log.Debugf("File size: %d bytes", len(content))
+
 	var model *hyperterse.Model
+	parserType := ""
 
 	// Determine parser based on file extension
 	if strings.HasSuffix(filePath, ".terse") {
+		parserType = "YAML"
+		log.Infof("Parsing configuration with YAML parser")
 		model, err = parser.ParseYAMLWithConfig(content)
 		if err != nil {
+			log.Errorf("YAML parsing failed: %v", err)
 			return nil, fmt.Errorf("config error: %w", err)
 		}
 	} else {
-		// Default to DSL parser for .hyperterse files
+		parserType = "DSL"
+		log.Infof("Parsing configuration with DSL parser")
 		p := parser.NewParser(string(content))
 		model, err = p.Parse()
 		if err != nil {
+			log.Errorf("DSL parsing failed: %v", err)
 			return nil, fmt.Errorf("parsing error: %w", err)
 		}
 	}
+
+	log.Debugf("Parser type: %s", parserType)
+	log.Infof("Configuration parsed successfully")
 
 	return model, nil
 }
 
 // LoadConfigFromString loads and parses a configuration from a YAML string, returning the model
 func LoadConfigFromString(yamlContent string) (*hyperterse.Model, error) {
+	log := logger.New("parser")
+
+	log.Infof("Loading configuration from string")
+	log.Debugf("Content length: %d bytes", len(yamlContent))
+	log.Infof("Parsing configuration with YAML parser")
+
 	model, err := parser.ParseYAMLWithConfig([]byte(yamlContent))
 	if err != nil {
+		log.Errorf("YAML parsing failed: %v", err)
 		return nil, fmt.Errorf("config error: %w", err)
 	}
+
+	log.Infof("Configuration parsed successfully")
 	return model, nil
 }
 

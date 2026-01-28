@@ -28,6 +28,8 @@ func NewExecutor(model *hyperterse.Model, manager *connectors.ConnectorManager) 
 // ExecuteQuery executes a query by name with the provided inputs and context.
 // The context allows for request cancellation and timeout propagation.
 func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInputs map[string]any) ([]map[string]any, error) {
+	log := logger.New("executor")
+
 	// Find the query definition
 	var query *hyperterse.Query
 	for _, q := range e.model.Queries {
@@ -38,14 +40,20 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	}
 
 	if query == nil {
+		log.Errorf("Query not found: %s", queryName)
 		return nil, fmt.Errorf("query '%s' not found", queryName)
 	}
 
+	log.Infof("Executing query: %s", queryName)
+
 	// Validate inputs
+	log.Debugf("Validating inputs")
 	validatedInputs, err := utils.ValidateInputs(query, userInputs)
 	if err != nil {
+		log.Errorf("Input validation failed: %v", err)
 		return nil, fmt.Errorf("input validation failed: %w", err)
 	}
+	log.Debugf("Input validation successful, %d input(s)", len(validatedInputs))
 
 	// Build input type map for proper formatting
 	inputTypeMap := make(map[string]string)
@@ -54,19 +62,25 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	}
 
 	// Substitute environment variables in statement at runtime (before input substitution)
+	log.Debugf("Substituting environment variables")
 	statementWithEnvVars, err := runtimeutils.SubstituteEnvVars(query.Statement)
 	if err != nil {
+		log.Errorf("Failed to substitute environment variables: %v", err)
 		return nil, fmt.Errorf("query '%s': failed to substitute environment variables in statement: %w", queryName, err)
 	}
 
 	// Substitute inputs in statement
+	log.Debugf("Substituting inputs")
 	finalStatement, err := utils.SubstituteInputs(statementWithEnvVars, validatedInputs, inputTypeMap)
 	if err != nil {
+		log.Errorf("Template substitution failed: %v", err)
 		return nil, fmt.Errorf("template substitution failed: %w", err)
 	}
+	log.Debugf("Final statement: %s", finalStatement)
 
 	// Get the connector(s) for this query
 	if len(query.Use) == 0 {
+		log.Errorf("Query has no adapter specified")
 		return nil, fmt.Errorf("query '%s' has no adapter specified", queryName)
 	}
 
@@ -74,6 +88,7 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	adapterName := query.Use[0]
 	conn, exists := e.connectorManager.Get(adapterName)
 	if !exists {
+		log.Errorf("Adapter not found: %s", adapterName)
 		return nil, fmt.Errorf("adapter '%s' not found", adapterName)
 	}
 
@@ -86,20 +101,21 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 		}
 	}
 
-	// Log query execution details
-	log := logger.New("runtime:executor")
 	if adapter != nil {
-		log.Multiline([]any{"Executing query", "name: '" + queryName + "'", "use: " + adapterName, "connector: " + adapter.Connector.String(), "statement: " + finalStatement})
+		log.Infof("Using adapter: %s (%s)", adapterName, adapter.Connector.String())
 	} else {
-		log.Multiline([]any{"Executing query", "name: '" + queryName + "'", "use: " + adapterName, "connector: <unknown>", "statement: " + finalStatement})
+		log.Infof("Using adapter: %s", adapterName)
 	}
 
 	// Execute the query with context for cancellation support
 	results, err := conn.Execute(ctx, finalStatement, validatedInputs)
 	if err != nil {
+		log.Errorf("Query execution failed: %v", err)
 		return nil, fmt.Errorf("query execution failed: %w", err)
 	}
 
+	log.Debugf("Query executed successfully, %d result(s)", len(results))
+	log.Infof("Query execution completed")
 	return results, nil
 }
 

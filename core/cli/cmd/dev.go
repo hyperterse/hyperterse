@@ -72,7 +72,7 @@ func runDevServer(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	log.Printf("Watching %s for changes...", configFile)
+	log.Infof("Watching %s for changes", configFile)
 
 	// Start initial runtime - fail immediately if this doesn't work
 	rt, err := PrepareRuntime()
@@ -89,19 +89,19 @@ func runDevServer(cmd *cobra.Command, args []string) error {
 		case <-sigChan:
 			return rt.Stop()
 		case <-restart:
-			log.Println("Config changed, reloading...")
+			log.Infof("Config changed, reloading")
 
 			// Try to prepare new runtime first (before stopping old one)
 			// This allows the old server to keep running if config is invalid
 			newRt, err := PrepareRuntime()
 			if err != nil {
-				log.PrintError("Failed to load new config, keeping current server running", err)
+				log.Errorf("Failed to load new config, keeping current server running: %v", err)
 				continue
 			}
 
 			// Stop old runtime before starting new one
 			if err := rt.Stop(); err != nil {
-				log.PrintError("Failed to stop server gracefully", err)
+				log.Errorf("Failed to stop server gracefully: %v", err)
 				// Return error since we can't safely start new server if old one didn't stop
 				// (would cause "address already in use" error)
 				return fmt.Errorf("failed to stop server for reload: %w", err)
@@ -109,12 +109,12 @@ func runDevServer(cmd *cobra.Command, args []string) error {
 
 			// Start new runtime
 			if err := newRt.StartAsync(); err != nil {
-				log.PrintError("Failed to start new server", err)
+				log.Errorf("Failed to start new server: %v", err)
 				return err
 			}
 
 			rt = newRt
-			log.PrintSuccess("Server reloaded successfully")
+			log.Infof("Server reloaded successfully")
 		}
 	}
 }

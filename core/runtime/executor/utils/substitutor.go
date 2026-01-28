@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hyperterse/hyperterse/core/logger"
 )
 
 var (
@@ -16,6 +18,8 @@ var (
 // SubstituteInputs replaces {{ inputs.fieldName }} placeholders in the statement with actual values
 // inputTypes is an optional map of field name to type (e.g., "datetime") for proper formatting
 func SubstituteInputs(statement string, inputs map[string]any, inputTypes ...map[string]string) (string, error) {
+	log := logger.New("executor")
+
 	result := statement
 
 	// Build type map if provided
@@ -26,6 +30,7 @@ func SubstituteInputs(statement string, inputs map[string]any, inputTypes ...map
 
 	// Find all template placeholders
 	matches := templatePattern.FindAllStringSubmatch(statement, -1)
+	log.Debugf("Found %d placeholder(s) to substitute", len(matches))
 	seen := make(map[string]bool)
 
 	for _, match := range matches {
@@ -44,12 +49,14 @@ func SubstituteInputs(statement string, inputs map[string]any, inputTypes ...map
 		// Get the value
 		value, exists := inputs[fieldName]
 		if !exists {
+			log.Debugf("Input '%s' not found for substitution", fieldName)
 			return "", fmt.Errorf("input '%s' not found for substitution", fieldName)
 		}
 
 		// Get the type if available
 		inputType := typeMap[fieldName]
 
+		log.Debugf("Substituting '%s' with value (type: %s)", fieldName, inputType)
 		// Format the value based on its type
 		formattedValue := formatValueForSQL(value, inputType)
 
@@ -57,6 +64,7 @@ func SubstituteInputs(statement string, inputs map[string]any, inputTypes ...map
 		result = strings.ReplaceAll(result, placeholder, formattedValue)
 	}
 
+	log.Debugf("Input substitution completed")
 	return result, nil
 }
 

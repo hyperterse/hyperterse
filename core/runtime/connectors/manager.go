@@ -33,23 +33,28 @@ func (m *ConnectorManager) InitializeAll(adapters []*hyperterse.Adapter) error {
 		return nil
 	}
 
-	log := logger.New("runtime")
-	log.Println("Initializing Adapters:")
+	log := logger.New("connector")
+	log.Debugf("Initializing %d adapter(s)", len(adapters))
 
 	g, _ := errgroup.WithContext(context.Background())
 
 	for _, adapter := range adapters {
+		adapter := adapter // Capture loop variable
 		g.Go(func() error {
-			log.Printf("\tConnecting adapter '%s'", adapter.Name)
-			log.Printf("\t  Connector: %s", adapter.Connector.String())
+			connectorTag := fmt.Sprintf("connector:%s", adapter.Name)
+			connLog := logger.New(connectorTag)
 
-			// Log connector-specific options if present
+			connLog.Debugf("Initializing connector")
+			connLog.Debugf("Connector type: %s", adapter.Connector.String())
+
+			// Log connector-specific options if present (masked)
 			if adapter.Options != nil && len(adapter.Options.Options) > 0 {
-				log.Printf("\t  Options: %v", adapter.Options.Options)
+				connLog.Debugf("Options provided: %d option(s)", len(adapter.Options.Options))
 			}
 
 			conn, err := NewConnector(adapter)
 			if err != nil {
+				connLog.Errorf("Failed to create connector: %v", err)
 				return fmt.Errorf("failed to create connector for adapter '%s': %w", adapter.Name, err)
 			}
 
@@ -57,17 +62,19 @@ func (m *ConnectorManager) InitializeAll(adapters []*hyperterse.Adapter) error {
 			m.connectors[adapter.Name] = conn
 			m.mu.Unlock()
 
-			log.Printf("\t  ✓ Successfully connected adapter '%s'", adapter.Name)
+			connLog.Debugf("Connector initialized successfully")
 			return nil
 		})
 	}
 
 	if err := g.Wait(); err != nil {
 		// Cleanup any successfully opened connectors on failure
+		log.Errorf("Initialization failed, closing all connectors: %v", err)
 		m.CloseAll()
 		return err
 	}
 
+	log.Debugf("All connectors initialized successfully")
 	return nil
 }
 
@@ -83,20 +90,25 @@ func (m *ConnectorManager) CloseAll() error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, connectorCount)
 
-	log := logger.New("runtime")
-	log.Debugf("Closing %d connector(s)...", connectorCount)
+	log := logger.New("connector")
+	log.Debugf("Closing %d connector(s)", connectorCount)
 
 	for name, conn := range m.connectors {
+		name := name // Capture loop variable
+		conn := conn
 		wg.Add(1)
-		go func(name string, conn Connector) {
+		go func() {
 			defer wg.Done()
-			log.Debugf("  Closing connector '%s'...", name)
+			connectorTag := fmt.Sprintf("connector:%s", name)
+			connLog := logger.New(connectorTag)
+			connLog.Debugf("Closing connector")
 			if err := conn.Close(); err != nil {
+				connLog.Errorf("Failed to close connector: %v", err)
 				errChan <- fmt.Errorf("connector '%s': %w", name, err)
 			} else {
-				log.Debugf("  Connector '%s' closed", name)
+				connLog.Debugf("Connector closed successfully")
 			}
-		}(name, conn)
+		}()
 	}
 	m.mu.RUnlock()
 

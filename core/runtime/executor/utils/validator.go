@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/types"
 )
@@ -22,6 +23,9 @@ func (e *ValidationError) Error() string {
 
 // ValidateInputs validates user-provided inputs against query input definitions
 func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[string]any, error) {
+	log := logger.New("executor")
+	log.Debugf("Validating %d user input(s) against %d query input definition(s)", len(userInputs), len(query.Inputs))
+
 	validated := make(map[string]any)
 	queryInputMap := make(map[string]*hyperterse.Input)
 
@@ -36,11 +40,13 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[str
 			if _, exists := userInputs[input.Name]; !exists {
 				// Check if default value is provided
 				if input.DefaultValue == "" {
+					log.Debugf("Required input '%s' is missing", input.Name)
 					return nil, &ValidationError{
 						Field:   input.Name,
 						Message: fmt.Sprintf("required input '%s' is missing", input.Name),
 					}
 				}
+				log.Debugf("Required input '%s' missing, using default value", input.Name)
 			}
 		}
 	}
@@ -49,15 +55,18 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[str
 	for key, value := range userInputs {
 		inputDef, exists := queryInputMap[key]
 		if !exists {
+			log.Debugf("Unknown input field: %s", key)
 			return nil, &ValidationError{
 				Field:   key,
 				Message: fmt.Sprintf("unknown input field '%s'", key),
 			}
 		}
 
+		log.Debugf("Validating input '%s' (type: %s)", key, types.PrimitiveEnumToString(inputDef.Type))
 		// Convert and validate the value
 		convertedValue, err := convertAndValidateValue(value, types.PrimitiveEnumToString(inputDef.Type))
 		if err != nil {
+			log.Debugf("Type validation failed for '%s': %v", key, err)
 			return nil, &ValidationError{
 				Field:   key,
 				Message: fmt.Sprintf("type validation failed: %v", err),
@@ -71,8 +80,10 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[str
 	for _, input := range query.Inputs {
 		if _, exists := validated[input.Name]; !exists {
 			if input.DefaultValue != "" {
+				log.Debugf("Applying default value for optional input '%s'", input.Name)
 				convertedValue, err := convertAndValidateValue(input.DefaultValue, types.PrimitiveEnumToString(input.Type))
 				if err != nil {
+					log.Debugf("Invalid default value for '%s': %v", input.Name, err)
 					return nil, &ValidationError{
 						Field:   input.Name,
 						Message: fmt.Sprintf("invalid default value: %v", err),
@@ -83,6 +94,7 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[str
 		}
 	}
 
+	log.Debugf("Input validation completed, %d validated input(s)", len(validated))
 	return validated, nil
 }
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/cli/internal"
@@ -9,15 +10,17 @@ import (
 	"github.com/hyperterse/hyperterse/core/parser"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime"
+	"github.com/hyperterse/hyperterse/core/types"
 	"github.com/spf13/cobra"
 )
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:          "run",
-	Short:        "Run the Hyperterse server",
-	RunE:         runServer,
-	SilenceUsage: true,
+	Use:           "run",
+	Short:         "Run the Hyperterse server",
+	RunE:          runServer,
+	SilenceUsage:  true,
+	SilenceErrors: true, // Errors are already logged, suppress Cobra's error output
 }
 
 func init() {
@@ -28,6 +31,8 @@ func init() {
 	runCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging (sets log level to DEBUG)")
 	runCmd.Flags().StringVarP(&source, "source", "s", "", "YAML configuration as a string (alternative to --file)")
+	runCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
+	runCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -40,6 +45,37 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 // PrepareRuntime loads config, validates, and creates a runtime ready to start
 func PrepareRuntime() (*runtime.Runtime, error) {
+	// Set log level early based on CLI flags (before loading config)
+	// This ensures logs during config loading respect the log level
+	// We'll update it after loading config if config file specifies a different level
+	if verbose {
+		logger.SetLogLevel(logger.LogLevelDebug)
+	} else if logLevel > 0 {
+		logger.SetLogLevel(logLevel)
+	} else {
+		// Default to INFO if no CLI flag specified (will be updated from config if needed)
+		logger.SetLogLevel(logger.LogLevelInfo)
+	}
+
+	// Initialize tag filtering early (CLI flag takes precedence over env var)
+	tagFilterStr := logTags
+	if tagFilterStr == "" {
+		tagFilterStr = os.Getenv("HYPERTERSE_LOG_TAGS")
+	}
+	if tagFilterStr != "" {
+		logger.SetTagFilter(tagFilterStr)
+	}
+
+	// Initialize log file streaming if enabled
+	var filePath string
+	if logFile {
+		var err error
+		filePath, err = logger.SetLogFile()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize log file: %w", err)
+		}
+	}
+
 	var model *hyperterse.Model
 	var err error
 
@@ -61,32 +97,33 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 
 	resolvedPort := internal.ResolvePort(port, model)
 	resolvedLogLevel := internal.ResolveLogLevel(verbose, logLevel, model)
-	logger.SetLogLevel(resolvedLogLevel)
-	log := logger.New("main")
-
-	// Log parsed adapters
-	log.Println("Parsed Configuration:")
-	if len(model.Adapters) > 0 {
-		log.Println("\tAdapters:")
-		for _, adapter := range model.Adapters {
-			log.Printf("\t  - Name: %s, Connector: %s", adapter.Name, adapter.Connector.String())
-		}
-		log.Println("")
-	} else {
-		log.Println("\tAdapters: (none)")
-		log.Println("")
+	// Update log level if config file specifies a different level and no CLI flag was provided
+	if logLevel == 0 && !verbose {
+		logger.SetLogLevel(resolvedLogLevel)
 	}
 
-	// Log parsed queries
+	log := logger.New("main")
+
+	// Log file path if streaming is enabled
+	if logFile {
+		log.Infof("Log file: %s", filePath)
+	}
+
+	// Log parsed configuration
+	log.Infof("Configuration loaded")
+	log.Debugf("Adapters: %d", len(model.Adapters))
+	if len(model.Adapters) > 0 {
+		for _, adapter := range model.Adapters {
+			log.Debugf("  Adapter: %s (%s)", adapter.Name, adapter.Connector.String())
+		}
+	}
+
+	log.Debugf("Queries: %d", len(model.Queries))
 	if len(model.Queries) > 0 {
-		log.Println("\tQueries:")
 		for _, query := range model.Queries {
-			log.Printf("\t  - Name: %s", query.Name)
-			if query.Description != "" {
-				log.Printf("\t    Description: %s", query.Description)
-			}
+			log.Debugf("  Query: %s", query.Name)
 			if len(query.Use) > 0 {
-				log.Printf("\t    Uses: %s", strings.Join(query.Use, ", "))
+				log.Debugf("    Uses: %s", strings.Join(query.Use, ", "))
 			}
 			if len(query.Inputs) > 0 {
 				inputNames := make([]string, 0, len(query.Inputs))
@@ -95,38 +132,26 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 					if input.Optional {
 						optional = " (optional)"
 					}
-					inputNames = append(inputNames, fmt.Sprintf("%s:%s%s", input.Name, input.Type, optional))
+					typeStr := types.PrimitiveEnumToString(input.Type)
+					inputNames = append(inputNames, fmt.Sprintf("%s:%s%s", input.Name, typeStr, optional))
 				}
-				log.Printf("\t    Inputs: %s", strings.Join(inputNames, ", "))
-			} else {
-				log.Printf("\t    Inputs: (none)")
-			}
-			if len(query.Data) > 0 {
-				dataNames := make([]string, 0, len(query.Data))
-				for _, data := range query.Data {
-					dataNames = append(dataNames, fmt.Sprintf("%s:%s", data.Name, data.Type))
-				}
-				log.Printf("\t    Outputs: %s", strings.Join(dataNames, ", "))
-			} else {
-				log.Printf("\t    Outputs: (none)")
+				log.Debugf("    Inputs: %s", strings.Join(inputNames, ", "))
 			}
 		}
-		log.Println("")
-	} else {
-		log.Println("\tQueries: (none)")
-		log.Println("")
 	}
 
 	if err := parser.Validate(model); err != nil {
+		// Validation errors are already logged by the validator
+		// Just return the error to exit the program
 		return nil, err
 	}
-	log.PrintSuccess("Validation successful!")
+	log.Infof("Validation successful")
 
 	rt, err := runtime.NewRuntime(model, resolvedPort)
 	if err != nil {
 		return nil, err
 	}
-	log.PrintSuccess("Runtime initialized")
+	log.Infof("Runtime initialized")
 
 	return rt, nil
 }

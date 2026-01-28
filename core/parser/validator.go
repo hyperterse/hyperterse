@@ -22,20 +22,23 @@ type ValidationErrors struct {
 }
 
 // Error implements the error interface
+// Returns a simple message since detailed errors are already logged
 func (ve *ValidationErrors) Error() string {
 	if len(ve.Errors) == 0 {
 		return ""
 	}
-	return log.FormatValidationErrors(ve.Errors)
+	// Return simple message - detailed errors are already logged by validator
+	return fmt.Sprintf("validation failed with %d error(s)", len(ve.Errors))
 }
 
 // Format returns a formatted string representation of the errors
 func (ve *ValidationErrors) Format() string {
-	return log.FormatValidationErrors(ve.Errors)
+	return ve.Error()
 }
 
 // Validate performs comprehensive validation on the Model
 func Validate(model *hyperterse.Model) error {
+	log.Infof("Starting validation")
 	var errors []string
 
 	// 1. Validate adapters is required and has at least one entry
@@ -231,9 +234,15 @@ func Validate(model *hyperterse.Model) error {
 	}
 
 	if len(errors) > 0 {
+		log.Errorf("Validation failed with %d error(s)", len(errors))
+		log.Errorf("Error: Validation Errors (%d)", len(errors))
+		for i, errMsg := range errors {
+			log.Errorf("  %d. %s", i+1, errMsg)
+		}
 		return &ValidationErrors{Errors: errors}
 	}
 
+	log.Infof("Validation completed successfully")
 	return nil
 }
 
