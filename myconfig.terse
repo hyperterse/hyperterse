@@ -1,6 +1,11 @@
+name: my_sample_config
+
 server:
   port: 3000
   log_level: 4
+
+export:
+  out: dist
 
 adapters:
   my_pg1:

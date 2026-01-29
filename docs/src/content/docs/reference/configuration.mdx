@@ -9,6 +9,18 @@ import { TabItem, Tabs } from '@astrojs/starlight/components'
 
 Hyperterse supports YAML-like `.terse` configuration file.
 
+## Configuration name
+
+Every configuration file must have a `name` field. This name is used when exporting bundles and must follow the same naming rules as query names.
+
+```yaml
+name: my-api
+```
+
+| Field  | Type   | Description                                                                  |
+| ------ | ------ | ---------------------------------------------------------------------------- |
+| `name` | string | Configuration name (required) - must be lower-kebab-case or lower_snake_case |
+
 ## Server configuration
 
 Configure the runtime server. All fields are optional.
@@ -164,6 +176,25 @@ statement: |
   LIMIT {{ inputs.limit }}
 ```
 
+## Export configuration
+
+Configure export settings for deployment bundles. This is optional and can be overridden by CLI flags.
+
+```yaml
+export:
+  out: dist
+```
+
+| Field | Type   | Description                                                      |
+| ----- | ------ | ---------------------------------------------------------------- |
+| `out` | string | Output directory path (script filename uses config `name` field) |
+
+**Rules:**
+
+- The script filename is always derived from the config `name` field
+- CLI flag (`--out/-o`) takes precedence over config settings
+- Default is `dist` directory if not specified
+
 ### Rules
 
 - All referenced inputs must be defined in the `inputs` section
@@ -171,6 +202,14 @@ statement: |
 - String values are quoted automatically
 
 ## Naming conventions
+
+### Configuration name
+
+- Use `lower-kebab-case` or `lower_snake_case`
+- Must start with a lowercase letter
+- Used for export bundle script filename
+- Valid: `my-api`, `user_service`, `analytics_v1`
+- Invalid: `MyAPI`, `123service`, `my api`
 
 ### Adapter names
 
@@ -182,7 +221,7 @@ statement: |
 ### Query names
 
 - Use `lower-kebab-case` or `lower_snake_case`
-- Must start with a letter
+- Must start with a lowercase letter
 - Becomes the endpoint path: `/query/{query-name}`
 - Valid: `get-user`, `list_products`, `user-signups`
 - Invalid: `GetUser`, `123query`
@@ -191,23 +230,30 @@ statement: |
 
 Hyperterse validates configuration on startup:
 
-| Rule                    | Description                                        |
-| ----------------------- | -------------------------------------------------- |
-| At least one adapter    | Configuration must define at least one adapter     |
-| At least one query      | Configuration must define at least one query       |
-| Unique adapter names    | No duplicate adapter names                         |
-| Unique query names      | No duplicate query names                           |
-| Valid adapter reference | Query `use` must reference a defined adapter       |
-| Defined inputs          | All `{{ inputs.x }}` in statements must be defined |
-| Optional defaults       | Optional inputs must have default values           |
-| Valid types             | All types must be valid primitives                 |
+| Rule                    | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| Configuration name      | `name` field is required and must follow naming rules                        |
+| At least one adapter    | Configuration must define at least one adapter                               |
+| At least one query      | Configuration must define at least one query                                 |
+| Unique adapter names    | No duplicate adapter names                                                   |
+| Unique query names      | No duplicate query names                                                     |
+| Valid adapter reference | Query `use` must reference a defined adapter                                 |
+| Defined inputs          | All `{{ inputs.x }}` in statements must be defined                           |
+| Optional defaults       | Optional inputs must have default values                                     |
+| Valid types             | All types must be valid primitives                                           |
+| Export configuration    | `export.out` specifies output directory (script filename uses config `name`) |
 
 ## Complete example
 
 ```yaml
+name: my-api
+
 server:
   port: '8080'
   log_level: 3
+
+export:
+  out: dist
 
 adapters:
   main_db:

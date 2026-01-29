@@ -128,6 +128,24 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 		"description": "JSON schema for Hyperterse .terse configuration files.",
 		"type":        "object",
 		"properties": map[string]interface{}{
+			"name": map[string]interface{}{
+				"type":        "string",
+				"description": "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
+				"pattern":     queryNamePattern,
+				"minLength":   1,
+			},
+			"export": map[string]interface{}{
+				"type":        "object",
+				"description": "Optional export configuration",
+				"properties": map[string]interface{}{
+					"out": map[string]interface{}{
+						"type":        "string",
+						"description": "Output directory path (script filename uses config name)",
+						"minLength":   1,
+					},
+				},
+				"additionalProperties": false,
+			},
 			"server": map[string]interface{}{
 				"type":        "object",
 				"description": "Optional server configuration",
@@ -356,7 +374,7 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 				"additionalProperties": false,
 			},
 		},
-		"required":             []string{"adapters", "queries"},
+		"required":             []string{"name", "adapters", "queries"},
 		"additionalProperties": false,
 		// Note: Cross-reference validation (use field referencing adapter names) requires
 		// custom validation logic as JSON Schema Draft 07 doesn't support dynamic references.

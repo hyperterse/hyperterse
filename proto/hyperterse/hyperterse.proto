@@ -14,11 +14,18 @@ message ServerConfig {
   int32 log_level = 2; // Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)
 }
 
+// Export Configuration
+message ExportConfig {
+  string out = 1; // Output directory path (script filename uses config name)
+}
+
 // Top-level container for the DSL
 message Model {
-  repeated Adapter adapters = 1;
-  repeated Query queries = 2;
-  ServerConfig server = 3; // Optional server configuration
+  string name = 1; // Required: configuration name - must be lower-kebab-case or lower_snake_case
+  repeated Adapter adapters = 2;
+  repeated Query queries = 3;
+  ServerConfig server = 4; // Optional server configuration
+  ExportConfig export = 5; // Optional export configuration
 }
 
 // Adapter Configuration

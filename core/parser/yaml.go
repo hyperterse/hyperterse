@@ -24,6 +24,22 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 
 	model := &hyperterse.Model{}
 
+	// Parse name (required)
+	if nameRaw, ok := raw["name"].(string); ok {
+		model.Name = nameRaw
+	}
+
+	// Parse export configuration
+	if exportRaw, ok := raw["export"].(map[string]any); ok {
+		exportConfig := &hyperterse.ExportConfig{}
+
+		// Check for out (directory)
+		if outRaw, ok := exportRaw["out"].(string); ok && outRaw != "" {
+			exportConfig.Out = outRaw
+			model.Export = exportConfig
+		}
+	}
+
 	// Parse server configuration
 	if serverRaw, ok := raw["server"].(map[string]any); ok {
 		serverConfig := &hyperterse.ServerConfig{}

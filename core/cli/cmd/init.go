@@ -56,7 +56,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 }
 
 func generateConfigTemplate() string {
-	return `server:
+	return `name: myconfig
+
+server:
   port: 8080
   log_level: 3
 

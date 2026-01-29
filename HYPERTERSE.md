@@ -354,6 +354,8 @@ Hyperterse supports two configuration formats:
 #### Terse format (`.terse`)
 
 ```yaml
+name: my-api
+
 # Optional server configuration
 server:
   port: "8080"

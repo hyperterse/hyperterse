@@ -54,6 +54,24 @@
       },
       "type": "object"
     },
+    "export": {
+      "additionalProperties": false,
+      "description": "Optional export configuration",
+      "properties": {
+        "out": {
+          "description": "Output directory path (script filename uses config name)",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": {
+      "description": "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "type": "string"
+    },
     "queries": {
       "additionalProperties": false,
       "description": "Query definitions (required, must have at least one entry)",
@@ -258,6 +276,7 @@
     }
   },
   "required": [
+    "name",
     "adapters",
     "queries"
   ],

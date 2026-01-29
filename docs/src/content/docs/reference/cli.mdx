@@ -122,19 +122,40 @@ Export a self-contained deployment bundle.
 hyperterse export -f config.terse -o dist
 ```
 
-Creates a distribution directory containing everything needed to run Hyperterse without the CLI. This is the **recommended first step for any deployment**.
+Creates a self-contained bash script in the specified directory. The script filename is always derived from the config `name` field. This is the **recommended first step for any deployment**.
 
 **Flags:**
 
-| Flag       | Short | Default | Description                     |
-| ---------- | ----- | ------- | ------------------------------- |
-| `--output` | `-o`  | `dist`  | Output directory for the bundle |
+| Flag    | Short | Default | Description                                                      |
+| ------- | ----- | ------- | ---------------------------------------------------------------- |
+| `--out` | `-o`  | `dist`  | Output directory (script filename uses config `name` field)      |
 
-**Output Contents:**
+**Priority Order:**
 
-- `hyperterse` — Self-contained bash script
-- `config.terse` — Configuration file (credentials stripped)
-- `README.md` — Deployment instructions
+Export settings are applied in this order (highest to lowest):
+
+1. CLI flag (`--out/-o`)
+2. Config file (`export.out`)
+3. Default (`dist` directory)
+
+**Output:**
+
+- Self-contained bash script at `{output_dir}/{config_name}`
+- Script filename always matches the config `name` field
+- Embedded configuration and binary
+
+**Examples:**
+
+```bash
+# Export to default directory (dist/)
+hyperterse export -f config.terse
+
+# Export to custom directory
+hyperterse export -f config.terse -o build
+
+# With config export.out set to "build", CLI flag overrides it
+hyperterse export -f config.terse -o release
+```
 
 <Aside type="caution">
   Always use `hyperterse export` before deploying. The exported bundle is

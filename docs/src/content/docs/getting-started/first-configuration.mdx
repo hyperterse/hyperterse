@@ -26,6 +26,8 @@ Let's look at a complete configuration for a user management system.
     Adapters are database connections. You can define multiple adapters for different databases:
 
     ```yaml title="config.terse"
+    name: user-management-api
+
     adapters:
       # Primary PostgreSQL database
       main_db:
@@ -163,6 +165,8 @@ Let's look at a complete configuration for a user management system.
 Here's the full configuration file:
 
 ```yaml title="config.terse"
+name: user-management-api
+
 server:
   port: '8080'
   log_level: 3

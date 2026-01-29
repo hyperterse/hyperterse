@@ -107,6 +107,8 @@ For more installation options, see the [installation guide](https://docs.hyperte
 Create a configuration file:
 
 ```yaml
+name: my-api
+
 adapters:
   my_database:
     connector: postgres

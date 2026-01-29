@@ -30,6 +30,8 @@ This guide will walk you through creating your first Hyperterse API in under 5 m
 2. Define your database adapter(s)
 
    ```yaml title="config.terse"
+   name: my-api
+
    adapters:
      my_database:
        connector: postgres
@@ -38,9 +40,11 @@ This guide will walk you through creating your first Hyperterse API in under 5 m
 
 3. Define your query
 
-   ```yaml title="config.terse" ins={5-13} collapse={2-4}
-   adapters:
-     my_database:
+```yaml title="config.terse" ins={5-15} collapse={2-4}
+name: my-api
+
+adapters:
+  my_database:
        connector: postgres
        connection_string: 'postgresql://user:password@localhost:5432/mydb'
    queries:
@@ -73,7 +77,9 @@ This guide will walk you through creating your first Hyperterse API in under 5 m
 
 Queries can also accept input parameters. These can be substituted in the query statement to create dynamic queries.
 
-```yaml title="config.terse" collapse={2-4,6-13} ins={21-24}
+```yaml title="config.terse" collapse={2-4,6-13} ins={21-26}
+name: my-api
+
 adapters:
   my_database:
     connector: postgres

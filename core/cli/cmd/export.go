@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/hyperterse/hyperterse/core/cli/internal"
+	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -26,11 +27,12 @@ func init() {
 	rootCmd.AddCommand(exportCmd)
 
 	exportCmd.Flags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.terse)")
-	exportCmd.Flags().StringVarP(&exportOutputDir, "output", "o", "dist", "Output directory for the script file")
+	exportCmd.Flags().StringVarP(&exportOutputDir, "out", "o", "", "Output directory for the script file (default: dist)")
 	exportCmd.MarkFlagRequired("file")
 }
 
 func exportBundle(cmd *cobra.Command, args []string) error {
+	log := logger.New("export")
 	if configFile == "" {
 		return fmt.Errorf("please provide a file path using -f or --file")
 	}
@@ -39,6 +41,40 @@ func exportBundle(cmd *cobra.Command, args []string) error {
 	configContent, err := os.ReadFile(configFile)
 	if err != nil {
 		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	// Load and validate config to get name and export settings
+	model, err := internal.LoadConfig(configFile)
+	if err != nil {
+		return fmt.Errorf("error loading config: %w", err)
+	}
+
+	// Validate name is present
+	if model.Name == "" {
+		return fmt.Errorf("config name is required")
+	}
+
+	// Determine output directory (CLI flag takes precedence over config, then default)
+	var outputDir string
+	if exportOutputDir != "" {
+		// Using --out/-o flag
+		outputDir = exportOutputDir
+	} else if model.Export != nil && model.Export.Out != "" {
+		// Use config export.out setting
+		outputDir = model.Export.Out
+	} else {
+		// Default: dist directory
+		outputDir = "dist"
+	}
+
+	// Script filename always uses config name
+	scriptPath := filepath.Join(outputDir, model.Name)
+
+	// Create output directory if it doesn't exist
+	if outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("error creating output directory: %w", err)
+		}
 	}
 
 	// Find the hyperterse binary
@@ -52,15 +88,6 @@ func exportBundle(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error reading binary: %w", err)
 	}
 
-	// Get config file name without extension for script name
-	configBaseName := strings.TrimSuffix(filepath.Base(configFile), filepath.Ext(configFile))
-	scriptPath := filepath.Join(exportOutputDir, configBaseName)
-
-	// Create output directory if it doesn't exist
-	if err := os.MkdirAll(exportOutputDir, 0755); err != nil {
-		return fmt.Errorf("error creating output directory: %w", err)
-	}
-
 	// Generate bash script content
 	scriptContent := generateBashScript(configContent, binaryContent)
 
@@ -69,8 +96,8 @@ func exportBundle(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error writing script file: %w", err)
 	}
 
-	fmt.Printf("✓ Exported script to %s\n", scriptPath)
-	fmt.Printf("  Run: %s\n", scriptPath)
+	log.Successf("Exported script to ./%s", scriptPath)
+	log.Successf("Run: ./%s", scriptPath)
 
 	return nil
 }

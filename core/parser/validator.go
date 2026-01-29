@@ -41,6 +41,19 @@ func Validate(model *hyperterse.Model) error {
 	log.Infof("Starting validation")
 	var errors []string
 
+	// Query name pattern: must start with a letter, lowercase only (lower-snake-case or lower-kebab-case)
+	queryNamePattern := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+
+	// 0. Validate name is required
+	if model.Name == "" {
+		errors = append(errors, "name is required")
+	} else {
+		// 0a. Name must start with a letter and be in lower-snake-case or lower-kebab-case
+		if !queryNamePattern.MatchString(model.Name) {
+			errors = append(errors, fmt.Sprintf("name '%s' is invalid. Must start with a letter and be in lower-snake-case or lower-kebab-case (lowercase letters, numbers, hyphens, and underscores only)", model.Name))
+		}
+	}
+
 	// 1. Validate adapters is required and has at least one entry
 	if len(model.Adapters) == 0 {
 		errors = append(errors, "adapters is required and should have at least one entry")
@@ -101,8 +114,6 @@ func Validate(model *hyperterse.Model) error {
 
 	// Track query names for uniqueness
 	queryNames := make(map[string]bool)
-	// Query name pattern: must start with a letter, lowercase only (lower-snake-case or lower-kebab-case)
-	queryNamePattern := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
 	for i, query := range model.Queries {
 		prefix := fmt.Sprintf("queries[%d]", i)
