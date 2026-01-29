@@ -1,3 +1,23 @@
+# v1.1.1
+
+Timestamp: 2026-01-29 16:28:28 UTC
+
+🐛 **Bug Fixes & CLI Improvements**
+
+This release fixes several bugs related to logging, validation, and CLI behavior.
+
+## 🐛 Bug Fixes
+
+- **Logger Log Levels** — Fixed issue where logger was not respecting log levels in some scenarios, ensuring proper log filtering
+- **YAML Validation** — Fixed validation issue for non-string default values in configuration files, improving type handling
+
+## 🔧 Improvements
+
+- **Version Flag** — The `-v` flag now prints the version information instead of being a shorthand for verbose
+- **Verbose Flag** — Removed shorthand for verbose flag, requiring explicit `--verbose` usage for clarity
+
+---
+
 # v1.1.0
 
 Timestamp: 2026-01-29 04:32:32 UTC
