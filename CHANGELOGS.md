@@ -1,3 +1,34 @@
+# v1.1.0
+
+Timestamp: 2026-01-29 04:32:32 UTC
+
+🔧 **Export Enhancements & Logging Improvements**
+
+This release enhances the export command with better control and directory management, introduces structured logging throughout the application, and includes several bug fixes and documentation updates.
+
+## ✨ Features & Enhancements
+
+### Export Command Improvements
+
+- **Enhanced Export Configuration** — Added finer-grained control over export behavior with optional `export` configuration block
+- **Mandatory Name Field** — Configuration now requires a `name` field that follows naming conventions for better organization
+- **Clean Directory Option** — New `--clean-dir` flag allows cleaning the output directory before exporting
+- **Automatic Directory Creation** — Export command now automatically creates output directories if they don't exist
+- **Improved Error Handling** — Enhanced error handling and logging throughout the export process
+
+### Logging System
+
+- **Structured Logging** — Implemented structured, filterable logging throughout the entire application
+- **Enhanced Log Levels** — Improved log level management and filtering capabilities
+- **Better Debugging** — More detailed logging for connectors, executors, and handlers
+
+## 🐛 Bug Fixes
+
+- **Help Output Fix** — Fixed issue where help text was printed unnecessarily on panic, improving error handling
+- **Export Directory Creation** — Fixed issue where export command failed when output directory didn't exist
+
+---
+
 # v1.0.0
 
 Timestamp: 2026-01-28 UTC
