@@ -64,6 +64,13 @@ export default defineConfig({
         {
           tag: 'meta',
           attrs: {
+            name: 'robots',
+            content: 'index, follow',
+          }
+        },
+        {
+          tag: 'meta',
+          attrs: {
             property: 'og:site_name',
             content: "Hyperterse"
           }
