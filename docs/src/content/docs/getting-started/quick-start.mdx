@@ -40,22 +40,22 @@ This guide will walk you through creating your first Hyperterse API in under 5 m
 
 3. Define your query
 
-```yaml title="config.terse" ins={5-15} collapse={2-4}
-name: my-api
+   ```yaml title="config.terse" ins={5-15} collapse={2-4}
+   name: my-api
 
-adapters:
-  my_database:
+   adapters:
+     my_database:
        connector: postgres
        connection_string: 'postgresql://user:password@localhost:5432/mydb'
-   queries:
-     get-users:
-       use: my_database
-       description: 'Retrieve all users'
-       statement: |
-         SELECT id, name, email, created_at
-         FROM users
-         ORDER BY created_at DESC
-         LIMIT 100
+     queries:
+       get-users:
+         use: my_database
+         description: 'Retrieve all users'
+         statement: |
+           SELECT id, name, email, created_at
+           FROM users
+           ORDER BY created_at DESC
+           LIMIT 100
    ```
 
 4. Start the server
