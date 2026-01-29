@@ -77,12 +77,12 @@ func init() {
 	// Add flags that run command uses (for backward compatibility when using root command)
 	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
 	rootCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
-	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging (sets log level to DEBUG)")
+	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging (sets log level to DEBUG)")
 	rootCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
 	rootCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
 
 	// Add version flag
-	rootCmd.Flags().Bool("version", false, "Print version information")
+	rootCmd.Flags().BoolP("version", "v", false, "Print version information")
 
 	// Add hidden completion command for install.sh
 	rootCmd.AddCommand(completionCmd)

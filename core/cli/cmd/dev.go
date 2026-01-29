@@ -24,7 +24,7 @@ func init() {
 	rootCmd.AddCommand(devCmd)
 	devCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
 	devCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
-	devCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging (sets log level to DEBUG)")
+	devCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging (sets log level to DEBUG)")
 }
 
 func runDevServer(cmd *cobra.Command, args []string) error {
