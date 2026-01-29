@@ -176,8 +176,8 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 					if optional, ok := inputMap["optional"].(bool); ok {
 						input.Optional = optional
 					}
-					if defaultValue, ok := inputMap["default"].(string); ok {
-						input.DefaultValue = defaultValue
+					if defaultValueRaw, ok := inputMap["default"]; ok {
+						input.DefaultValue = fmt.Sprintf("%v", defaultValueRaw)
 					}
 
 					query.Inputs = append(query.Inputs, input)

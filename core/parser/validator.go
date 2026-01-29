@@ -188,6 +188,9 @@ func Validate(model *hyperterse.Model) error {
 			}
 
 			// If input is optional, it must have a default value
+			// We check if DefaultValue is empty, but since we now convert all default values to strings,
+			// an empty string default is only possible if explicitly set to "" or if the key was missing.
+			// The parser ensures that if the key exists, DefaultValue is populated.
 			if input.Optional && input.DefaultValue == "" {
 				errors = append(errors, fmt.Sprintf("%s is marked as optional but does not have a default value", inputPrefix))
 			}
