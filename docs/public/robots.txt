@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://docs.hyperterse.com/sitemap-index.xml
