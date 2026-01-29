@@ -158,6 +158,8 @@ export default defineConfig({
         },
       ],
       components: {
+        ThemeSelect: '@/components/empty-component.astro',
+        ThemeProvider: '@/components/force-dark-theme.astro',
         Header: '@/components/header.astro',
         PageFrame: '@/components/page-frame.astro',
         Search: '@/components/search.astro',
