@@ -4,9 +4,6 @@ inputs:
   version:
     description: 'Version to publish'
     required: true
-  token:
-    description: 'NPM token for authentication'
-    required: true
 
 runs:
   using: 'composite'

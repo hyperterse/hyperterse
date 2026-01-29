@@ -125,3 +125,5 @@ jobs:
     with:
       homebrew: true
       npm: true
+    secrets:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

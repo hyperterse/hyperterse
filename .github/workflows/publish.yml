@@ -13,6 +13,13 @@ on:
         required: true
         default: false
         type: boolean
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        description: "GitHub token for accessing tap repository"
+        required: false
+      NPM_TOKEN:
+        description: "NPM token for publishing"
+        required: false
   workflow_dispatch:
     inputs:
       homebrew:
