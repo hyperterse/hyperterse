@@ -14,7 +14,7 @@ import (
 func LoadConfig(filePath string) (*hyperterse.Model, error) {
 	log := logger.New("parser")
 
-	log.Infof("Loading configuration file")
+	log.Debugf("Loading configuration file")
 	log.Debugf("File path: %s", filePath)
 
 	content, err := os.ReadFile(filePath)
@@ -31,7 +31,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 	// Determine parser based on file extension
 	if strings.HasSuffix(filePath, ".terse") {
 		parserType = "YAML"
-		log.Infof("Parsing configuration with YAML parser")
+		log.Debugf("Parsing configuration with YAML parser")
 		model, err = parser.ParseYAMLWithConfig(content)
 		if err != nil {
 			log.Errorf("YAML parsing failed: %v", err)
@@ -39,7 +39,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 		}
 	} else {
 		parserType = "DSL"
-		log.Infof("Parsing configuration with DSL parser")
+		log.Debugf("Parsing configuration with DSL parser")
 		p := parser.NewParser(string(content))
 		model, err = p.Parse()
 		if err != nil {
@@ -49,7 +49,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 	}
 
 	log.Debugf("Parser type: %s", parserType)
-	log.Infof("Configuration parsed successfully")
+	log.Debugf("Configuration parsed successfully")
 
 	return model, nil
 }
@@ -58,9 +58,9 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 func LoadConfigFromString(yamlContent string) (*hyperterse.Model, error) {
 	log := logger.New("parser")
 
-	log.Infof("Loading configuration from string")
+	log.Debugf("Loading configuration from string")
 	log.Debugf("Content length: %d bytes", len(yamlContent))
-	log.Infof("Parsing configuration with YAML parser")
+	log.Debugf("Parsing configuration with YAML parser")
 
 	model, err := parser.ParseYAMLWithConfig([]byte(yamlContent))
 	if err != nil {
@@ -68,7 +68,7 @@ func LoadConfigFromString(yamlContent string) (*hyperterse.Model, error) {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	log.Infof("Configuration parsed successfully")
+	log.Debugf("Configuration parsed successfully")
 	return model, nil
 }
 

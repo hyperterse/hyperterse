@@ -339,10 +339,6 @@ func (l *Logger) Info(message string) {
 func (l *Logger) Success(message string) {
 	// Create a temporary logger with "success" tag
 	successLogger := &Logger{tag: "Success", interactive: l.interactive}
-	// Only check tag filter, not log level
-	if !shouldLogTag("Success") {
-		return
-	}
 	successLogger.writeLogUnfiltered(LogLevelInfo, "✔", colorGreen, bgGreen, message)
 }
 
