@@ -58,6 +58,10 @@
       "additionalProperties": false,
       "description": "Optional export configuration",
       "properties": {
+        "clean_dir": {
+          "description": "Clean output directory before exporting (default: false)",
+          "type": "boolean"
+        },
         "out": {
           "description": "Output directory path (script filename uses config name)",
           "minLength": 1,

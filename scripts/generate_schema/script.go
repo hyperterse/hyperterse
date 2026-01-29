@@ -143,6 +143,10 @@ func generateJSONSchema(connectorValues, primitiveValues []string) map[string]in
 						"description": "Output directory path (script filename uses config name)",
 						"minLength":   1,
 					},
+					"clean_dir": map[string]interface{}{
+						"type":        "boolean",
+						"description": "Clean output directory before exporting (default: false)",
+					},
 				},
 				"additionalProperties": false,
 			},

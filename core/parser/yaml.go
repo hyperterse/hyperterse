@@ -36,6 +36,15 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 		// Check for out (directory)
 		if outRaw, ok := exportRaw["out"].(string); ok && outRaw != "" {
 			exportConfig.Out = outRaw
+		}
+
+		// Check for clean_dir
+		if cleanDirRaw, ok := exportRaw["clean_dir"].(bool); ok {
+			exportConfig.CleanDir = cleanDirRaw
+		}
+
+		// Set export config if at least one field is set
+		if exportConfig.Out != "" || exportConfig.CleanDir {
 			model.Export = exportConfig
 		}
 	}

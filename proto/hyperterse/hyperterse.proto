@@ -17,6 +17,7 @@ message ServerConfig {
 // Export Configuration
 message ExportConfig {
   string out = 1; // Output directory path (script filename uses config name)
+  bool clean_dir = 2; // Clean output directory before exporting (default: false)
 }
 
 // Top-level container for the DSL

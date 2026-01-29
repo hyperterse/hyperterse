@@ -183,17 +183,20 @@ Configure export settings for deployment bundles. This is optional and can be ov
 ```yaml
 export:
   out: dist
+  clean_dir: true
 ```
 
-| Field | Type   | Description                                                      |
-| ----- | ------ | ---------------------------------------------------------------- |
-| `out` | string | Output directory path (script filename uses config `name` field) |
+| Field       | Type    | Default | Description                             |
+| ----------- | ------- | ------- | --------------------------------------- |
+| `out`       | string  | `dist`  | Output directory path                   |
+| `clean_dir` | boolean | `false` | Clean output directory before exporting |
 
 **Rules:**
 
 - The script filename is always derived from the config `name` field
-- CLI flag (`--out/-o`) takes precedence over config settings
-- Default is `dist` directory if not specified
+- CLI flags (`--out/-o`, `--clean-dir`) take precedence over config settings
+- Default is `dist` directory if `out` is not specified
+- When `clean_dir` is `true`, all contents of the output directory are removed before exporting
 
 ### Rules
 

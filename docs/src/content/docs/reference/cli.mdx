@@ -126,17 +126,18 @@ Creates a self-contained bash script in the specified directory. The script file
 
 **Flags:**
 
-| Flag    | Short | Default | Description                                                      |
-| ------- | ----- | ------- | ---------------------------------------------------------------- |
-| `--out` | `-o`  | `dist`  | Output directory (script filename uses config `name` field)      |
+| Flag          | Short | Default | Description                             |
+| ------------- | ----- | ------- | --------------------------------------- |
+| `--out`       | `-o`  | `dist`  | Output directory                        |
+| `--clean-dir` |       | `false` | Clean output directory before exporting |
 
 **Priority Order:**
 
 Export settings are applied in this order (highest to lowest):
 
-1. CLI flag (`--out/-o`)
-2. Config file (`export.out`)
-3. Default (`dist` directory)
+1. CLI flags (`--out/-o`, `--clean-dir`)
+2. Config file (`export.out`, `export.clean_dir`)
+3. Default (`dist` directory, `clean_dir: false`)
 
 **Output:**
 
@@ -152,6 +153,9 @@ hyperterse export -f config.terse
 
 # Export to custom directory
 hyperterse export -f config.terse -o build
+
+# Clean directory before exporting
+hyperterse export -f config.terse -o build --clean-dir
 
 # With config export.out set to "build", CLI flag overrides it
 hyperterse export -f config.terse -o release
