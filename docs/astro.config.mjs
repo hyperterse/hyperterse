@@ -47,11 +47,27 @@ export default defineConfig({
       }
     }),
     starlight({
-      title: 'Hyperterse - The Production Database Interface for AI Agents',
+      title: TITLE,
       titleDelimiter: ' - ',
       description:
         'Connect AI agents to production databases safely. Define queries once with Hyperterse for a high-performance, reliable, and structured SQL engine. Stop hallucinations.',
       head: [
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'shortcut icon',
+            href: '/favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+          }
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:site_name',
+            content: "Hyperterse"
+          }
+        },
         {
           tag: 'meta',
           attrs: {
