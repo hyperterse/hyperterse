@@ -53,13 +53,15 @@ hyperterse dev -f config.terse
 
 **Using .env files:**
 
+Hyperterse automatically loads `.env` files from the current directory when starting:
+
 ```bash title=".env"
 DATABASE_URL=postgresql://dev:dev@localhost:5432/myapp
 ```
 
 ```bash
-# Load before running
-source .env && hyperterse dev -f config.terse
+# No need to source - .env is loaded automatically
+hyperterse -f config.terse
 ```
 
 **In Docker:**
