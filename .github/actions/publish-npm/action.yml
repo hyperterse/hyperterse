@@ -14,6 +14,12 @@ runs:
         node-version: "24"
         registry-url: "https://registry.npmjs.org"
 
+    - name: Verify npm version
+      shell: bash
+      run: |
+        npm --version
+        echo "npm version check complete"
+
     - name: Verify version in package.json
       shell: bash
       run: |
@@ -44,4 +50,4 @@ runs:
         cd distributions/npm
         cp ../../LICENSE .
         cp ../../README.md .
-        NODE_AUTH_TOKEN="" npm publish --access public --tag ${{ steps.dist-tag.outputs.tag }}
+        npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}

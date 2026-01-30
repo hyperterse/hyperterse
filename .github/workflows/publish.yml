@@ -79,4 +79,3 @@ jobs:
         uses: ./.github/actions/publish-npm
         with:
           version: ${{ steps.version.outputs.version }}
-          token: ${{ secrets.NPM_TOKEN }}
