@@ -23,7 +23,6 @@ func NewRedisConnector(connectionString string, options *hyperterse.AdapterOptio
 	// Parse connection string (format: redis://user:password@host:port/db)
 	opt, err := redis.ParseURL(connectionString)
 	if err != nil {
-		log.Errorf("Failed to parse Redis connection string: %v", err)
 		return nil, fmt.Errorf("failed to parse redis connection string: %w", err)
 	}
 
@@ -39,7 +38,6 @@ func NewRedisConnector(connectionString string, options *hyperterse.AdapterOptio
 	log.Debugf("Testing connection with ping")
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		client.Close()
-		log.Errorf("Failed to ping Redis: %v", err)
 		return nil, fmt.Errorf("failed to ping redis: %w", err)
 	}
 
@@ -116,9 +114,7 @@ func (r *RedisConnector) Close() error {
 		log := logger.New("connector:redis")
 		log.Debugf("Closing Redis connection")
 		err := r.client.Close()
-		if err != nil {
-			log.Errorf("Error closing Redis connection: %v", err)
-		} else {
+		if err == nil {
 			log.Debugf("Redis connection closed")
 		}
 		return err

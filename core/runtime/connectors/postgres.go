@@ -61,7 +61,6 @@ func NewPostgresConnector(connectionString string, options map[string]string) (*
 
 	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
-		log.Errorf("Failed to open PostgreSQL connection: %v", err)
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
 
@@ -69,7 +68,6 @@ func NewPostgresConnector(connectionString string, options map[string]string) (*
 	log.Debugf("Testing connection with ping")
 	if err := db.Ping(); err != nil {
 		db.Close()
-		log.Errorf("Failed to ping PostgreSQL database: %v", err)
 		return nil, fmt.Errorf("failed to ping postgres database: %w", err)
 	}
 
@@ -138,9 +136,7 @@ func (p *PostgresConnector) Close() error {
 		log := logger.New("connector:postgres")
 		log.Debugf("Closing PostgreSQL connection pool")
 		err := p.db.Close()
-		if err != nil {
-			log.Errorf("Error closing PostgreSQL connection: %v", err)
-		} else {
+		if err == nil {
 			log.Debugf("PostgreSQL connection pool closed")
 		}
 		return err

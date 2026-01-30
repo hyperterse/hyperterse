@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/hyperterse/hyperterse/core/logger"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/hyperterse/hyperterse/core/logger"
 )
 
 // MySQLConnector implements the Connector interface for MySQL
@@ -18,7 +18,7 @@ type MySQLConnector struct {
 // NewMySQLConnector creates a new MySQL connector
 func NewMySQLConnector(connectionString string, options map[string]string) (*MySQLConnector, error) {
 	// Append all options to connection string if provided
-	if options != nil && len(options) > 0 {
+	if options != nil {
 		// Parse the connection string
 		parsedURL, err := url.Parse(connectionString)
 		if err != nil {
