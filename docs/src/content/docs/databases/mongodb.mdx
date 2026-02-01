@@ -1,0 +1,246 @@
+---
+title: MongoDB
+description: Configure and use MongoDB with Hyperterse for document operations.
+sidebar:
+  order: 5
+---
+
+import Aside from '@/components/admonition.astro'
+import { Steps } from '@astrojs/starlight/components'
+
+MongoDB is a document-oriented NoSQL database. Hyperterse provides support for MongoDB using the official [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver), enabling you to run find, findOne, insertOne, insertMany, updateOne, updateMany, deleteOne, deleteMany, aggregate, and countDocuments operations.
+
+## Connecting to your server
+
+MongoDB adapters use the standard MongoDB connection URI:
+
+```yaml
+adapters:
+  my_mongodb:
+    connector: mongodb
+    connection_string: 'mongodb://localhost:27017'
+```
+
+For MongoDB Atlas or SRV records:
+
+```yaml
+connection_string: 'mongodb+srv://user:pass@cluster.mongodb.net/mydb'
+```
+
+### Adapter options
+
+Configure connection pool and timeouts via adapter options:
+
+```yaml
+adapters:
+  production_db:
+    connector: mongodb
+    connection_string: 'mongodb://user:pass@host:27017/mydb'
+    options:
+      maxPoolSize: 50
+      minPoolSize: 5
+      connectTimeoutMS: 10000
+      serverSelectionTimeoutMS: 5000
+```
+
+For a complete list of connection options, see the [MongoDB Go Driver connection documentation](https://www.mongodb.com/docs/drivers/go/current/fundamentals/connection/).
+
+## Setting up a database
+
+It is very easy to set up a database for Hyperterse. You can use your existing MongoDB deployment or start one and wire it up to Hyperterse.
+
+<Steps>
+
+1. **Start MongoDB**
+
+   Start MongoDB using your preferred method:
+
+   ```bash
+   # Docker
+   docker run -d -p 27017:27017 mongo:latest
+
+   # macOS with Homebrew
+   brew services start mongodb-community
+
+   # Or use MongoDB Atlas (cloud)
+   # Create a free cluster and copy the connection string
+   ```
+
+2. **Configure Hyperterse**
+
+   Add the MongoDB adapter to your configuration:
+
+   ```yaml
+   adapters:
+     main_db:
+       connector: mongodb
+       connection_string: 'mongodb://localhost:27017'
+       options:
+         maxPoolSize: 10
+   ```
+
+   For authenticated MongoDB:
+
+   ```yaml
+   connection_string: 'mongodb://user:password@localhost:27017/mydb'
+   ```
+
+   For MongoDB Atlas with TLS:
+
+   ```yaml
+   connection_string: 'mongodb+srv://user:pass@cluster.mongodb.net/mydb'
+   ```
+
+3. **Verify connection**
+
+   Test the connection using the development server:
+
+   ```bash
+   hyperterse dev -f config.terse
+   ```
+
+   Look for a successful connection message:
+
+   ```
+   INFO  Connected to adapter: main_db
+   ```
+
+</Steps>
+
+## Usage
+
+MongoDB queries in Hyperterse use a **JSON statement**. The `statement` field is a JSON object with `database`, `collection`, `operation`, and operation-specific fields. Use `{{ inputs.name }}` for parameterized values; the executor substitutes these before the connector runs the operation.
+
+### Supported operations
+
+- **find** – query documents (optional: `filter`, `options` with `limit`, `sort`, `projection`, `skip`)
+- **findOne** – single document (optional: `filter`, `options` with `sort`, `projection`, `skip`)
+- **insertOne** – insert one document (`document`)
+- **insertMany** – insert many documents (`documents` array)
+- **updateOne** – update one document (`filter`, `update`, optional `options.upsert`)
+- **updateMany** – update many documents (`filter`, `update`, optional `options.upsert`)
+- **deleteOne** – delete one document (`filter`)
+- **deleteMany** – delete many documents (`filter`)
+- **aggregate** – aggregation pipeline (`pipeline` array)
+- **countDocuments** – count documents (`filter`, optional `options.limit`, `options.skip`)
+
+### Examples
+
+**Find documents with filter and limit:**
+
+```yaml
+queries:
+  find-users:
+    use: main_db
+    description: 'Find users by name'
+    statement: |
+      {"database":"mydb","collection":"users","operation":"find","filter":{"name":"{{ inputs.name }}"},"options":{"limit":10}}
+    inputs:
+      name:
+        type: string
+```
+
+**Find one document:**
+
+```yaml
+queries:
+  get-user:
+    use: main_db
+    description: 'Get user by ID'
+    statement: |
+      {"database":"mydb","collection":"users","operation":"findOne","filter":{"_id":"{{ inputs.userId }}"}}
+    inputs:
+      userId:
+        type: string
+```
+
+**Insert one document:**
+
+```yaml
+queries:
+  create-user:
+    use: main_db
+    description: 'Create a user'
+    statement: |
+      {"database":"mydb","collection":"users","operation":"insertOne","document":{"name":"{{ inputs.name }}","email":"{{ inputs.email }}"}}
+    inputs:
+      name:
+        type: string
+      email:
+        type: string
+```
+
+**Update one document:**
+
+```yaml
+queries:
+  update-user:
+    use: main_db
+    description: 'Update user email'
+    statement: |
+      {"database":"mydb","collection":"users","operation":"updateOne","filter":{"_id":"{{ inputs.userId }}"},"update":{"$set":{"email":"{{ inputs.email }}"}}}
+    inputs:
+      userId:
+        type: string
+      email:
+        type: string
+```
+
+**Delete one document:**
+
+```yaml
+queries:
+  delete-user:
+    use: main_db
+    description: 'Delete user by ID'
+    statement: |
+      {"database":"mydb","collection":"users","operation":"deleteOne","filter":{"_id":"{{ inputs.userId }}"}}
+    inputs:
+      userId:
+        type: string
+```
+
+**Aggregate:**
+
+```yaml
+queries:
+  user-stats:
+    use: main_db
+    description: 'Count users by status'
+    statement: |
+      {"database":"mydb","collection":"users","operation":"aggregate","pipeline":[{"$group":{"_id":"$status","count":{"$sum":1}}}]}
+```
+
+## Performance
+
+Hyperterse does not limit MongoDB performance. Use indexes, projection, and appropriate limits in your statements. Configure `maxPoolSize` and `minPoolSize` in adapter options to tune connection pooling.
+
+## Troubleshooting
+
+### Connection refused
+
+Verify MongoDB is running and reachable:
+
+```bash
+mongosh "mongodb://localhost:27017"
+```
+
+Check firewall and network when connecting to a remote server or Atlas.
+
+### Authentication failed
+
+Ensure the connection string includes the correct username and password (URL-encoded if they contain special characters):
+
+```yaml
+connection_string: 'mongodb://user:password@host:27017/mydb'
+```
+
+For Atlas, use the connection string from the Atlas UI (it includes auth and options).
+
+### TLS / Atlas
+
+For MongoDB Atlas, use the `mongodb+srv://` URI provided by Atlas. The driver handles TLS and discovery. If you use a custom certificate, refer to the [MongoDB Go Driver TLS documentation](https://www.mongodb.com/docs/drivers/go/current/fundamentals/connection/).
+
+### Invalid statement JSON
+
+The query `statement` must be valid JSON. Ensure quotes are correct and that `{{ inputs.x }}` placeholders are inside quoted strings. After substitution, the connector parses the result as JSON; malformed JSON will return an error.
