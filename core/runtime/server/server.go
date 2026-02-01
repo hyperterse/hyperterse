@@ -336,6 +336,18 @@ func (r *Runtime) registerRoutes() {
 	r.mux.HandleFunc("/docs", handlers.GenerateOpenAPISpecHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
 	utilityRoutes = append(utilityRoutes, "GET /docs")
 
+	// Heartbeat endpoint for health checks
+	r.mux.HandleFunc("/heartbeat", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	})
+	utilityRoutes = append(utilityRoutes, "GET /heartbeat")
+
 	// Register individual endpoints for each query
 	for _, query := range r.model.Queries {
 		queryName := query.Name

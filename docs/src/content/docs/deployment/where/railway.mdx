@@ -176,7 +176,7 @@ builder = "dockerfile"
 
 [deploy]
 startCommand = "/app/config"
-healthcheckPath = "/docs"
+healthcheckPath = "/heartbeat"
 healthcheckTimeout = 100
 restartPolicyType = "always"
 ```
@@ -227,7 +227,7 @@ Railway supports horizontal scaling:
 
    ```toml
    [deploy]
-   healthcheckPath = "/docs"
+   healthcheckPath = "/heartbeat"
    healthcheckTimeout = 100
    ```
 

@@ -82,13 +82,13 @@ spec:
               cpu: '500m'
           livenessProbe:
             httpGet:
-              path: /docs
+              path: /heartbeat
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /docs
+              path: /heartbeat
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
@@ -243,7 +243,7 @@ The deployment includes probes:
 - **Liveness**: Restarts unhealthy pods
 - **Readiness**: Removes from load balancing during startup
 
-Both use the `/docs` endpoint which returns the OpenAPI spec.
+Both use the `/heartbeat` endpoint which returns a simple success response.
 
 ## Rolling updates
 
