@@ -49,6 +49,8 @@ func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 		return NewMySQLConnector(connectionString, options)
 	case connectors.Connector_CONNECTOR_REDIS:
 		return NewRedisConnector(connectionString, adapter.Options)
+	case connectors.Connector_CONNECTOR_MONGODB:
+		return NewMongoDBConnector(connectionString, options)
 	case connectors.Connector_CONNECTOR_UNSPECIFIED:
 		return nil, fmt.Errorf("adapter '%s' has unspecified connector type", adapter.Name)
 	default:
