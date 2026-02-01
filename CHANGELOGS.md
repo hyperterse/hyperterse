@@ -1,3 +1,18 @@
+# v1.2.0
+
+Timestamp: 2026-02-01
+
+## ✨ Features & Enhancements
+
+- **Heartbeat endpoint** — New `GET /heartbeat` utility route for health checks and load balancer probes
+- **Automatic .env loading** — Runtime automatically loads `.env`, `.env.development`, and `.env.local` when present (no manual sourcing required)
+
+## 🔧 Improvements
+
+- **Connector error handling** — Connectors now report errors once and exit the program instead of repeating error output
+
+---
+
 # v1.1.1
 
 Timestamp: 2026-01-29 16:28:28 UTC
