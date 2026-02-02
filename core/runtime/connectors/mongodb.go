@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	mongoOptions "go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
@@ -20,35 +21,35 @@ type MongoDBConnector struct {
 }
 
 // NewMongoDBConnector creates a new MongoDB connector
-func NewMongoDBConnector(connectionString string, optionsMap map[string]string) (*MongoDBConnector, error) {
+func NewMongoDBConnector(connectionString string, options map[string]string) (*MongoDBConnector, error) {
 	log := logger.New("connector:mongodb")
 	log.Debugf("Opening MongoDB connection")
 
-	opts := options.Client().ApplyURI(connectionString)
+	// Append all options to connection string if provided
+	if options != nil && len(options) > 0 {
+		// Check if connection string is MongoDB URL format (starts with mongodb:// or mongodb+srv://)
+		if strings.HasPrefix(connectionString, "mongodb://") || strings.HasPrefix(connectionString, "mongodb+srv://") {
+			// Parse the MongoDB connection string
+			parsedURL, err := url.Parse(connectionString)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse mongodb connection string: %w", err)
+			}
 
-	if optionsMap != nil {
-		if v, ok := optionsMap["maxPoolSize"]; ok {
-			if n, err := strconv.ParseUint(v, 10, 64); err == nil {
-				opts.SetMaxPoolSize(n)
+			// Get existing query parameters
+			query := parsedURL.Query()
+
+			// Append all options directly to query parameters
+			for key, value := range options {
+				query.Set(key, value)
 			}
-		}
-		if v, ok := optionsMap["minPoolSize"]; ok {
-			if n, err := strconv.ParseUint(v, 10, 64); err == nil {
-				opts.SetMinPoolSize(n)
-			}
-		}
-		if v, ok := optionsMap["connectTimeoutMS"]; ok {
-			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-				opts.SetConnectTimeout(time.Duration(n) * time.Millisecond)
-			}
-		}
-		if v, ok := optionsMap["serverSelectionTimeoutMS"]; ok {
-			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-				opts.SetServerSelectionTimeout(time.Duration(n) * time.Millisecond)
-			}
+
+			// Rebuild connection string with updated query parameters
+			parsedURL.RawQuery = query.Encode()
+			connectionString = parsedURL.String()
 		}
 	}
 
+	opts := mongoOptions.Client().ApplyURI(connectionString)
 	client, err := mongo.Connect(opts)
 	if err != nil {
 		log.Errorf("Failed to connect to MongoDB: %v", err)
@@ -167,7 +168,7 @@ func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params
 }
 
 func (m *MongoDBConnector) executeFind(ctx context.Context, coll *mongo.Collection, filter bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	opts := options.Find()
+	opts := mongoOptions.Find()
 	if optsMap != nil {
 		if v, ok := optsMap["limit"]; ok {
 			if n, ok := toInt64(v); ok {
@@ -216,7 +217,7 @@ func (m *MongoDBConnector) executeFind(ctx context.Context, coll *mongo.Collecti
 }
 
 func (m *MongoDBConnector) executeFindOne(ctx context.Context, coll *mongo.Collection, filter bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	opts := options.FindOne()
+	opts := mongoOptions.FindOne()
 	if optsMap != nil {
 		if v, ok := optsMap["sort"]; ok {
 			if sortMap, ok := v.(map[string]any); ok {
@@ -283,7 +284,7 @@ func (m *MongoDBConnector) executeUpdateOne(ctx context.Context, coll *mongo.Col
 	if update == nil {
 		return nil, fmt.Errorf("updateOne requires update")
 	}
-	opts := options.UpdateOne()
+	opts := mongoOptions.UpdateOne()
 	if optsMap != nil {
 		if v, ok := optsMap["upsert"]; ok {
 			if b, ok := v.(bool); ok {
@@ -307,7 +308,7 @@ func (m *MongoDBConnector) executeUpdateMany(ctx context.Context, coll *mongo.Co
 	if update == nil {
 		return nil, fmt.Errorf("updateMany requires update")
 	}
-	opts := options.UpdateMany()
+	opts := mongoOptions.UpdateMany()
 	if optsMap != nil {
 		if v, ok := optsMap["upsert"]; ok {
 			if b, ok := v.(bool); ok {
@@ -379,7 +380,7 @@ func (m *MongoDBConnector) executeCountDocuments(ctx context.Context, coll *mong
 	if filter == nil {
 		filter = bson.M{}
 	}
-	opts := options.Count()
+	opts := mongoOptions.Count()
 	if optsMap != nil {
 		if v, ok := optsMap["limit"]; ok {
 			if n, ok := toInt64(v); ok {
