@@ -71,15 +71,15 @@ func NewMongoDBConnector(connectionString string, optionsMap map[string]string) 
 
 // mongoStatement represents the JSON structure for a MongoDB operation
 type mongoStatement struct {
-	Database    string         `json:"database"`
-	Collection  string         `json:"collection"`
-	Operation   string         `json:"operation"`
-	Filter      map[string]any `json:"filter"`
-	Document    map[string]any `json:"document"`
-	Documents   []map[string]any `json:"documents"`
-	Update      map[string]any `json:"update"`
-	Pipeline    []map[string]any `json:"pipeline"`
-	Options     map[string]any `json:"options"`
+	Database   string           `json:"database"`
+	Collection string           `json:"collection"`
+	Operation  string           `json:"operation"`
+	Filter     map[string]any   `json:"filter"`
+	Document   map[string]any   `json:"document"`
+	Documents  []map[string]any `json:"documents"`
+	Update     map[string]any   `json:"update"`
+	Pipeline   []map[string]any `json:"pipeline"`
+	Options    map[string]any   `json:"options"`
 }
 
 // toBSON converts map[string]any to bson.M for driver calls (handles nested maps and slices)
@@ -97,6 +97,9 @@ func toBSON(m map[string]any) bson.M {
 func toBSONValue(v any) any {
 	switch val := v.(type) {
 	case map[string]any:
+		if oid, ok := objectIDFromMap(val); ok {
+			return oid
+		}
 		return toBSON(val)
 	case []any:
 		arr := make(bson.A, len(val))
@@ -255,18 +258,22 @@ func (m *MongoDBConnector) executeInsertOne(ctx context.Context, coll *mongo.Col
 	if err != nil {
 		return nil, fmt.Errorf("mongodb insertOne failed: %w", err)
 	}
-	return []map[string]any{{"insertedId": res.InsertedID}}, nil
+	return []map[string]any{{"insertedId": bsonValueToAny(res.InsertedID)}}, nil
 }
 
 func (m *MongoDBConnector) executeInsertMany(ctx context.Context, coll *mongo.Collection, docs []map[string]any) ([]map[string]any, error) {
-	if docs == nil || len(docs) == 0 {
+	if docs == nil {
 		return nil, fmt.Errorf("insertMany requires documents array")
 	}
 	res, err := coll.InsertMany(ctx, toBSONSlice(docs))
 	if err != nil {
 		return nil, fmt.Errorf("mongodb insertMany failed: %w", err)
 	}
-	return []map[string]any{{"insertedIds": res.InsertedIDs}}, nil
+	normalized := make([]any, len(res.InsertedIDs))
+	for i, id := range res.InsertedIDs {
+		normalized[i] = bsonValueToAny(id)
+	}
+	return []map[string]any{{"insertedIds": normalized}}, nil
 }
 
 func (m *MongoDBConnector) executeUpdateOne(ctx context.Context, coll *mongo.Collection, filter, update bson.M, optsMap map[string]any) ([]map[string]any, error) {
@@ -422,15 +429,53 @@ func bsonValueToAny(v any) any {
 	switch val := v.(type) {
 	case bson.M:
 		return bsonMToMap(val)
+	case bson.D:
+		return bsonDToMap(val)
 	case bson.A:
 		arr := make([]any, len(val))
 		for i, item := range val {
 			arr[i] = bsonValueToAny(item)
 		}
 		return arr
+	case bson.ObjectID:
+		return val.Hex()
+	case bson.DateTime:
+		return val.Time()
+	case bson.Decimal128:
+		return val.String()
 	default:
 		return v
 	}
+}
+
+func bsonDToMap(doc bson.D) map[string]any {
+	if doc == nil {
+		return nil
+	}
+	out := make(map[string]any, len(doc))
+	for _, elem := range doc {
+		out[elem.Key] = bsonValueToAny(elem.Value)
+	}
+	return out
+}
+
+func objectIDFromMap(m map[string]any) (bson.ObjectID, bool) {
+	if len(m) != 1 {
+		return bson.ObjectID{}, false
+	}
+	raw, ok := m["$oid"]
+	if !ok {
+		return bson.ObjectID{}, false
+	}
+	s, ok := raw.(string)
+	if !ok {
+		return bson.ObjectID{}, false
+	}
+	oid, err := bson.ObjectIDFromHex(s)
+	if err != nil {
+		return bson.ObjectID{}, false
+	}
+	return oid, true
 }
 
 // Close closes the MongoDB connection
