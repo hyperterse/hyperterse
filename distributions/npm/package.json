@@ -1,6 +1,6 @@
 {
   "name": "hyperterse",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A declarative interface to connect your database to your AI agents",
   "author": "Samrith Shankar <samrith@outlook.com>",
   "license": "Apache-2.0",
