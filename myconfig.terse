@@ -1,26 +1,25 @@
 name: my_sample_config
 
 server:
-  port: 3000
+  port: 8080
   log_level: 4
 
 export:
   out: dist
 
 adapters:
-  my_pg1:
+  my_pg:
     connector: postgres
-    connection_string: "postgresql://demo:demo@localhost:5432/demo?sslmode=disable"
+    connection_string: "postgresql://demo:demo@localhost:5432/demo"
     options:
-      max_connections: 10
-      ssl_mode: require
-  my_pg2:
-    connector: postgres
-    connection_string: "postgresql://demo:demo@localhost:5432/demo?sslmode=disable"
+      sslmode: disable
+  my_mongo:
+    connector: mongodb
+    connection_string: "mongodb://localhost:27017"
 
 queries:
   get-user-by-id:
-    use: my_pg1
+    use: my_pg
     description: "Get a user by id"
     statement: |
       SELECT * FROM users WHERE id = {{ inputs.userId }}
@@ -30,3 +29,21 @@ queries:
         description: "The ID of the user to retrieve"
         optional: false
         default: 1
+
+  get-all-orders:
+    use: my_mongo
+    description: "Get all orders"
+    statement: |
+      { "database": "my_mongo", "collection": "orders", "operation": "find", "filter": {} }
+
+  get-order-by-id:
+    use: my_mongo
+    description: "Get an order by id"
+    statement: |
+      { "database": "my_mongo", "collection": "orders", "operation": "findOne", "filter": { "id": "{{ inputs.orderId }}" } }
+    inputs:
+      orderId:
+        type: string
+        description: "The ID of the order to retrieve"
+        optional: false
+        default: "123"
