@@ -6,7 +6,7 @@ on:
       homebrew:
         description: "Publish to Homebrew"
         required: true
-        default: true
+        default: false
         type: boolean
       npm:
         description: "Publish to NPM"
@@ -25,7 +25,7 @@ on:
       homebrew:
         description: "Publish to Homebrew"
         required: true
-        default: true
+        default: false
         type: boolean
       npm:
         description: "Publish to NPM"

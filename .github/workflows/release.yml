@@ -115,15 +115,15 @@ jobs:
         run: |
           echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
 
-  publish:
-    name: "Publish"
-    needs: [build, release]
-    permissions:
-      contents: write
-      id-token: write
-    uses: ./.github/workflows/publish.yml
-    with:
-      homebrew: true
-      npm: true
-    secrets:
-      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+  # publish:
+  #   name: "Publish"
+  #   needs: [build, release]
+  #   permissions:
+  #     contents: write
+  #     id-token: write
+  #   uses: ./.github/workflows/publish.yml
+  #   with:
+  #     homebrew: true
+  #     npm: true
+  #   secrets:
+  #     HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
