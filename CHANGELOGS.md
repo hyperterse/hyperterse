@@ -1,3 +1,13 @@
+# v1.2.1
+
+Timestamp: 2026-02-02
+
+## 🐛 Bug Fixes
+
+- **NPM distribution** — Fixed npm-installed CLI not forwarding command-line arguments to the binary; commands like `hyperterse run -f config.terse` now work correctly when installed via `npm install -g hyperterse`
+
+---
+
 # v1.2.0
 
 Timestamp: 2026-02-01
