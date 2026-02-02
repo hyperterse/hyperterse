@@ -7,8 +7,10 @@
 
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
+
+const argv = process.argv.slice(2);
 
 import { install } from './install.mjs';
 
@@ -33,5 +35,12 @@ const binPath = path.join(__dirname, 'bin', process.platform === 'win32' ? 'hype
     }
   }
 
-  execSync(binPath, { stdio: 'inherit' });
+  spawnSync(
+    binPath,
+    argv,
+    {
+      stdio: 'inherit',
+      shell: true
+    }
+  );
 })();
