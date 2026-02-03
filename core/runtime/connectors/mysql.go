@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/hyperterse/hyperterse/core/logger"
@@ -17,25 +18,61 @@ type MySQLConnector struct {
 
 // NewMySQLConnector creates a new MySQL connector
 func NewMySQLConnector(connectionString string, options map[string]string) (*MySQLConnector, error) {
-	// Append all options to connection string if provided
-	if options != nil {
-		// Parse the connection string
+	// Convert URL format (mysql://user:pass@host:port/db) to DSN format (user:pass@tcp(host:port)/db)
+	if strings.HasPrefix(connectionString, "mysql://") {
 		parsedURL, err := url.Parse(connectionString)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse mysql connection string: %w", err)
 		}
 
-		// Get existing query parameters
-		query := parsedURL.Query()
+		// Extract components
+		user := parsedURL.User.Username()
+		password, _ := parsedURL.User.Password()
+		host := parsedURL.Hostname()
+		port := parsedURL.Port()
+		if port == "" {
+			port = "3306" // Default MySQL port
+		}
+		database := strings.TrimPrefix(parsedURL.Path, "/")
 
-		// Append all options directly to query parameters
-		for key, value := range options {
-			query.Set(key, value)
+		// Build DSN format: user:password@tcp(host:port)/database
+		var dsn strings.Builder
+		if password != "" {
+			dsn.WriteString(fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, host, port, database))
+		} else {
+			dsn.WriteString(fmt.Sprintf("%s@tcp(%s:%s)/%s", user, host, port, database))
 		}
 
-		// Rebuild connection string with updated query parameters
-		parsedURL.RawQuery = query.Encode()
-		connectionString = parsedURL.String()
+		// Get existing query parameters from URL
+		query := parsedURL.Query()
+
+		// Append all options to query parameters
+		if len(options) > 0 {
+			for key, value := range options {
+				query.Set(key, value)
+			}
+		}
+
+		// Append query parameters to DSN if any exist
+		if len(query) > 0 {
+			dsn.WriteString("?")
+			dsn.WriteString(query.Encode())
+		}
+
+		connectionString = dsn.String()
+	} else if options != nil {
+		// Handle DSN format with options - append as query parameters
+		var queryParts []string
+		for key, value := range options {
+			queryParts = append(queryParts, fmt.Sprintf("%s=%s", key, value))
+		}
+		if len(queryParts) > 0 {
+			if strings.Contains(connectionString, "?") {
+				connectionString += "&" + strings.Join(queryParts, "&")
+			} else {
+				connectionString += "?" + strings.Join(queryParts, "&")
+			}
+		}
 	}
 
 	log := logger.New("connector:mysql")
