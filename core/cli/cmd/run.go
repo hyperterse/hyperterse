@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/cli/internal"
@@ -73,6 +74,14 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		filePath, err = logger.SetLogFile()
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize log file: %w", err)
+		}
+	}
+
+	// Load .env files from config file directory if a config file is provided
+	// This allows .env files to be placed next to the config file
+	if configFile != "" {
+		if configDir := filepath.Dir(configFile); configDir != "" && configDir != "." {
+			LoadEnvFiles(configDir)
 		}
 	}
 

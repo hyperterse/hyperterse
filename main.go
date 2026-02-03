@@ -5,7 +5,6 @@ import (
 
 	"github.com/hyperterse/hyperterse/core/cli"
 	"github.com/hyperterse/hyperterse/core/cli/cmd"
-	"github.com/joho/godotenv"
 )
 
 // Version can be set at build time using -ldflags
@@ -15,9 +14,11 @@ func init() {
 	// Set the version in cmd package so it can be accessed by commands
 	cmd.SetVersion(Version)
 
-	// Load .env file if it exists (ignore errors if file doesn't exist)
-	// This allows users to use .env files without needing to manually source them
-	_ = godotenv.Load(".env.local", ".env.development", ".env")
+	// Load .env files from multiple locations:
+	// 1. Current working directory (for development)
+	// 2. Directory containing the executable binary (for built binaries)
+	// System environment variables always take precedence.
+	cmd.LoadEnvFiles("")
 }
 
 func main() {
