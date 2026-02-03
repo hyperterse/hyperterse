@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
@@ -122,4 +124,47 @@ func printVersion() {
 		}
 	}
 	fmt.Println(v)
+}
+
+// LoadEnvFiles attempts to load .env files from multiple locations.
+// It tries each location in order and stops at the first successful load.
+// This ensures .env files work in development, when built, and when deployed.
+// Priority order:
+// 1. From the provided directory (if not empty)
+// 2. From the current working directory
+// 3. From the directory containing the executable binary
+// System environment variables always take precedence over .env file values.
+func LoadEnvFiles(fromDir string) {
+	envFiles := []string{".env.local", ".env.development", ".env"}
+
+	// Try loading from the provided directory first (e.g., config file directory)
+	if fromDir != "" {
+		for _, envFile := range envFiles {
+			envPath := filepath.Join(fromDir, envFile)
+			if err := godotenv.Load(envPath); err == nil {
+				return // Successfully loaded, stop trying
+			}
+		}
+	}
+
+	// Try loading from current working directory
+	for _, envFile := range envFiles {
+		if err := godotenv.Load(envFile); err == nil {
+			return // Successfully loaded, stop trying
+		}
+	}
+
+	// Try loading from the directory containing the executable binary
+	if execPath, err := os.Executable(); err == nil {
+		if realPath, err := filepath.EvalSymlinks(execPath); err == nil {
+			execPath = realPath
+		}
+		execDir := filepath.Dir(execPath)
+		for _, envFile := range envFiles {
+			envPath := filepath.Join(execDir, envFile)
+			if err := godotenv.Load(envPath); err == nil {
+				return // Successfully loaded, stop trying
+			}
+		}
+	}
 }
