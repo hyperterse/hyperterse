@@ -23,7 +23,8 @@
               "enum": [
                 "postgres",
                 "redis",
-                "mysql"
+                "mysql",
+                "mongodb"
               ],
               "type": "string"
             },

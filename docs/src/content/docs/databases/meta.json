@@ -1,5 +1,5 @@
 {
   "title": "Databases",
   "icon": "Database",
-  "pages": ["postgresql", "mysql", "redis"]
+  "pages": ["postgresql", "mysql", "redis", "mongodb"]
 }

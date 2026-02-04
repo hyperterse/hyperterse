@@ -86,12 +86,13 @@ func Validate(model *hyperterse.Model) error {
 		}
 		adapterNames[adapter.Name] = true
 
-		// 3. Connector is required and must be one of: postgres, redis, mysql
+		// 3. Connector is required and must be one of: postgres, redis, mysql, mongodb
 		if adapter.Connector == connectors.Connector_CONNECTOR_UNSPECIFIED {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' requires a connector", prefix))
 		} else if adapter.Connector != connectors.Connector_CONNECTOR_POSTGRES &&
 			adapter.Connector != connectors.Connector_CONNECTOR_REDIS &&
-			adapter.Connector != connectors.Connector_CONNECTOR_MYSQL {
+			adapter.Connector != connectors.Connector_CONNECTOR_MYSQL &&
+			adapter.Connector != connectors.Connector_CONNECTOR_MONGODB {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' - connector is invalid. Must be one of: %s", prefix, strings.Join(types.GetValidConnectors(), ", ")))
 		}
 
