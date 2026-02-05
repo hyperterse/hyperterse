@@ -1,6 +1,6 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
+# node_modules
+node_modules/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -13,9 +13,6 @@
 **/thumbs.db
 **/Thumbs.db
 
-# Test binary, built with `go test -c`
-*.test
-
 # Code coverage profiles and other test artifacts
 *.out
 coverage.*
@@ -25,26 +22,15 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/ - Note: vendor/protovalidate is committed for offline protovalidate support
 
-# Go workspace file
-go.work
-go.work.sum
-
 # env file
 .env
 
 # Temporary files
 tmp/**
 
-# Generated files
-core/proto/
-core/types/
-*.pb.go
-pkg/proto
-pkg/types
-pkg/pb
-
-# Goreleaser
+# Build outputs
 dist/
 distributions/**/dist
+target/
 
 .cursor

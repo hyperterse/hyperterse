@@ -1,0 +1,43 @@
+[package]
+name = "hyperterse-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI for Hyperterse - Type-safe query layer for databases"
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "hyperterse"
+path = "main.rs"
+
+[dependencies]
+# Workspace crates
+hyperterse-core = { workspace = true }
+hyperterse-parser = { workspace = true }
+hyperterse-runtime = { workspace = true }
+hyperterse-types = { workspace = true }
+
+# CLI
+clap = { workspace = true, features = ["derive"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# File watching
+notify = "6.1"
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+
+[dev-dependencies]
+tempfile = "3.10"

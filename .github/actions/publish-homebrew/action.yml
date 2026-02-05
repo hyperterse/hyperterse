@@ -10,6 +10,9 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+
     - name: Download checksums.txt from release
       shell: bash
       run: |
@@ -69,8 +72,8 @@ runs:
         # Update version (if not already correct)
         sed -i "s/^  version \".*\"/  version \"${VERSION}\"/" "$FORMULA_FILE"
 
-        # Update SHA256 checksums using helper script
-        ./scripts/update-homebrew-sha256.sh \
+        # Update SHA256 checksums using Bun script
+        bun run scripts/update-homebrew-sha256.ts \
           "$FORMULA_FILE" \
           "${{ steps.sha256.outputs.darwin_amd64 }}" \
           "${{ steps.sha256.outputs.darwin_arm64 }}" \

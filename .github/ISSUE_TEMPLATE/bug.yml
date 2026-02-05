@@ -52,7 +52,7 @@ body:
     attributes:
       label: Configuration File
       description: |
-        Please provide your configuration file (`.terse` or `.yaml`).
+        Please provide your configuration file (`.terse`)
         **IMPORTANT:** Remove or redact any sensitive information like connection strings, passwords, or API keys.
         Use environment variables or placeholders instead.
       placeholder: |
@@ -162,11 +162,11 @@ body:
       required: true
 
   - type: input
-    id: go_version
+    id: rust_version
     attributes:
-      label: Go Version (if building from source)
-      description: Go version if you built from source (run `go version`)
-      placeholder: go1.21.0
+      label: Rust Version (if building from source)
+      description: Rust version if you built from source (run `rustc --version`)
+      placeholder: rustc 1.76.0 (07dca489a 2024-02-04)
 
   - type: textarea
     id: database

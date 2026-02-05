@@ -5,65 +5,97 @@ on:
     tags:
       - "v*"
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: linux
-            goarch: arm
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
+          # Linux x86_64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-amd64
+          # Linux ARM64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-arm64
+            cross: true
+          # macOS x86_64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: darwin-amd64
+          # macOS ARM64 (Apple Silicon)
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: darwin-arm64
+          # Windows x86_64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: windows-amd64
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          go-version-file: go.mod
+          targets: ${{ matrix.target }}
 
-      - name: Install protoc
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # For cross-compilation (Linux ARM64)
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      # Build with cross for cross-compilation targets
+      - name: Build with cross
+        if: matrix.cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      # Build natively for same-platform targets
+      - name: Build
+        if: "!matrix.cross"
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # Determine binary name and extension
+      - name: Set binary name
+        id: binary
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "name=hyperterse.exe" >> $GITHUB_OUTPUT
+            echo "artifact=hyperterse-${{ matrix.name }}.exe" >> $GITHUB_OUTPUT
+          else
+            echo "name=hyperterse" >> $GITHUB_OUTPUT
+            echo "artifact=hyperterse-${{ matrix.name }}" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Install build dependencies
+      # Copy binary to dist folder
+      - name: Prepare artifact
+        shell: bash
         run: |
-          # Ensure GOPATH/bin is in PATH for protoc-gen-go
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-          # Install protoc-gen-go
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-
-      - name: Install dependencies
-        run: ./scripts/check-deps.sh
-
-      - name: Generate protobuf files
-        run: ./scripts/generate-proto.sh
-
-      - name: Build binary
-        run: ./scripts/release.sh ${{ matrix.goos }} ${{ matrix.goarch }}
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/${{ steps.binary.outputs.name }} dist/${{ steps.binary.outputs.artifact }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hyperterse-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/hyperterse-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: hyperterse-${{ matrix.name }}
+          path: dist/hyperterse-${{ matrix.name }}*
           retention-days: 1
 
   release:
+    name: Create Release
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -81,12 +113,27 @@ jobs:
           path: dist
 
       - name: Flatten binaries
-        run: ./scripts/create-archives.sh dist
+        run: |
+          cd dist
+          for dir in hyperterse-*; do
+            if [ -d "$dir" ]; then
+              binary=$(find "$dir" -name "hyperterse-*" -type f | head -1)
+              if [ -n "$binary" ]; then
+                binary_name=$(basename "$binary")
+                mv "$binary" "./${binary_name}.tmp"
+                rm -rf "$dir"
+                mv "./${binary_name}.tmp" "./$binary_name"
+              fi
+            fi
+          done
+          echo "✓ Binaries flattened"
+          ls -la
 
       - name: Generate checksums
         run: |
           cd dist
           sha256sum hyperterse-* > checksums.txt 2>/dev/null || shasum -a 256 hyperterse-* > checksums.txt
+          cat checksums.txt
 
       - name: Extract version from tag
         id: version
@@ -101,22 +148,18 @@ jobs:
           artifacts: "dist/hyperterse-*,dist/checksums.txt"
           generateReleaseNotes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
 
-      - name: Upload artifacts for distribution
+      - name: Upload release binaries
         uses: actions/upload-artifact@v4
         with:
           name: release-binaries
-          path: dist/hyperterse-*.tar.gz
+          path: dist/hyperterse-*
           retention-days: 7
 
-      - name: Output version
-        id: release
-        run: |
-          echo "version=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
-
+  # Optional: Publish to distribution channels
   # publish:
-  #   name: "Publish"
+  #   name: Publish
   #   needs: [build, release]
   #   permissions:
   #     contents: write
@@ -127,3 +170,4 @@ jobs:
   #     npm: true
   #   secrets:
   #     HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+  #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

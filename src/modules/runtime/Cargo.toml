@@ -1,0 +1,58 @@
+[package]
+name = "hyperterse-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Runtime server for Hyperterse"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+hyperterse-core = { workspace = true }
+hyperterse-parser = { workspace = true }
+hyperterse-types = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = "0.3"
+
+# HTTP framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Database drivers
+sqlx = { workspace = true }
+redis = { workspace = true }
+mongodb = { workspace = true }
+bson = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+once_cell = { workspace = true }
+
+# OpenAPI
+utoipa = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+# Integration tests with testcontainers (optional, requires Docker)
+# testcontainers = "0.20"
+# testcontainers-modules = { version = "0.8", features = ["postgres", "mysql", "redis", "mongo"] }

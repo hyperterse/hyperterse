@@ -1,0 +1,35 @@
+{
+  "name": "hyperterse",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hyperterse - Build System Scripts (Bun Shell)",
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "build:release": "bun run scripts/build.ts --release",
+    "build:all": "bun run scripts/build.ts --all",
+    "test": "bun run scripts/test.ts",
+    "test:unit": "bun run scripts/test.ts --unit",
+    "test:ignored": "bun run scripts/test.ts --ignored",
+    "setup": "bun run scripts/setup.ts",
+    "check": "bun run scripts/check.ts",
+    "lint": "bun run scripts/lint.ts",
+    "lint:fix": "bun run scripts/lint.ts --fix",
+    "fmt": "bun run scripts/fmt.ts",
+    "fmt:check": "bun run scripts/fmt.ts --check",
+    "schema:generate": "bun run scripts/generate-schema.ts",
+    "clean": "bun run scripts/clean.ts",
+    "version": "bun run scripts/version.ts",
+    "release": "bun run scripts/release.ts",
+    "release:build": "bun run scripts/release.ts --build",
+    "archive": "bun run scripts/archive.ts",
+    "help": "bun run scripts/help.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.1",
+    "@types/semver": "^7.7.1",
+    "semver": "^7.7.4"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

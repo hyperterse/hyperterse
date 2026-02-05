@@ -12,9 +12,8 @@
     "prettier.singleQuote": false,
     "prettier.tabWidth": 2
   },
-  "[go]": {
-    "editor.defaultFormatter": "golang.go",
-    "editor.formatOnSaveMode": "file"
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
   "[mdx]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -33,7 +32,7 @@
   },
   "explorer.excludeGitIgnore": false,
   "yaml.schemas": {
-    "./schema/terse.schema.json": "**/*.terse"
+    "./schema/terse.schema.json": ["**/*.terse"]
   },
   "files.associations": {
     "*.terse": "yaml"

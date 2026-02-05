@@ -1,0 +1,70 @@
+[workspace]
+resolver = "2"
+members = [
+    "src/modules/cli",
+    "src/modules/core",
+    "src/modules/parser",
+    "src/modules/runtime",
+    "src/modules/types",
+]
+
+[workspace.package]
+version = "1.2.1"
+edition = "2021"
+authors = ["Hyperterse Contributors"]
+license = "MIT"
+repository = "https://github.com/hyperterse/hyperterse"
+description = "A type-safe query layer for databases"
+
+[workspace.dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+async-trait = "0.1"
+
+# HTTP framework
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "timeout", "trace"] }
+
+# Database drivers
+sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "mysql", "json", "chrono", "uuid"] }
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
+mongodb = { version = "2.8", features = ["tokio-runtime"] }
+bson = { version = "2.9" }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# File watching
+notify = "6.1"
+notify-debouncer-mini = "0.4"
+
+# Utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.0"
+once_cell = "1.0"
+dotenvy = "0.15"
+
+# OpenAPI
+utoipa = { version = "4.2", features = ["axum_extras"] }
+
+# Internal crates
+hyperterse-cli = { path = "./src/modules/cli" }
+hyperterse-core = { path = "./src/modules/core" }
+hyperterse-parser = { path = "./src/modules/parser" }
+hyperterse-runtime = { path = "./src/modules/runtime" }
+hyperterse-types = { path = "./src/modules/types" }

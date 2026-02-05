@@ -1,290 +1,575 @@
 {
-  "$comment": "Cross-reference validations: (1) The 'use' field in queries must reference valid adapter names defined in 'adapters'. (2) Statement input references ({{ inputs.x }}) must match defined inputs. These validations are performed by core/parser/validator.go. Standard JSON Schema Draft 07 doesn't support dynamic cross-references, but some validators (e.g., AJV with $data) can validate this.",
-  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
+  "$comment": "Some validations (cross-references, placeholder checks) are enforced at runtime (see src/modules/parser/validator.rs).",
+  "title": "Terse",
+  "type": "object",
   "additionalProperties": false,
-  "description": "JSON schema for Hyperterse .terse configuration files.",
+  "required": [
+    "name"
+  ],
   "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "description": "Configuration name (lower-kebab-case or lower_snake_case)."
+    },
     "adapters": {
-      "additionalProperties": false,
-      "description": "Adapter configurations (required, must have at least one entry)",
-      "minProperties": 1,
-      "patternProperties": {
-        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
-          "additionalProperties": false,
-          "properties": {
-            "connection_string": {
-              "description": "Database connection string (required)",
-              "minLength": 1,
-              "type": "string"
-            },
-            "connector": {
-              "description": "Connector type (required)",
-              "enum": [
-                "postgres",
-                "redis",
-                "mysql",
-                "mongodb"
-              ],
-              "type": "string"
-            },
-            "options": {
-              "additionalProperties": {
-                "oneOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "boolean"
-                  },
-                  {
-                    "type": "number"
-                  }
-                ]
-              },
-              "description": "Connector-specific options",
-              "type": "object"
-            }
+      "description": "Database adapters. Supported in both legacy `.terse` (map) and current (array) formats.",
+      "oneOf": [
+        {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/adapter"
+          }
+        },
+        {
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
           },
-          "required": [
-            "connector",
-            "connection_string"
-          ],
-          "type": "object"
+          "additionalProperties": {
+            "$ref": "#/$defs/adapterInline"
+          }
         }
-      },
-      "type": "object"
+      ]
+    },
+    "queries": {
+      "description": "Query definitions. Supported in both legacy `.terse` (map) and current (array) formats.",
+      "oneOf": [
+        {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/query"
+          }
+        },
+        {
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/queryInline"
+          }
+        }
+      ]
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional server configuration.",
+      "properties": {
+        "port": {
+          "description": "Port to listen on (accepts number or string for env-substitution).",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "log_level": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Log level (implementation-defined). Not strictly validated by schema."
+        },
+        "pool": {
+          "$ref": "#/$defs/poolConfig"
+        }
+      }
     },
     "export": {
+      "type": "object",
       "additionalProperties": false,
-      "description": "Optional export configuration",
+      "description": "Optional export configuration.",
       "properties": {
-        "clean_dir": {
-          "description": "Clean output directory before exporting (default: false)",
-          "type": "boolean"
+        "base_url": {
+          "type": "string"
+        },
+        "output_dir": {
+          "type": "string"
         },
         "out": {
-          "description": "Output directory path (script filename uses config name)",
+          "type": "string",
+          "description": "Legacy alias for output_dir used in older `.terse` configs."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "connector",
+        "url"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
           "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "description": "Adapter name."
+        },
+        "connector": {
+          "type": "string",
+          "enum": [
+            "postgres",
+            "mysql",
+            "redis",
+            "mongodb"
+          ],
+          "description": "Connector type."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connection URL (supports {{ env.VAR }} substitution)."
+        }
+      }
+    },
+    "adapterInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connector"
+      ],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "enum": [
+            "postgres",
+            "mysql",
+            "redis",
+            "mongodb"
+          ],
+          "description": "Connector type."
+        },
+        "connection_string": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connection string (legacy field name, preferred in `.terse` examples)."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connection URL (alias for connection_string)."
+        },
+        "options": {
+          "description": "Connector-specific options (currently ignored by the Rust core model)."
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "connection_string"
+          ]
+        },
+        {
+          "required": [
+            "url"
+          ]
+        }
+      ]
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "adapter",
+        "statement"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "description": "Query name (becomes endpoint path)."
+        },
+        "adapter": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "description": "Adapter name to execute against."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SQL / Redis command / MongoDB JSON statement."
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "description": "Input parameters. Supported in both legacy `.terse` (map) and current (array) formats.",
+          "oneOf": [
+            {
+              "type": "array",
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/input"
+              }
+            },
+            {
+              "type": "object",
+              "default": {},
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/inputInline"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "queryInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement"
+      ],
+      "properties": {
+        "use": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "description": "Adapter name to execute against (legacy field name)."
+        },
+        "adapter": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "description": "Adapter name to execute against."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SQL / Redis command / MongoDB JSON statement."
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "description": "Input parameters. Map form is recommended for `.terse` configs.",
+          "oneOf": [
+            {
+              "type": "array",
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/input"
+              }
+            },
+            {
+              "type": "object",
+              "default": {},
+              "propertyNames": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+              },
+              "additionalProperties": {
+                "$ref": "#/$defs/inputInline"
+              }
+            }
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "use"
+          ]
+        },
+        {
+          "required": [
+            "adapter"
+          ]
+        }
+      ]
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$",
+          "description": "Input parameter name (referenced as {{ inputs.<name> }})."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "int",
+            "float",
+            "boolean",
+            "uuid",
+            "datetime"
+          ],
+          "description": "Input primitive type."
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this input is required (default: true)."
+        },
+        "default": {
+          "description": "Default value for optional inputs (type must match `type`)."
+        },
+        "description": {
           "type": "string"
         }
       },
-      "type": "object"
-    },
-    "name": {
-      "description": "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
-      "minLength": 1,
-      "pattern": "^[a-z][a-z0-9_-]*$",
-      "type": "string"
-    },
-    "queries": {
-      "additionalProperties": false,
-      "description": "Query definitions (required, must have at least one entry)",
-      "minProperties": 1,
-      "patternProperties": {
-        "^[a-z][a-z0-9_-]*$": {
-          "additionalProperties": false,
-          "properties": {
-            "description": {
-              "description": "Query description (required)",
-              "minLength": 1,
-              "type": "string"
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required": {
+                "const": false
+              }
             },
-            "inputs": {
-              "additionalProperties": false,
-              "description": "Input parameter definitions",
-              "patternProperties": {
-                "^[a-zA-Z][a-zA-Z0-9_-]*$": {
-                  "additionalProperties": false,
-                  "allOf": [
-                    {
-                      "if": {
-                        "properties": {
-                          "optional": {
-                            "const": true
-                          }
-                        }
-                      },
-                      "then": {
-                        "required": [
-                          "default"
-                        ]
-                      }
-                    },
-                    {
-                      "if": {
-                        "properties": {
-                          "type": {
-                            "enum": [
-                              "string",
-                              "datetime"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "type"
-                        ]
-                      },
-                      "then": {
-                        "properties": {
-                          "default": {
-                            "description": "Default value (required if optional=true)",
-                            "type": "string"
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "if": {
-                        "properties": {
-                          "type": {
-                            "const": "int"
-                          }
-                        },
-                        "required": [
-                          "type"
-                        ]
-                      },
-                      "then": {
-                        "properties": {
-                          "default": {
-                            "description": "Default value (required if optional=true)",
-                            "type": "integer"
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "if": {
-                        "properties": {
-                          "type": {
-                            "const": "float"
-                          }
-                        },
-                        "required": [
-                          "type"
-                        ]
-                      },
-                      "then": {
-                        "properties": {
-                          "default": {
-                            "description": "Default value (required if optional=true)",
-                            "type": "number"
-                          }
-                        }
-                      }
-                    },
-                    {
-                      "if": {
-                        "properties": {
-                          "type": {
-                            "const": "boolean"
-                          }
-                        },
-                        "required": [
-                          "type"
-                        ]
-                      },
-                      "then": {
-                        "properties": {
-                          "default": {
-                            "description": "Default value (required if optional=true)",
-                            "type": "boolean"
-                          }
-                        }
-                      }
-                    }
-                  ],
-                  "properties": {
-                    "default": {
-                      "description": "Default value (required if optional=true, type depends on input type)"
-                    },
-                    "description": {
-                      "description": "Input description",
-                      "type": "string"
-                    },
-                    "optional": {
-                      "description": "Whether the input is optional",
-                      "type": "boolean"
-                    },
-                    "type": {
-                      "description": "Input type (required)",
-                      "enum": [
-                        "string",
-                        "int",
-                        "float",
-                        "boolean",
-                        "datetime"
-                      ],
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ],
-                  "type": "object"
-                }
-              },
-              "type": "object"
-            },
-            "statement": {
-              "description": "SQL or command string (required)",
-              "minLength": 1,
-              "type": "string"
-            },
-            "use": {
-              "description": "References to adapter names (required, must reference valid adapters)",
-              "oneOf": [
-                {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                {
-                  "items": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "minItems": 1,
-                  "type": "array"
-                }
-              ]
-            }
+            "required": [
+              "required"
+            ]
           },
-          "required": [
-            "use",
-            "description",
-            "statement"
-          ],
-          "type": "object"
-        }
-      },
-      "type": "object"
-    },
-    "server": {
-      "additionalProperties": false,
-      "description": "Optional server configuration",
-      "properties": {
-        "log_level": {
-          "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
-          "maximum": 4,
-          "minimum": 1,
-          "type": "integer"
+          "then": {
+            "required": [
+              "default"
+            ]
+          }
         },
-        "port": {
-          "description": "Server port (default: 8080)",
-          "maximum": 65535,
-          "minimum": 1,
-          "type": "integer"
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "datetime"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "uuid"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "int"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "float"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "inputInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "int",
+            "float",
+            "boolean",
+            "uuid",
+            "datetime"
+          ],
+          "description": "Input primitive type."
+        },
+        "description": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Legacy flag. If true, the input is considered optional (and must provide a default)."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "If set, overrides `optional`. If false, a `default` must be provided."
+        },
+        "default": {
+          "description": "Default value for optional inputs (type must match `type`)."
         }
       },
-      "type": "object"
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "required": {
+                "const": false
+              }
+            },
+            "required": [
+              "required"
+            ]
+          },
+          "then": {
+            "required": [
+              "default"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "optional": {
+                "const": true
+              }
+            },
+            "required": [
+              "optional"
+            ]
+          },
+          "then": {
+            "required": [
+              "default"
+            ]
+          }
+        }
+      ]
+    },
+    "poolConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_connections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_connections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "acquire_timeout_secs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idle_timeout_secs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_lifetime_secs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     }
-  },
-  "required": [
-    "name",
-    "adapters",
-    "queries"
-  ],
-  "title": "Hyperterse",
-  "type": "object"
+  }
 }
