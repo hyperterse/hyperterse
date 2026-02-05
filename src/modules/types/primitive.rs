@@ -126,7 +126,7 @@ mod tests {
         assert!(Primitive::Int.validate(&json!(42)));
         assert!(!Primitive::Int.validate(&json!("42")));
 
-        assert!(Primitive::Float.validate(&json!(3.14)));
+        assert!(Primitive::Float.validate(&json!(1.23)));
         assert!(Primitive::Float.validate(&json!(42))); // int is also valid as float
 
         assert!(Primitive::Boolean.validate(&json!(true)));

@@ -125,7 +125,7 @@ impl GenerateCommand {
                             input.name, input.primitive_type, required, description
                         ));
                     }
-                    content.push_str("\n");
+                    content.push('\n');
                 }
             }
         }

@@ -50,9 +50,9 @@ impl LlmsHandler {
         // Base URL
         lines.push("## Base URL".to_string());
         lines.push(String::new());
-        lines.push(format!("```"));
+        lines.push("```".to_string());
         lines.push(format!("http://localhost:{}", model.port()));
-        lines.push(format!("```"));
+        lines.push("```".to_string());
         lines.push(String::new());
 
         // Queries section
@@ -73,9 +73,9 @@ impl LlmsHandler {
 
                 // Endpoint
                 lines.push("**Endpoint:**".to_string());
-                lines.push(format!("```"));
+                lines.push("```".to_string());
                 lines.push(format!("POST /query/{}", query.name));
-                lines.push(format!("```"));
+                lines.push("```".to_string());
                 lines.push(String::new());
 
                 // Inputs
@@ -104,31 +104,25 @@ impl LlmsHandler {
 
                 // Example request
                 lines.push("**Example Request:**".to_string());
-                lines.push(format!("```json"));
+                lines.push("```json".to_string());
                 let example_inputs = Self::generate_example_inputs(&query.inputs);
-                lines.push(format!(
-                    "{}",
-                    serde_json::to_string_pretty(&serde_json::json!({
+                lines.push(serde_json::to_string_pretty(&serde_json::json!({
                         "inputs": example_inputs
                     }))
-                    .unwrap_or_default()
-                ));
-                lines.push(format!("```"));
+                    .unwrap_or_default().to_string());
+                lines.push("```".to_string());
                 lines.push(String::new());
 
                 // Example response
                 lines.push("**Example Response:**".to_string());
-                lines.push(format!("```json"));
-                lines.push(format!(
-                    "{}",
-                    serde_json::to_string_pretty(&serde_json::json!({
+                lines.push("```json".to_string());
+                lines.push(serde_json::to_string_pretty(&serde_json::json!({
                         "success": true,
                         "error": "",
                         "results": []
                     }))
-                    .unwrap_or_default()
-                ));
-                lines.push(format!("```"));
+                    .unwrap_or_default().to_string());
+                lines.push("```".to_string());
                 lines.push(String::new());
             }
         }
@@ -138,17 +132,14 @@ impl LlmsHandler {
         lines.push(String::new());
         lines.push("All query responses follow this format:".to_string());
         lines.push(String::new());
-        lines.push(format!("```json"));
-        lines.push(format!(
-            "{}",
-            serde_json::to_string_pretty(&serde_json::json!({
+        lines.push("```json".to_string());
+        lines.push(serde_json::to_string_pretty(&serde_json::json!({
                 "success": true,
                 "error": "Error message (empty on success)",
                 "results": [{"column1": "value1", "column2": "value2"}]
             }))
-            .unwrap_or_default()
-        ));
-        lines.push(format!("```"));
+            .unwrap_or_default().to_string());
+        lines.push("```".to_string());
         lines.push(String::new());
 
         // Error handling
