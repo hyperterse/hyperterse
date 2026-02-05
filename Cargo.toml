@@ -68,3 +68,9 @@ hyperterse-core = { path = "./src/modules/core" }
 hyperterse-parser = { path = "./src/modules/parser" }
 hyperterse-runtime = { path = "./src/modules/runtime" }
 hyperterse-types = { path = "./src/modules/types" }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
