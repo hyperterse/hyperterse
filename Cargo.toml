@@ -1,11 +1,19 @@
+[profile.dev]
+opt-level = 1
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 2
+
+
 [workspace]
 resolver = "2"
 members = [
-    "src/modules/cli",
-    "src/modules/core",
-    "src/modules/parser",
-    "src/modules/runtime",
-    "src/modules/types",
+  "src/modules/cli",
+  "src/modules/core",
+  "src/modules/parser",
+  "src/modules/runtime",
+  "src/modules/types",
 ]
 
 [workspace.package]
@@ -36,7 +44,14 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "timeout", "trace"] }
 
 # Database drivers
-sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "mysql", "json", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = [
+  "runtime-tokio",
+  "postgres",
+  "mysql",
+  "json",
+  "chrono",
+  "uuid",
+] }
 redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
 mongodb = { version = "2.8", features = ["tokio-runtime"] }
 bson = { version = "2.9" }
@@ -68,9 +83,3 @@ hyperterse-core = { path = "./src/modules/core" }
 hyperterse-parser = { path = "./src/modules/parser" }
 hyperterse-runtime = { path = "./src/modules/runtime" }
 hyperterse-types = { path = "./src/modules/types" }
-
-[profile.dev]
-opt-level = 1
-
-[profile.dev.package."*"]
-opt-level = 2
