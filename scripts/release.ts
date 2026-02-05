@@ -73,7 +73,7 @@ async function buildRelease(targets: typeof TARGETS, outputDir: string): Promise
 
   console.log("\n" + "═".repeat(50));
   console.log(`✅ Successfully built: ${built.length}/${targets.length}`);
-  
+
   if (failed.length > 0) {
     console.log(`⚠️  Failed: ${failed.join(", ")}`);
     console.log("   (Cross-compilation may require additional toolchains)");
@@ -142,18 +142,18 @@ Examples:
     // Build for current platform only
     const version = await getVersion();
     console.log(`🚀 Building Hyperterse v${version} release...\n`);
-    
+
     await $`cargo build --release`;
     await $`mkdir -p ${outputDir}`;
-    
+
     const platform = process.platform;
     const arch = process.arch === "arm64" ? "arm64" : "amd64";
     const os = platform === "darwin" ? "darwin" : platform === "win32" ? "windows" : "linux";
     const ext = platform === "win32" ? ".exe" : "";
     const outputName = `hyperterse-${os}-${arch}${ext}`;
-    
+
     await $`cp target/release/hyperterse${ext} ${outputDir}/${outputName}`;
-    
+
     console.log(`✅ Built: ${outputDir}/${outputName}`);
   } else {
     // Show release info

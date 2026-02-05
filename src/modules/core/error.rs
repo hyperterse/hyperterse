@@ -155,8 +155,14 @@ mod tests {
 
     #[test]
     fn test_error_status_codes() {
-        assert_eq!(HyperterseError::QueryNotFound("test".into()).status_code(), 404);
-        assert_eq!(HyperterseError::MissingInput("id".into()).status_code(), 400);
+        assert_eq!(
+            HyperterseError::QueryNotFound("test".into()).status_code(),
+            404
+        );
+        assert_eq!(
+            HyperterseError::MissingInput("id".into()).status_code(),
+            400
+        );
         assert_eq!(HyperterseError::Database("err".into()).status_code(), 500);
     }
 

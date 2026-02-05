@@ -150,9 +150,13 @@ mod tests {
 
     #[test]
     fn test_query_with_inputs() {
-        let query = Query::new("get-user", "main-db", "SELECT * FROM users WHERE id = {{ inputs.id }}")
-            .with_description("Get a user by ID")
-            .with_input(Input::new("id", Primitive::Int));
+        let query = Query::new(
+            "get-user",
+            "main-db",
+            "SELECT * FROM users WHERE id = {{ inputs.id }}",
+        )
+        .with_description("Get a user by ID")
+        .with_input(Input::new("id", Primitive::Int));
 
         assert!(query.description.is_some());
         assert_eq!(query.inputs.len(), 1);

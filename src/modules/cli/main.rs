@@ -21,7 +21,11 @@ async fn run() -> Result<(), HyperterseError> {
     let config_path = cli.config_path().to_string();
 
     // Initialize logging
-    let log_level = if cli.verbose { Level::DEBUG } else { Level::INFO };
+    let log_level = if cli.verbose {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
     let filter = EnvFilter::builder()
         .with_default_directive(log_level.into())
         .from_env_lossy();

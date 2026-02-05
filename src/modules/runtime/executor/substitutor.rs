@@ -7,14 +7,12 @@ use regex::Regex;
 use std::collections::HashMap;
 
 /// Regex pattern for input placeholders: {{ inputs.fieldName }}
-static INPUT_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{\{\s*inputs\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap()
-});
+static INPUT_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{\{\s*inputs\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap());
 
 /// Regex pattern for environment variable placeholders: {{ env.VAR_NAME }}
-static ENV_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap()
-});
+static ENV_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap());
 
 /// Template substitutor for query statements
 pub struct TemplateSubstitutor;
@@ -119,8 +117,9 @@ impl TemplateSubstitutor {
             }
             serde_json::Value::Object(_) => {
                 // Convert object to JSON string
-                let json_str = serde_json::to_string(value)
-                    .map_err(|e| HyperterseError::Template(format!("JSON serialization failed: {}", e)))?;
+                let json_str = serde_json::to_string(value).map_err(|e| {
+                    HyperterseError::Template(format!("JSON serialization failed: {}", e))
+                })?;
                 let escaped = json_str.replace('\'', "''");
                 Ok(format!("'{}'", escaped))
             }
@@ -143,8 +142,9 @@ impl TemplateSubstitutor {
                 }
             }
             serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                let json_str = serde_json::to_string(value)
-                    .map_err(|e| HyperterseError::Template(format!("JSON serialization failed: {}", e)))?;
+                let json_str = serde_json::to_string(value).map_err(|e| {
+                    HyperterseError::Template(format!("JSON serialization failed: {}", e))
+                })?;
                 Ok(format!("\"{}\"", json_str.replace('"', "\\\"")))
             }
         }
@@ -176,10 +176,16 @@ mod tests {
         inputs.insert("id".to_string(), json!(42));
         inputs.insert("name".to_string(), json!("John's"));
 
-        let statement = "SELECT * FROM users WHERE id = {{ inputs.id }} AND name = {{ inputs.name }}";
-        let result = substitutor.substitute(statement, &inputs, Connector::Postgres).unwrap();
+        let statement =
+            "SELECT * FROM users WHERE id = {{ inputs.id }} AND name = {{ inputs.name }}";
+        let result = substitutor
+            .substitute(statement, &inputs, Connector::Postgres)
+            .unwrap();
 
-        assert_eq!(result, "SELECT * FROM users WHERE id = 42 AND name = 'John''s'");
+        assert_eq!(
+            result,
+            "SELECT * FROM users WHERE id = 42 AND name = 'John''s'"
+        );
     }
 
     #[test]
@@ -190,7 +196,9 @@ mod tests {
         inputs.insert("limit".to_string(), json!(10));
 
         let statement = r#"{"collection": "users", "filter": {"status": {{ inputs.status }}}, "options": {"limit": {{ inputs.limit }}}}"#;
-        let result = substitutor.substitute(statement, &inputs, Connector::Mongodb).unwrap();
+        let result = substitutor
+            .substitute(statement, &inputs, Connector::Mongodb)
+            .unwrap();
 
         assert!(result.contains("\"status\": \"active\""));
         assert!(result.contains("\"limit\": 10"));
@@ -204,7 +212,9 @@ mod tests {
         inputs.insert("value".to_string(), json!("hello world"));
 
         let statement = "SET {{ inputs.key }} {{ inputs.value }}";
-        let result = substitutor.substitute(statement, &inputs, Connector::Redis).unwrap();
+        let result = substitutor
+            .substitute(statement, &inputs, Connector::Redis)
+            .unwrap();
 
         assert_eq!(result, "SET user:123 \"hello world\"");
     }
@@ -216,13 +226,18 @@ mod tests {
         inputs.insert("name".to_string(), json!("'; DROP TABLE users; --"));
 
         let statement = "SELECT * FROM users WHERE name = {{ inputs.name }}";
-        let result = substitutor.substitute(statement, &inputs, Connector::Postgres).unwrap();
+        let result = substitutor
+            .substitute(statement, &inputs, Connector::Postgres)
+            .unwrap();
 
         // The malicious input should be escaped - single quotes are doubled
         // The result should be: SELECT * FROM users WHERE name = '''; DROP TABLE users; --'
         // The outer quotes wrap the string, and the inner ' is escaped as ''
-        assert!(result.contains("'''"));  // Escaped single quote
-        assert_eq!(result, "SELECT * FROM users WHERE name = '''; DROP TABLE users; --'");
+        assert!(result.contains("'''")); // Escaped single quote
+        assert_eq!(
+            result,
+            "SELECT * FROM users WHERE name = '''; DROP TABLE users; --'"
+        );
     }
 
     #[test]
@@ -243,7 +258,9 @@ mod tests {
         inputs.insert("value".to_string(), serde_json::Value::Null);
 
         let statement = "UPDATE users SET name = {{ inputs.value }}";
-        let result = substitutor.substitute(statement, &inputs, Connector::Postgres).unwrap();
+        let result = substitutor
+            .substitute(statement, &inputs, Connector::Postgres)
+            .unwrap();
 
         assert_eq!(result, "UPDATE users SET name = NULL");
     }
@@ -255,7 +272,9 @@ mod tests {
         inputs.insert("active".to_string(), json!(true));
 
         let statement = "UPDATE users SET active = {{ inputs.active }}";
-        let result = substitutor.substitute(statement, &inputs, Connector::Postgres).unwrap();
+        let result = substitutor
+            .substitute(statement, &inputs, Connector::Postgres)
+            .unwrap();
 
         assert_eq!(result, "UPDATE users SET active = TRUE");
     }

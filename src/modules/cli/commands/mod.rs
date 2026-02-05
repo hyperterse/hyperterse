@@ -25,7 +25,12 @@ pub struct Cli {
     ///
     /// This is a *global* option so it can be specified after subcommands,
     /// e.g. `hyperterse run -f config.terse`.
-    #[arg(short = 'f', long = "file", global = true, default_value = "config.terse")]
+    #[arg(
+        short = 'f',
+        long = "file",
+        global = true,
+        default_value = "config.terse"
+    )]
     pub config: String,
 
     /// Backwards/compat alias for `-f/--file`

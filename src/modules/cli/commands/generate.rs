@@ -145,7 +145,10 @@ impl GenerateCommand {
     }
 
     /// Generate MCP skills documentation
-    fn generate_skills(model: &hyperterse_core::Model, output: &str) -> Result<(), HyperterseError> {
+    fn generate_skills(
+        model: &hyperterse_core::Model,
+        output: &str,
+    ) -> Result<(), HyperterseError> {
         info!("Generating MCP skills documentation to: {}", output);
 
         let mut content = String::new();
@@ -207,7 +210,10 @@ impl GenerateCommand {
             }
         }
 
-        fs::write(output, serde_json::to_string_pretty(&spec).unwrap_or_default())?;
+        fs::write(
+            output,
+            serde_json::to_string_pretty(&spec).unwrap_or_default(),
+        )?;
 
         info!("Generated: {}", output);
         Ok(())

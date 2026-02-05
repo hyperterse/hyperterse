@@ -91,7 +91,10 @@ mod tests {
 
         let result = validator.validate(&query, inputs);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), HyperterseError::MissingInput(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            HyperterseError::MissingInput(_)
+        ));
     }
 
     #[test]
@@ -104,7 +107,10 @@ mod tests {
 
         let result = validator.validate(&query, inputs);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), HyperterseError::InvalidInputType(_, _)));
+        assert!(matches!(
+            result.unwrap_err(),
+            HyperterseError::InvalidInputType(_, _)
+        ));
     }
 
     #[test]

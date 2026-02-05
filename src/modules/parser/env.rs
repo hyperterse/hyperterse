@@ -5,9 +5,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 /// Regex pattern for environment variable placeholders: {{ env.VAR_NAME }}
-static ENV_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap()
-});
+static ENV_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap());
 
 /// Environment variable substitutor
 pub struct EnvSubstitutor {

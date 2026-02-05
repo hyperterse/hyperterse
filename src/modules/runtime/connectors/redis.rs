@@ -27,10 +27,7 @@ impl RedisConnector {
     }
 
     /// Parse and execute a Redis command
-    async fn execute_command(
-        &self,
-        statement: &str,
-    ) -> Result<serde_json::Value, HyperterseError> {
+    async fn execute_command(&self, statement: &str) -> Result<serde_json::Value, HyperterseError> {
         let parts: Vec<&str> = statement.split_whitespace().collect();
         if parts.is_empty() {
             return Err(HyperterseError::Redis("Empty Redis command".to_string()));
@@ -54,7 +51,9 @@ impl RedisConnector {
             }
             "SET" => {
                 if args.len() < 2 {
-                    return Err(HyperterseError::Redis("SET requires key and value".to_string()));
+                    return Err(HyperterseError::Redis(
+                        "SET requires key and value".to_string(),
+                    ));
                 }
                 let result: RedisResult<()> = conn.set(args[0], args[1]).await;
                 match result {
@@ -64,7 +63,9 @@ impl RedisConnector {
             }
             "DEL" => {
                 if args.is_empty() {
-                    return Err(HyperterseError::Redis("DEL requires at least one key".to_string()));
+                    return Err(HyperterseError::Redis(
+                        "DEL requires at least one key".to_string(),
+                    ));
                 }
                 let keys: Vec<&str> = args.to_vec();
                 let result: RedisResult<i64> = conn.del(&keys[..]).await;
@@ -93,7 +94,9 @@ impl RedisConnector {
             }
             "HGET" => {
                 if args.len() < 2 {
-                    return Err(HyperterseError::Redis("HGET requires key and field".to_string()));
+                    return Err(HyperterseError::Redis(
+                        "HGET requires key and field".to_string(),
+                    ));
                 }
                 let result: RedisResult<Option<String>> = conn.hget(args[0], args[1]).await;
                 match result {
@@ -237,7 +240,10 @@ impl Connector for RedisConnector {
                 "Unexpected PING response: {}",
                 response
             ))),
-            Err(e) => Err(HyperterseError::Redis(format!("Redis health check failed: {}", e))),
+            Err(e) => Err(HyperterseError::Redis(format!(
+                "Redis health check failed: {}",
+                e
+            ))),
         }
     }
 

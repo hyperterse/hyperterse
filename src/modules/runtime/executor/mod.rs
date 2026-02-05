@@ -58,9 +58,9 @@ impl QueryExecutor {
             .ok_or_else(|| HyperterseError::AdapterNotFound(query.adapter.clone()))?;
 
         // Substitute template variables
-        let statement = self
-            .substitutor
-            .substitute(&query.statement, &validated_inputs, adapter.connector)?;
+        let statement =
+            self.substitutor
+                .substitute(&query.statement, &validated_inputs, adapter.connector)?;
 
         // Execute the query
         connector.execute(&statement, &validated_inputs).await
@@ -91,7 +91,11 @@ mod tests {
     fn create_test_model() -> Model {
         Model {
             name: "test".to_string(),
-            adapters: vec![Adapter::new("db", ConnectorType::Postgres, "postgres://localhost/test")],
+            adapters: vec![Adapter::new(
+                "db",
+                ConnectorType::Postgres,
+                "postgres://localhost/test",
+            )],
             queries: vec![Query::new(
                 "get-user",
                 "db",

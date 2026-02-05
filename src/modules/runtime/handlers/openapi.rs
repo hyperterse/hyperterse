@@ -206,7 +206,11 @@ mod tests {
     fn create_test_model() -> Model {
         Model {
             name: "test-api".to_string(),
-            adapters: vec![Adapter::new("db", Connector::Postgres, "postgres://localhost/test")],
+            adapters: vec![Adapter::new(
+                "db",
+                Connector::Postgres,
+                "postgres://localhost/test",
+            )],
             queries: vec![Query::new(
                 "get-user",
                 "db",

@@ -13,7 +13,7 @@ use tokio::signal;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::connectors::ConnectorManager;
 use crate::executor::QueryExecutor;
@@ -119,14 +119,8 @@ impl Runtime {
 
         info!("Starting Hyperterse server on http://{}", addr);
         info!("Model: {}", self.model.name);
-        info!(
-            "Adapters: {}",
-            self.connectors.names().await.join(", ")
-        );
-        info!(
-            "Queries: {}",
-            self.executor.query_names().join(", ")
-        );
+        info!("Adapters: {}", self.connectors.names().await.join(", "));
+        info!("Queries: {}", self.executor.query_names().join(", "));
         info!("OpenAPI docs: http://{}/docs", addr);
         info!("LLM docs: http://{}/llms.txt", addr);
         info!("MCP endpoint: http://{}/mcp", addr);
@@ -167,10 +161,10 @@ impl Runtime {
 
         tokio::select! {
             _ = ctrl_c => {
-                info!("Received CTRL+C, shutting down...");
+                debug!("Received CTRL+C, shutting down...");
             }
             _ = terminate => {
-                info!("Received SIGTERM, shutting down...");
+                debug!("Received SIGTERM, shutting down...");
             }
         }
     }
@@ -244,7 +238,9 @@ mod tests {
     #[tokio::test]
     async fn test_runtime_with_port_override() {
         let model = create_test_model();
-        let runtime = Runtime::with_port_override(model, Some(3000)).await.unwrap();
+        let runtime = Runtime::with_port_override(model, Some(3000))
+            .await
+            .unwrap();
         assert_eq!(runtime.model().port(), 3000);
     }
 

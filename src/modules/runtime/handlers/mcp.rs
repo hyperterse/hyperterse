@@ -70,7 +70,10 @@ impl McpHandler {
     /// Handle DELETE /mcp (session termination)
     pub async fn handle_delete() -> impl IntoResponse {
         info!("MCP session termination requested");
-        (StatusCode::OK, Json(json!({"message": "Session terminated"})))
+        (
+            StatusCode::OK,
+            Json(json!({"message": "Session terminated"})),
+        )
     }
 
     /// Handle initialize method
@@ -174,11 +177,7 @@ impl McpHandler {
 
         let inputs = arguments
             .and_then(|v| v.as_object())
-            .map(|obj| {
-                obj.iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect()
-            })
+            .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
 
         match executor.execute(tool_name, inputs).await {

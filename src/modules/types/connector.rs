@@ -76,8 +76,14 @@ mod tests {
 
     #[test]
     fn test_connector_from_str() {
-        assert_eq!(Connector::from_str("postgres").unwrap(), Connector::Postgres);
-        assert_eq!(Connector::from_str("postgresql").unwrap(), Connector::Postgres);
+        assert_eq!(
+            Connector::from_str("postgres").unwrap(),
+            Connector::Postgres
+        );
+        assert_eq!(
+            Connector::from_str("postgresql").unwrap(),
+            Connector::Postgres
+        );
         assert_eq!(Connector::from_str("mysql").unwrap(), Connector::Mysql);
         assert_eq!(Connector::from_str("redis").unwrap(), Connector::Redis);
         assert_eq!(Connector::from_str("mongodb").unwrap(), Connector::Mongodb);

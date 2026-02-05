@@ -29,7 +29,9 @@ impl PostgresConnector {
             .max_lifetime(config.max_lifetime())
             .connect(url)
             .await
-            .map_err(|e| HyperterseError::Database(format!("PostgreSQL connection failed: {}", e)))?;
+            .map_err(|e| {
+                HyperterseError::Database(format!("PostgreSQL connection failed: {}", e))
+            })?;
 
         Ok(Self { pool })
     }
@@ -123,7 +125,9 @@ impl Connector for PostgresConnector {
         let rows = sqlx::query(statement)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| HyperterseError::QueryExecution(format!("PostgreSQL query failed: {}", e)))?;
+            .map_err(|e| {
+                HyperterseError::QueryExecution(format!("PostgreSQL query failed: {}", e))
+            })?;
 
         let results: ConnectorResult = rows.iter().map(Self::row_to_map).collect();
         Ok(results)
@@ -138,7 +142,9 @@ impl Connector for PostgresConnector {
         sqlx::query("SELECT 1")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| HyperterseError::Database(format!("PostgreSQL health check failed: {}", e)))?;
+            .map_err(|e| {
+                HyperterseError::Database(format!("PostgreSQL health check failed: {}", e))
+            })?;
         Ok(())
     }
 

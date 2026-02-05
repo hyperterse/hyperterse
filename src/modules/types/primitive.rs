@@ -71,15 +71,17 @@ impl Primitive {
             Primitive::Int => value.is_i64() || value.is_u64(),
             Primitive::Float => value.is_f64() || value.is_i64() || value.is_u64(),
             Primitive::Boolean => value.is_boolean(),
-            Primitive::Uuid => {
-                value.as_str().map(|s| uuid::Uuid::parse_str(s).is_ok()).unwrap_or(false)
-            }
-            Primitive::Datetime => {
-                value.as_str().map(|s| {
+            Primitive::Uuid => value
+                .as_str()
+                .map(|s| uuid::Uuid::parse_str(s).is_ok())
+                .unwrap_or(false),
+            Primitive::Datetime => value
+                .as_str()
+                .map(|s| {
                     chrono::DateTime::parse_from_rfc3339(s).is_ok()
                         || chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").is_ok()
-                }).unwrap_or(false)
-            }
+                })
+                .unwrap_or(false),
         }
     }
 }
@@ -99,7 +101,10 @@ mod tests {
         assert_eq!(Primitive::from_str("boolean").unwrap(), Primitive::Boolean);
         assert_eq!(Primitive::from_str("bool").unwrap(), Primitive::Boolean);
         assert_eq!(Primitive::from_str("uuid").unwrap(), Primitive::Uuid);
-        assert_eq!(Primitive::from_str("datetime").unwrap(), Primitive::Datetime);
+        assert_eq!(
+            Primitive::from_str("datetime").unwrap(),
+            Primitive::Datetime
+        );
         assert!(Primitive::from_str("unknown").is_err());
     }
 

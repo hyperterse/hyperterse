@@ -6,14 +6,12 @@ use regex::Regex;
 use std::collections::HashSet;
 
 /// Regex pattern for valid names (lower-kebab-case or lower_snake_case)
-static NAME_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$").unwrap()
-});
+static NAME_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$").unwrap());
 
 /// Regex pattern for input placeholders: {{ inputs.fieldName }}
-static INPUT_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{\{\s*inputs\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap()
-});
+static INPUT_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{\{\s*inputs\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap());
 
 /// Configuration validator
 pub struct ConfigValidator {
@@ -29,7 +27,9 @@ impl ConfigValidator {
 
     /// Create a validator with lenient name checking
     pub fn lenient() -> Self {
-        Self { strict_names: false }
+        Self {
+            strict_names: false,
+        }
     }
 
     /// Validate the entire model configuration
@@ -152,10 +152,7 @@ impl ConfigValidator {
     }
 
     /// Validate query inputs
-    fn validate_query_inputs(
-        &self,
-        query: &hyperterse_core::Query,
-    ) -> Result<(), HyperterseError> {
+    fn validate_query_inputs(&self, query: &hyperterse_core::Query) -> Result<(), HyperterseError> {
         let mut input_names = HashSet::new();
 
         for input in &query.inputs {
@@ -253,7 +250,11 @@ mod tests {
     fn create_model_with_adapter() -> Model {
         Model {
             name: "test-api".to_string(),
-            adapters: vec![Adapter::new("main-db", Connector::Postgres, "postgres://localhost/test")],
+            adapters: vec![Adapter::new(
+                "main-db",
+                Connector::Postgres,
+                "postgres://localhost/test",
+            )],
             queries: vec![],
             server: None,
             export: None,
@@ -316,7 +317,10 @@ mod tests {
         let validator = ConfigValidator::new();
         let result = validator.validate(&model);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("non-existent adapter"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("non-existent adapter"));
     }
 
     #[test]
@@ -346,7 +350,9 @@ mod tests {
         input.required = false;
         // No default value set
 
-        model.queries.push(Query::new("test", "main-db", "SELECT 1").with_input(input));
+        model
+            .queries
+            .push(Query::new("test", "main-db", "SELECT 1").with_input(input));
 
         let validator = ConfigValidator::new();
         let result = validator.validate(&model);

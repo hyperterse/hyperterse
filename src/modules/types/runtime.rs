@@ -154,10 +154,8 @@ mod tests {
 
     #[test]
     fn test_mcp_response_success() {
-        let response = McpResponse::success(
-            serde_json::json!(1),
-            serde_json::json!({"status": "ok"}),
-        );
+        let response =
+            McpResponse::success(serde_json::json!(1), serde_json::json!({"status": "ok"}));
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.result.is_some());
         assert!(response.error.is_none());
@@ -173,6 +171,9 @@ mod tests {
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.result.is_none());
         assert!(response.error.is_some());
-        assert_eq!(response.error.as_ref().unwrap().code, error_codes::METHOD_NOT_FOUND);
+        assert_eq!(
+            response.error.as_ref().unwrap().code,
+            error_codes::METHOD_NOT_FOUND
+        );
     }
 }

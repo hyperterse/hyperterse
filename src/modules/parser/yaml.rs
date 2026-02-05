@@ -142,45 +142,36 @@ impl YamlParser {
 fn terse_to_model(cfg: TerseConfig) -> Result<Model, HyperterseError> {
     let mut adapters: Vec<Adapter> = Vec::with_capacity(cfg.adapters.len());
     for (name, adapter) in cfg.adapters {
-        let url = adapter
-            .connection_string
-            .or(adapter.url)
-            .ok_or_else(|| {
-                HyperterseError::Config(format!(
-                    "Adapter '{}' is missing 'connection_string' (or 'url')",
-                    name
-                ))
-            })?;
+        let url = adapter.connection_string.or(adapter.url).ok_or_else(|| {
+            HyperterseError::Config(format!(
+                "Adapter '{}' is missing 'connection_string' (or 'url')",
+                name
+            ))
+        })?;
 
         adapters.push(Adapter::new(name, adapter.connector, url));
     }
 
     let mut queries: Vec<Query> = Vec::with_capacity(cfg.queries.len());
     for (name, query) in cfg.queries {
-        let adapter_name = query
-            .adapter_use
-            .or(query.adapter)
-            .ok_or_else(|| {
-                HyperterseError::Config(format!(
-                    "Query '{}' is missing 'use' (or 'adapter')",
-                    name
-                ))
-            })?;
+        let adapter_name = query.adapter_use.or(query.adapter).ok_or_else(|| {
+            HyperterseError::Config(format!("Query '{}' is missing 'use' (or 'adapter')", name))
+        })?;
 
         let mut inputs: Vec<Input> = Vec::with_capacity(query.inputs.len());
         for (input_name, input) in query.inputs {
-            let required = input.required.unwrap_or_else(|| !input.optional.unwrap_or(false));
+            let required = input
+                .required
+                .unwrap_or_else(|| !input.optional.unwrap_or(false));
 
             let default = match input.default {
                 None => None,
-                Some(v) => Some(
-                    serde_json::to_value(v).map_err(|e| {
-                        HyperterseError::Config(format!(
-                            "Failed to parse default for input '{}.{}': {}",
-                            name, input_name, e
-                        ))
-                    })?,
-                ),
+                Some(v) => Some(serde_json::to_value(v).map_err(|e| {
+                    HyperterseError::Config(format!(
+                        "Failed to parse default for input '{}.{}': {}",
+                        name, input_name, e
+                    ))
+                })?),
             };
 
             inputs.push(Input {
@@ -228,7 +219,9 @@ fn yaml_scalar_to_string(value: serde_yaml::Value) -> Option<String> {
         serde_yaml::Value::Number(n) => Some(n.to_string()),
         serde_yaml::Value::String(s) => Some(s),
         // For non-scalars (seq/map), just serialize them.
-        other => serde_yaml::to_string(&other).ok().map(|s| s.trim().to_string()),
+        other => serde_yaml::to_string(&other)
+            .ok()
+            .map(|s| s.trim().to_string()),
     }
 }
 
@@ -284,7 +277,10 @@ server:
         assert_eq!(model.queries.len(), 1);
         assert_eq!(model.queries[0].inputs.len(), 1);
         assert!(!model.queries[0].inputs[0].required);
-        assert_eq!(model.server.as_ref().unwrap().port, Some("3000".to_string()));
+        assert_eq!(
+            model.server.as_ref().unwrap().port,
+            Some("3000".to_string())
+        );
     }
 
     #[test]
@@ -308,7 +304,9 @@ queries:
 "#;
         let model = YamlParser::parse(yaml).unwrap();
         assert_eq!(model.adapters[0].connector, Connector::Mongodb);
-        assert!(model.queries[0].statement.contains("\"operation\": \"find\""));
+        assert!(model.queries[0]
+            .statement
+            .contains("\"operation\": \"find\""));
     }
 
     #[test]

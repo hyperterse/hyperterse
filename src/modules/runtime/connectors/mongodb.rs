@@ -53,16 +53,17 @@ struct MongoOptions {
 impl MongoDbConnector {
     /// Create a new MongoDB connector
     pub async fn new(url: &str) -> Result<Self, HyperterseError> {
-        let mut options = ClientOptions::parse(url)
-            .await
-            .map_err(|e| HyperterseError::MongoDB(format!("MongoDB options parse failed: {}", e)))?;
+        let mut options = ClientOptions::parse(url).await.map_err(|e| {
+            HyperterseError::MongoDB(format!("MongoDB options parse failed: {}", e))
+        })?;
 
         // Set default pool options if not specified
         options.min_pool_size = options.min_pool_size.or(Some(1));
         options.max_pool_size = options.max_pool_size.or(Some(10));
 
-        let client = Client::with_options(options)
-            .map_err(|e| HyperterseError::MongoDB(format!("MongoDB client creation failed: {}", e)))?;
+        let client = Client::with_options(options).map_err(|e| {
+            HyperterseError::MongoDB(format!("MongoDB client creation failed: {}", e))
+        })?;
 
         // Extract default database from URL if present
         let default_db = client.default_database().map(|db| db.name().to_string());
@@ -86,8 +87,9 @@ impl MongoDbConnector {
         if let Some(obj) = value.as_object() {
             if let Some(oid) = obj.get("$oid") {
                 if let Some(oid_str) = oid.as_str() {
-                    let object_id = bson::oid::ObjectId::parse_str(oid_str)
-                        .map_err(|e| HyperterseError::MongoDB(format!("Invalid ObjectId: {}", e)))?;
+                    let object_id = bson::oid::ObjectId::parse_str(oid_str).map_err(|e| {
+                        HyperterseError::MongoDB(format!("Invalid ObjectId: {}", e))
+                    })?;
                     return Ok(Bson::ObjectId(object_id));
                 }
             }
@@ -114,7 +116,7 @@ impl MongoDbConnector {
             Bson::DateTime(dt) => serde_json::Value::String(
                 chrono::DateTime::from_timestamp_millis(dt.timestamp_millis())
                     .map(|d| d.to_rfc3339())
-                    .unwrap_or_else(|| dt.to_string())
+                    .unwrap_or_else(|| dt.to_string()),
             ),
             Bson::Document(doc) => {
                 let mut map = serde_json::Map::new();
@@ -212,10 +214,9 @@ impl MongoDbConnector {
                 }
             }
             "insertone" => {
-                let document = stmt
-                    .document
-                    .as_ref()
-                    .ok_or_else(|| HyperterseError::MongoDB("insertOne requires document".to_string()))?;
+                let document = stmt.document.as_ref().ok_or_else(|| {
+                    HyperterseError::MongoDB("insertOne requires document".to_string())
+                })?;
 
                 let doc = Self::json_to_document(document)?;
                 let result = collection
@@ -231,10 +232,9 @@ impl MongoDbConnector {
                 Ok(vec![map])
             }
             "insertmany" => {
-                let documents = stmt
-                    .documents
-                    .as_ref()
-                    .ok_or_else(|| HyperterseError::MongoDB("insertMany requires documents".to_string()))?;
+                let documents = stmt.documents.as_ref().ok_or_else(|| {
+                    HyperterseError::MongoDB("insertMany requires documents".to_string())
+                })?;
 
                 let docs: Vec<Document> = documents
                     .iter()
@@ -264,10 +264,9 @@ impl MongoDbConnector {
                     .transpose()?
                     .unwrap_or_default();
 
-                let update = stmt
-                    .update
-                    .as_ref()
-                    .ok_or_else(|| HyperterseError::MongoDB("updateOne requires update".to_string()))?;
+                let update = stmt.update.as_ref().ok_or_else(|| {
+                    HyperterseError::MongoDB("updateOne requires update".to_string())
+                })?;
                 let update_doc = Self::json_to_document(update)?;
 
                 let mut options = mongodb::options::UpdateOptions::default();
@@ -281,8 +280,14 @@ impl MongoDbConnector {
                     .map_err(|e| HyperterseError::MongoDB(format!("updateOne failed: {}", e)))?;
 
                 let mut map = HashMap::new();
-                map.insert("matchedCount".to_string(), serde_json::json!(result.matched_count));
-                map.insert("modifiedCount".to_string(), serde_json::json!(result.modified_count));
+                map.insert(
+                    "matchedCount".to_string(),
+                    serde_json::json!(result.matched_count),
+                );
+                map.insert(
+                    "modifiedCount".to_string(),
+                    serde_json::json!(result.modified_count),
+                );
                 if let Some(id) = result.upserted_id {
                     map.insert("upsertedId".to_string(), Self::bson_to_json(id));
                 }
@@ -296,10 +301,9 @@ impl MongoDbConnector {
                     .transpose()?
                     .unwrap_or_default();
 
-                let update = stmt
-                    .update
-                    .as_ref()
-                    .ok_or_else(|| HyperterseError::MongoDB("updateMany requires update".to_string()))?;
+                let update = stmt.update.as_ref().ok_or_else(|| {
+                    HyperterseError::MongoDB("updateMany requires update".to_string())
+                })?;
                 let update_doc = Self::json_to_document(update)?;
 
                 let mut options = mongodb::options::UpdateOptions::default();
@@ -313,8 +317,14 @@ impl MongoDbConnector {
                     .map_err(|e| HyperterseError::MongoDB(format!("updateMany failed: {}", e)))?;
 
                 let mut map = HashMap::new();
-                map.insert("matchedCount".to_string(), serde_json::json!(result.matched_count));
-                map.insert("modifiedCount".to_string(), serde_json::json!(result.modified_count));
+                map.insert(
+                    "matchedCount".to_string(),
+                    serde_json::json!(result.matched_count),
+                );
+                map.insert(
+                    "modifiedCount".to_string(),
+                    serde_json::json!(result.modified_count),
+                );
                 Ok(vec![map])
             }
             "deleteone" => {
@@ -331,7 +341,10 @@ impl MongoDbConnector {
                     .map_err(|e| HyperterseError::MongoDB(format!("deleteOne failed: {}", e)))?;
 
                 let mut map = HashMap::new();
-                map.insert("deletedCount".to_string(), serde_json::json!(result.deleted_count));
+                map.insert(
+                    "deletedCount".to_string(),
+                    serde_json::json!(result.deleted_count),
+                );
                 Ok(vec![map])
             }
             "deletemany" => {
@@ -348,14 +361,16 @@ impl MongoDbConnector {
                     .map_err(|e| HyperterseError::MongoDB(format!("deleteMany failed: {}", e)))?;
 
                 let mut map = HashMap::new();
-                map.insert("deletedCount".to_string(), serde_json::json!(result.deleted_count));
+                map.insert(
+                    "deletedCount".to_string(),
+                    serde_json::json!(result.deleted_count),
+                );
                 Ok(vec![map])
             }
             "aggregate" => {
-                let pipeline = stmt
-                    .pipeline
-                    .as_ref()
-                    .ok_or_else(|| HyperterseError::MongoDB("aggregate requires pipeline".to_string()))?;
+                let pipeline = stmt.pipeline.as_ref().ok_or_else(|| {
+                    HyperterseError::MongoDB("aggregate requires pipeline".to_string())
+                })?;
 
                 let pipeline_docs: Vec<Document> = pipeline
                     .iter()
@@ -390,7 +405,9 @@ impl MongoDbConnector {
                 let count = collection
                     .count_documents(filter, None)
                     .await
-                    .map_err(|e| HyperterseError::MongoDB(format!("countDocuments failed: {}", e)))?;
+                    .map_err(|e| {
+                        HyperterseError::MongoDB(format!("countDocuments failed: {}", e))
+                    })?;
 
                 let mut map = HashMap::new();
                 map.insert("count".to_string(), serde_json::json!(count));
@@ -412,8 +429,9 @@ impl Connector for MongoDbConnector {
         _params: &HashMap<String, serde_json::Value>,
     ) -> Result<ConnectorResult, HyperterseError> {
         // Parse the JSON statement
-        let stmt: MongoStatement = serde_json::from_str(statement)
-            .map_err(|e| HyperterseError::MongoDB(format!("Invalid MongoDB statement JSON: {}", e)))?;
+        let stmt: MongoStatement = serde_json::from_str(statement).map_err(|e| {
+            HyperterseError::MongoDB(format!("Invalid MongoDB statement JSON: {}", e))
+        })?;
 
         self.execute_operation(&stmt).await
     }

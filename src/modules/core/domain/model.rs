@@ -60,10 +60,7 @@ impl Model {
 
     /// Get the log level, defaulting to 1 (INFO)
     pub fn log_level(&self) -> u8 {
-        self.server
-            .as_ref()
-            .and_then(|s| s.log_level)
-            .unwrap_or(1)
+        self.server.as_ref().and_then(|s| s.log_level).unwrap_or(1)
     }
 }
 

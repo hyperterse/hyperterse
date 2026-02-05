@@ -65,7 +65,8 @@ impl DevCommand {
                 }
             };
 
-            if let Err(e) = watcher.watch(Path::new(&config_path_owned), RecursiveMode::NonRecursive)
+            if let Err(e) =
+                watcher.watch(Path::new(&config_path_owned), RecursiveMode::NonRecursive)
             {
                 error!("Failed to watch file: {}", e);
                 return;
