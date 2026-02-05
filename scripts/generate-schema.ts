@@ -404,7 +404,7 @@ async function main(): Promise<void> {
   const { values } = parseArgs({
     args: Bun.argv.slice(2),
     options: {
-      out: { type: "string", default: "schema/terse.schema.json" },
+      out: { type: "string", default: "src/schema/terse.schema.json" },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: true,
