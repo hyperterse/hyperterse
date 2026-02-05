@@ -36,5 +36,6 @@
   },
   "files.associations": {
     "*.terse": "yaml"
-  }
+  },
+  "rust-analyzer.linkedProjects": ["./Cargo.toml"]
 }
