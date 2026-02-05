@@ -1,0 +1,24 @@
+with-expecter: true
+dir: "tests/mocks"
+filename: "{{.MockName}}.go"
+packages:
+  github.com/hyperterse/hyperterse/core/domain/interfaces:
+    interfaces:
+      Logger:
+        config:
+          dir: "tests/mocks"
+      Connector:
+        config:
+          dir: "tests/mocks"
+      ConnectorManager:
+        config:
+          dir: "tests/mocks"
+      Executor:
+        config:
+          dir: "tests/mocks"
+      QueryService:
+        config:
+          dir: "tests/mocks"
+      MCPService:
+        config:
+          dir: "tests/mocks"

@@ -113,8 +113,11 @@ func (r *Runtime) StartAsync() error {
 
 	log.Debugf("Engine configuration: ReadTimeout=15s, WriteTimeout=0 (unlimited), IdleTimeout=60s")
 
+	// Print the listening message synchronously before starting the server goroutine
+	// This ensures it always prints, even if the server fails to start immediately
+	log.Successf("Hyperterse engine listening on http://127.0.0.1:%s", r.port)
+
 	go func() {
-		log.Successf("Hyperterse engine listening on http://127.0.0.1:%s", r.port)
 		if err := r.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Errorf("Engine error: %v", err)
 		}

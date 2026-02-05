@@ -1,0 +1,43 @@
+package connectors
+
+import (
+	"fmt"
+
+	"github.com/hyperterse/hyperterse/core/domain/interfaces"
+	"github.com/hyperterse/hyperterse/core/proto/connectors"
+	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	"github.com/hyperterse/hyperterse/core/runtime/utils"
+)
+
+// NewConnector creates a new connector based on the adapter configuration
+func NewConnector(adapter *hyperterse.Adapter) (interfaces.Connector, error) {
+	if adapter.ConnectionString == "" {
+		return nil, fmt.Errorf("adapter '%s' missing connection string", adapter.Name)
+	}
+
+	// Substitute environment variables in connection_string at runtime
+	connectionString, err := utils.SubstituteEnvVars(adapter.ConnectionString)
+	if err != nil {
+		return nil, fmt.Errorf("adapter '%s': %w", adapter.Name, err)
+	}
+
+	var options map[string]string
+	if adapter.Options != nil {
+		options = adapter.Options.Options
+	}
+
+	switch adapter.Connector {
+	case connectors.Connector_CONNECTOR_POSTGRES:
+		return NewPostgresConnector(connectionString, options)
+	case connectors.Connector_CONNECTOR_MYSQL:
+		return NewMySQLConnector(connectionString, options)
+	case connectors.Connector_CONNECTOR_REDIS:
+		return NewRedisConnector(connectionString, options)
+	case connectors.Connector_CONNECTOR_MONGODB:
+		return NewMongoDBConnector(connectionString, options)
+	case connectors.Connector_CONNECTOR_UNSPECIFIED:
+		return nil, fmt.Errorf("adapter '%s' has unspecified connector type", adapter.Name)
+	default:
+		return nil, fmt.Errorf("unsupported connector type '%s' for adapter '%s'", adapter.Connector.String(), adapter.Name)
+	}
+}

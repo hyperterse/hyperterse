@@ -1,0 +1,55 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  resource:
+    attributes:
+      - key: service.name
+        value: hyperterse
+        action: upsert
+      - key: service.version
+        value: "1.0.0"
+        action: upsert
+
+exporters:
+  # Jaeger exporter for traces
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # Prometheus exporter for metrics
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      service: hyperterse
+
+  # Optional: OTLP exporter for other backends (Tempo, etc.)
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+    # Uncomment if using Tempo
+    # enabled: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [jaeger]
+    
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus]
+
+  extensions: []
