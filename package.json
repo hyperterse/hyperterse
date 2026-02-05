@@ -9,6 +9,7 @@
     "build:all": "bun run scripts/build.ts --all",
     "test": "bun run scripts/test.ts",
     "test:unit": "bun run scripts/test.ts --unit",
+    "test:coverage": "bun run scripts/test.ts --coverage",
     "test:ignored": "bun run scripts/test.ts --ignored",
     "setup": "bun run scripts/setup.ts",
     "check": "bun run scripts/check.ts",
