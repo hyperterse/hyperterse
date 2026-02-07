@@ -323,8 +323,9 @@ Contributions are welcome! We appreciate your help in making Hyperterse better.
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Add tests for your changes
-4. Ensure code follows standard Go formatting
-5. Open a pull request
+4. Ensure code follows Rust formatting (`cargo fmt`)
+5. Run linting (`cargo clippy`)
+6. Open a pull request
 
 Please keep changes focused and well-tested. For major changes, open an issue first to discuss your proposal. See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development guidelines.
 

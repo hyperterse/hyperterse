@@ -32,17 +32,21 @@ hyperterse -f config.terse
 
 **Flags:**
 
-| Flag          | Short | Default | Description                                      |
-| ------------- | ----- | ------- | ------------------------------------------------ |
-| `--port`      | `-p`  | `8080`  | Server port (overrides config file and PORT env) |
-| `--log-level` |       | `3`     | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG      |
-| `--verbose`   | `-v`  |         | Enable verbose logging (sets log level to DEBUG) |
+| Flag          | Short | Default | Description                                                |
+| ------------- | ----- | ------- | ---------------------------------------------------------- |
+| `--port`      | `-p`  | `8080`  | Server port (overrides config file and PORT env)           |
+| `--source`    | `-s`  |         | Configuration as a string (instead of reading from a file) |
+| `--log-level` |       | `3`     | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG                 |
+| `--verbose`   | `-v`  |         | Enable verbose logging (sets log level to DEBUG)           |
 
 **Examples:**
 
 ```bash
 # Run on custom port
 hyperterse run -f config.terse -p 3000
+
+# Run with config from stdin or a string (e.g. from exported launcher)
+hyperterse run --source "$CONFIG"
 
 # Run with verbose logging
 hyperterse run -f config.terse -v
@@ -70,11 +74,11 @@ Run the server in development mode with hot reload.
 hyperterse dev -f config.terse
 ```
 
-The server watches your configuration file and automatically reloads when changes are detected. This is ideal for local development.
+The server watches your configuration file and automatically reloads when changes are detected. This is ideal for local development. When `--source` is used, config is read from the string and file watching is disabled.
 
 **Flags:**
 
-Same as `run` command.
+Same as `run` command (including `--source` / `-s`). When `--source` is set, hot reload is disabled.
 
 **Features:**
 
@@ -116,13 +120,13 @@ Downloads and installs the latest version of Hyperterse.
 
 ### `hyperterse export`
 
-Export a self-contained deployment bundle.
+Export a deployment bundle (launcher script, config copy, Dockerfile, docker-compose).
 
 ```bash
 hyperterse export -f config.terse -o dist
 ```
 
-Creates a self-contained bash script in the specified directory. The script filename is always derived from the config `name` field. This is the **recommended first step for any deployment**.
+Creates a directory with a self-contained launcher script (named from the config `name` field), a copy of the config file, a multi-arch Dockerfile, and a docker-compose file. This is the **recommended first step for any deployment**.
 
 **Flags:**
 
@@ -135,15 +139,16 @@ Creates a self-contained bash script in the specified directory. The script file
 
 Export settings are applied in this order (highest to lowest):
 
-1. CLI flags (`--out/-o`, `--clean-dir`)
-2. Config file (`export.out`, `export.clean_dir`)
-3. Default (`dist` directory, `clean_dir: false`)
+1. CLI flags (`--out` / `-o`, `--clean-dir`)
+2. Config file (`export.out`, `export.clean_dir` if present)
+3. Defaults (`dist` directory, `clean_dir: false`)
 
 **Output:**
 
-- Self-contained bash script at `{output_dir}/{config_name}`
-- Script filename always matches the config `name` field
-- Embedded configuration and binary
+- **Launcher script** — `{output_dir}/{config_name}`: when run, downloads and caches the Hyperterse binary (at `/usr/local/hyperterse/cache/{version}/bin/hyperterse`) on first run, then starts the server with the embedded config (no CLI install required).
+- **config.terse** — Copy of the config file (for Docker and manual use).
+- **Dockerfile** — Multi-arch image that downloads the release binary and runs the server.
+- **docker-compose.yml** — Ready-to-run Compose file.
 
 **Examples:**
 
@@ -156,15 +161,11 @@ hyperterse export -f config.terse -o build
 
 # Clean directory before exporting
 hyperterse export -f config.terse -o build --clean-dir
-
-# With config export.out set to "build", CLI flag overrides it
-hyperterse export -f config.terse -o release
 ```
 
 <Aside type="caution">
-  Always use `hyperterse export` before deploying. The exported bundle is
-  optimized for production and doesn't require the Hyperterse CLI to be
-  installed.
+  Always use `hyperterse export` before deploying. The launcher script does not
+  require the Hyperterse CLI to be installed; it downloads the binary on first run.
 </Aside>
 
 ---

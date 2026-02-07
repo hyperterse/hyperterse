@@ -201,65 +201,89 @@ inputs:
    └────────┘ └────────┘ └────────┘
 ```
 
-### Package Structure
+### Package Structure (Rust Cargo Workspace)
 
 ```
 hyperterse/
-├── main.go                           # Application entry point
-├── core/
-│   ├── cli/                          # CLI package
-│   │   ├── cli.go                    # CLI entry point
-│   │   ├── cmd/                      # CLI commands
-│   │   │   ├── root.go               # Root command with global flags
-│   │   │   ├── run.go                # 'run' command - start server
-│   │   │   ├── dev.go                # 'dev' command - hot reload mode
-│   │   │   ├── generate.go           # 'generate' parent command
-│   │   │   ├── llms.go               # 'generate llms' subcommand
-│   │   │   └── skills.go             # 'generate skills' subcommand
-│   │   └── internal/                 # CLI internal utilities
-│   │       └── loader.go             # Config loading and resolution
-│   ├── parser/                       # Configuration parsing
-│   │   ├── yaml.go                   # YAML parser
-│   │   ├── dsl.go                    # DSL parser (.hyperterse files)
-│   │   └── validator.go              # Configuration validation
-│   ├── runtime/                      # Runtime server & execution
-│   │   ├── runtime.go                # Runtime package exports
-│   │   ├── server/                   # HTTP server
-│   │   │   └── server.go             # Server implementation
-│   │   ├── handlers/                 # Request handlers
-│   │   │   ├── handlers.go           # Query & MCP service handlers
-│   │   │   ├── jsonrpc_handler.go    # JSON-RPC 2.0 for MCP
-│   │   │   ├── openapi_handler.go    # OpenAPI spec generation
-│   │   │   └── llms_txt_handler.go   # LLM documentation generation
-│   │   ├── executor/                 # Query execution
-│   │   │   ├── executor.go           # Query executor
-│   │   │   └── utils/                # Executor utilities
-│   │   │       ├── substitutor.go    # Template substitution
-│   │   │       └── validator.go      # Input validation
-│   │   └── connectors/               # Database connectors
-│   │       ├── connector.go          # Connector interface & factory
-│   │       ├── postgres.go           # PostgreSQL connector
-│   │       ├── mysql.go              # MySQL connector
-│   │       └── redis.go              # Redis connector
-│   ├── types/                        # Type definitions
-│   │   ├── connectors.go             # Connector types (generated)
-│   │   └── primitives.go             # Primitive types (generated)
-│   ├── logger/                       # Logging utilities
-│   │   └── logger.go                 # Structured logger with levels
-│   └── proto/                        # Generated protobuf code
-│       ├── connectors/
-│       ├── hyperterse/
-│       ├── primitives/
-│       └── runtime/
-└── proto/                            # Protocol buffer definitions
-    ├── connectors/
-    │   └── connectors.proto
-    ├── hyperterse/
-    │   └── hyperterse.proto
-    ├── primitives/
-    │   └── primitives.proto
-    └── runtime/
-        └── runtime.proto
+├── Cargo.toml                        # Workspace root manifest
+├── package.json                      # Build scripts (Bun Shell)
+├── src/
+│   └── modules/                      # Rust crates
+│       ├── cli/                      # CLI crate (hyperterse-cli)
+│       │   ├── Cargo.toml
+│       │   ├── lib.rs                # Library entry point
+│       │   ├── main.rs               # Binary entry point
+│       │   └── commands/             # CLI commands
+│       │       ├── mod.rs            # Commands module
+│       │       ├── run.rs            # 'run' command - start server
+│       │       ├── dev.rs            # 'dev' command - hot reload mode
+│       │       ├── generate.rs       # 'generate' command (llms, skills)
+│       │       ├── init.rs           # 'init' command - project scaffolding
+│       │       ├── upgrade.rs        # 'upgrade' command
+│       │       └── export.rs         # 'export' command
+│       ├── core/                     # Core domain models (hyperterse-core)
+│       │   ├── Cargo.toml
+│       │   ├── lib.rs                # Library entry point
+│       │   ├── error.rs              # Error types (HyperterseError)
+│       │   └── domain/               # Domain models
+│       │       ├── mod.rs
+│       │       ├── adapter.rs        # Adapter model
+│       │       ├── model.rs          # Model (root config)
+│       │       ├── query.rs          # Query and Input models
+│       │       └── types.rs          # ServerConfig, PoolConfig, etc.
+│       ├── parser/                   # Configuration parsing (hyperterse-parser)
+│       │   ├── Cargo.toml
+│       │   ├── lib.rs                # Library entry point
+│       │   ├── yaml.rs               # YAML parser (serde_yaml)
+│       │   ├── validator.rs          # Configuration validation
+│       │   └── env.rs                # Environment variable substitution
+│       ├── runtime/                  # Runtime server (hyperterse-runtime)
+│       │   ├── Cargo.toml
+│       │   ├── lib.rs                # Library entry point
+│       │   ├── server.rs             # HTTP server (Axum)
+│       │   ├── connectors/           # Database connectors
+│       │   │   ├── mod.rs
+│       │   │   ├── traits.rs         # Connector trait
+│       │   │   ├── manager.rs        # ConnectorManager
+│       │   │   ├── postgres.rs       # PostgreSQL (sqlx)
+│       │   │   ├── mysql.rs          # MySQL (sqlx)
+│       │   │   ├── redis.rs          # Redis
+│       │   │   └── mongodb.rs        # MongoDB
+│       │   ├── executor/             # Query execution
+│       │   │   ├── mod.rs
+│       │   │   ├── substitutor.rs    # Template substitution
+│       │   │   └── validator.rs      # Input validation
+│       │   └── handlers/             # HTTP handlers
+│       │       ├── mod.rs
+│       │       ├── query.rs          # Query endpoint handler
+│       │       ├── mcp.rs            # MCP JSON-RPC handler
+│       │       ├── openapi.rs        # OpenAPI spec generation
+│       │       └── llms.rs           # LLM documentation generation
+│       └── types/                    # Shared types (hyperterse-types)
+│           ├── Cargo.toml
+│           ├── lib.rs                # Library entry point
+│           ├── connector.rs          # Connector enum
+│           ├── primitive.rs          # Primitive enum
+│           └── runtime.rs            # Runtime response types
+├── scripts/                          # Build scripts (Bun Shell)
+│   ├── build.ts                      # Build script
+│   ├── test.ts                       # Test runner
+│   ├── setup.ts                      # Development setup
+│   ├── version.ts                    # Version management
+│   ├── release.ts                    # Release builds
+│   ├── archive.ts                    # Binary archiving
+│   ├── check.ts                      # Cargo check
+│   ├── lint.ts                       # Clippy linting
+│   ├── fmt.ts                        # Code formatting
+│   ├── clean.ts                      # Clean build artifacts
+│   └── help.ts                       # Show available commands
+├── schema/                           # JSON Schema for config files
+│   └── terse.schema.json
+└── distributions/                    # Distribution packages
+    ├── homebrew/
+    │   └── hyperterse.rb
+    └── npm/
+        └── package.json
 ```
 
 ### Request Flow
@@ -274,7 +298,7 @@ hyperterse/
 
 ### Configuration Flow
 
-1. **Parse Configuration** → YAML or DSL file parsed into protobuf Model
+1. **Parse Configuration** → `.terse` file parsed into a language model
 2. **Validate** → Comprehensive validation of adapters, queries, inputs
 3. **Initialize Connectors** → Create database connections for each adapter
 4. **Register Endpoints** → Dynamically create HTTP endpoints for each query
@@ -325,9 +349,10 @@ Each query automatically becomes a REST endpoint:
 
 ### 6. Multi-Database Support
 
-- **PostgreSQL**: Full SQL support via `lib/pq` driver
-- **MySQL**: Full SQL support via `go-sql-driver/mysql`
-- **Redis**: Command execution via `go-redis/v9`
+- **PostgreSQL**: Full SQL support via `sqlx` with `PgPool`
+- **MySQL**: Full SQL support via `sqlx` with `MySqlPool`
+- **Redis**: Command execution via `redis` crate with async support
+- **MongoDB**: Full document operations via `mongodb` crate with async client
 
 ### 7. Security Features
 
@@ -465,8 +490,8 @@ server:
 
 ### Global Flags
 
-| Flag     | Short | Description                                              |
-| -------- | ----- | -------------------------------------------------------- |
+| Flag     | Short | Description                         |
+| -------- | ----- | ----------------------------------- |
 | `--file` | `-f`  | Path to configuration file (.terse) |
 
 ### Commands
@@ -743,69 +768,100 @@ Hyperterse implements the Model Context Protocol (MCP) for AI assistant integrat
 
 ## Development Guide
 
+### Prerequisites
+
+- **Rust**: 1.75+ (install via [rustup](https://rustup.rs/))
+- **Bun**: 1.0+ (install via [bun.sh](https://bun.sh/))
+
 ### Building
 
 ```bash
-# Install dependencies
-go mod download
+# Set up development environment (checks dependencies, installs components)
+bun run setup
 
-# Generate protobuf code
-make generate
+# Build debug version
+bun run build
 
-# Build binary
-make build
-# or
-go build -o dist/hyperterse
+# Build release version
+bun run build:release
+
+# Build for all platforms (cross-compilation)
+bun run build:all
 ```
 
 ### Running
 
 ```bash
-# Run with YAML config
-./dist/hyperterse -f config.terse
+# Run with `.terse` config (debug build)
+cargo run -- run -f config.terse
 
 # Run with custom port
-./dist/hyperterse -f config.terse -p 3000
+cargo run -- run -f config.terse -p 3000
 
 # Run with verbose logging
-./dist/hyperterse -f config.terse -v
+cargo run -- run -f config.terse -v
 
 # Development mode with hot reload
-./dist/hyperterse dev -f config.terse
+cargo run -- dev -f config.terse
+
+# Using release binary
+./target/release/hyperterse run -f config.terse
 ```
 
-### Using Make
+### Available Scripts
 
 ```bash
-# Show available make targets
-make help
+# Show all available commands
+bun run help
 
-# Complete setup (install dependencies and generate code)
-make setup
+# Build commands
+bun run build              # Build debug version
+bun run build:release      # Build release version
+bun run build:all          # Build for all targets
 
-# Build the project
-make build
+# Test commands
+bun run test               # Run all tests
+bun run test:unit          # Run unit tests only
+bun run test:ignored       # Run ignored tests (integration)
 
-# Build and run with a config file
-make run CONFIG_FILE=config.terse
+# Code quality
+bun run lint               # Run clippy linter
+bun run lint:fix           # Auto-fix lint issues
+bun run fmt                # Format code
+bun run fmt:check          # Check formatting
+bun run check              # Fast compilation check
+
+# Version management
+bun run version:patch      # Bump patch version
+bun run version:minor      # Bump minor version
+bun run version:major      # Bump major version
+
+# Release
+bun run release:build      # Build release for current platform
+bun run clean              # Clean build artifacts
 ```
 
 ### Testing
 
 ```bash
 # Run all tests
-go test ./...
+bun run test
+# or
+cargo test
 
-# Run tests with coverage
-go test -cover ./...
+# Run tests with coverage (requires cargo-llvm-cov)
+bun run test --coverage
 
-# Run tests for specific package
-go test ./core/runtime/...
+# Run specific test
+cargo test test_name
+
+# Run tests for specific crate
+cargo test -p hyperterse-runtime
 ```
 
 ### Development Workflow
 
-1. **Define Queries**: Create/update YAML or DSL configuration
+1. **Define Queries**: Create/update `.terse` configuration
 2. **Run Dev Mode**: `hyperterse dev -f config.terse` for hot reload
 3. **Test**: Use `curl` or HTTP client to test endpoints
 4. **Documentation**: Check `/docs` and `/llms.txt` for generated docs
@@ -813,23 +869,25 @@ go test ./core/runtime/...
 
 ### Hot Reloading
 
-Development mode (`dev` command) includes built-in hot reloading:
+Development mode (`dev` command) includes built-in hot reloading for configuration files:
 
 ```bash
 # Start dev server
-./dist/hyperterse dev -f config.terse
+cargo run -- dev -f config.terse
 
 # Edit config.terse - server reloads automatically
 ```
 
-For source code changes, use `air` for hot reloading:
+The `dev` command uses the `notify` crate to watch for file changes and automatically reloads the configuration. Changes are debounced to handle rapid file saves.
+
+For source code changes during development, you can use `cargo watch`:
 
 ```bash
-# Install air (included as tool dependency in go.mod)
-go install github.com/air-verse/air@latest
+# Install cargo-watch
+cargo install cargo-watch
 
-# Run with air
-air
+# Run with automatic rebuild on source changes
+cargo watch -x 'run -- run -f config.terse'
 ```
 
 ---
@@ -838,33 +896,35 @@ air
 
 ### Adding New Connectors
 
-1. **Define Connector Type**: Add to `proto/connectors/connectors.proto` (Connector enum)
-2. **Implement Interface**: Create `core/runtime/connectors/{connector}.go` implementing `Connector` interface
-3. **Update Factory**: Add case to `NewConnector()` in `connector.go`
-4. **Regenerate Types**: Run `make generate` to regenerate type files
-5. **Test**: Add tests for new connector
+1. **Define Connector Type**: Add variant to `Connector` enum in `hyperterse-types/src/connector.rs`
+2. **Implement Connector Trait**: Create `hyperterse-runtime/src/connectors/{connector}.rs` implementing the `Connector` trait
+3. **Export Module**: Add `pub mod {connector};` to `hyperterse-runtime/src/connectors/mod.rs`
+4. **Update Manager**: Add case to `create_connector()` in `manager.rs`
+5. **Add Dependencies**: Add required crate to `hyperterse-runtime/Cargo.toml`
+6. **Test**: Add tests for the new connector
 
 ### Adding New Primitive Types
 
-1. **Define Type**: Add to `proto/primitives/primitives.proto` (Primitive enum)
-2. **Regenerate Types**: Run `make generate` to regenerate type files
-3. **Add Conversion**: Implement conversion in `core/runtime/executor/utils/validator.go`
-4. **Update OpenAPI**: Add mapping in `openapi_handler.go`
+1. **Define Type**: Add variant to `Primitive` enum in `hyperterse-types/src/primitive.rs`
+2. **Implement Traits**: Add `Display`, `FromStr`, and validation methods
+3. **Update Validator**: Add type conversion in `hyperterse-runtime/src/executor/validator.rs`
+4. **Update OpenAPI**: Add JSON Schema mapping in `hyperterse-runtime/src/handlers/openapi.rs`
 5. **Test**: Add validation tests
 
 ### Adding New Parsers
 
-1. **Create Parser**: Implement parser function in `core/parser/`
-2. **File Detection**: Add extension detection in `core/cli/internal/loader.go`
-3. **Integration**: Call parser from loader
+1. **Create Parser**: Add parser module in `hyperterse-parser/src/`
+2. **Export Module**: Add `pub mod {parser};` to `hyperterse-parser/src/lib.rs`
+3. **Update Loader**: Add file extension detection in `hyperterse-cli/src/commands/`
 4. **Test**: Add parser tests
 
 ### Custom Handlers
 
-1. **Create Handler**: Implement HTTP handler function in `core/runtime/handlers/`
-2. **Register Route**: Add route in `server.go` `registerRoutes()` method
-3. **Documentation**: Update OpenAPI spec generation if needed
-4. **Test**: Add handler tests
+1. **Create Handler**: Implement Axum handler in `hyperterse-runtime/src/handlers/`
+2. **Export Module**: Add handler module to `mod.rs`
+3. **Register Route**: Add route in `server.rs` router builder
+4. **Documentation**: Update OpenAPI spec generation if needed
+5. **Test**: Add handler tests
 
 ---
 
@@ -978,10 +1038,12 @@ curl -X POST http://localhost:8080/query/get-user \
 
 ### Code Style
 
-- Follow Go standard formatting (`go fmt`)
+- Follow Rust standard formatting (`cargo fmt`)
+- Run clippy for linting (`cargo clippy`)
 - Use meaningful variable names
-- Add comments for exported functions
+- Add doc comments for public items (`///` documentation comments)
 - Keep functions focused and small
+- Prefer `Result` and `Option` over panics
 
 ### Testing
 
@@ -989,13 +1051,21 @@ curl -X POST http://localhost:8080/query/get-user \
 - Maintain test coverage
 - Test error cases
 - Test edge cases
+- Use `#[tokio::test]` for async tests
 
 ### Documentation
 
 - Update this document when adding features
-- Add code comments for complex logic
+- Add doc comments for complex logic
 - Update README.md for user-facing changes
 - Keep examples up to date
+
+### Pull Request Process
+
+1. Run all checks: `bun run lint && bun run fmt:check && bun run test`
+2. Update documentation if needed
+3. Keep commits focused and well-described
+4. Request review from maintainers
 
 ---
 

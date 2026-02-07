@@ -1,0 +1,14 @@
+[toolchain]
+# Pin to a specific Rust release to avoid proc-macro ABI mismatches when
+# `stable` updates (rust-analyzer loads proc-macro dylibs built by rustc).
+#
+# Update intentionally alongside CI when bumping Rust.
+channel = "1.93.0"
+profile = "minimal"
+
+# Developer experience / tooling.
+components = [
+  "clippy",
+  "rust-src", # rust-analyzer stdlib sources
+  "rustfmt",
+]

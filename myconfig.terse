@@ -34,13 +34,13 @@ queries:
     use: my_mongo
     description: "Get all orders"
     statement: |
-      { "database": "my_mongo", "collection": "orders", "operation": "find", "filter": {} }
+      { "database": "my_mongo", "find": "orders", "filter": {} }
 
   get-order-by-id:
     use: my_mongo
     description: "Get an order by id"
     statement: |
-      { "database": "my_mongo", "collection": "orders", "operation": "findOne", "filter": { "id": "{{ inputs.orderId }}" } }
+      { "database": "my_mongo", "find": "orders", "filter": { "id": "{{ inputs.orderId }}" }, "limit": 1, "singleBatch": true }
     inputs:
       orderId:
         type: string

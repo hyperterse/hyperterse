@@ -48,7 +48,7 @@ If a section is not applicable, you can mark it as N/A or remove it.
 ### Manual Testing
 
 - [ ] Tested locally with development server (`hyperterse dev`)
-- [ ] Tested with production build (`make build`)
+- [ ] Tested with production build (`bun run build:release`)
 - [ ] Tested error handling and edge cases
 - [ ] Tested with sample configurations
 
@@ -62,10 +62,11 @@ If a section is not applicable, you can mark it as N/A or remove it.
 
 ## Code Quality
 
-### Go Standards
+### Rust Standards
 
-- [ ] Code follows Go conventions and best practices
-- [ ] Code formatted with `go fmt ./...`
+- [ ] Code follows Rust conventions and best practices
+- [ ] Code formatted with `cargo fmt`
+- [ ] Linting passes (`cargo clippy --all-targets --all-features -- -D warnings`)
 - [ ] No new linter warnings introduced
 - [ ] Error handling is explicit and appropriate
 - [ ] Exported functions/types have proper documentation
@@ -107,7 +108,7 @@ If a section is not applicable, you can mark it as N/A or remove it.
 - [ ] No performance regressions introduced
 - [ ] Efficient database queries (no N+1 queries)
 - [ ] Appropriate use of caching (if applicable)
-- [ ] Resource cleanup implemented (connections, goroutines)
+- [ ] Resource cleanup implemented (connections, async tasks)
 - [ ] Benchmarks added/updated (if performance-critical)
 
 <details>
@@ -116,7 +117,7 @@ If a section is not applicable, you can mark it as N/A or remove it.
 <!-- Include benchmark results if applicable -->
 
 ```bash
-# go test -bench=. -benchmem
+# cargo bench
 ```
 
 </details>
@@ -169,7 +170,7 @@ If a section is not applicable, you can mark it as N/A or remove it.
 
 ## Distribution & Deployment
 
-- [ ] Build script works (`make build`)
+- [ ] Build script works (`bun run build:release`)
 - [ ] Binary runs on target platforms
 - [ ] Installation script works (if modified)
 - [ ] Distribution packages build correctly:

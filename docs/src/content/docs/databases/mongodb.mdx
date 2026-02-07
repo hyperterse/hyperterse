@@ -8,7 +8,7 @@ sidebar:
 import Aside from '@/components/admonition.astro'
 import { Steps } from '@astrojs/starlight/components'
 
-MongoDB is a document-oriented NoSQL database. Hyperterse provides support for MongoDB using the official [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver), enabling you to run find, findOne, insertOne, insertMany, updateOne, updateMany, deleteOne, deleteMany, aggregate, and countDocuments operations.
+MongoDB is a document-oriented NoSQL database. Hyperterse provides support for MongoDB using the official MongoDB Rust driver.
 
 ## Connecting to your server
 
@@ -43,7 +43,7 @@ adapters:
       serverSelectionTimeoutMS: 5000
 ```
 
-For a complete list of connection options, see the [MongoDB Go Driver connection string options](https://www.mongodb.com/docs/manual/reference/connection-string-options/?deployment-type=atlas&interface-atlas-only=atlas-cli#std-label-connections-connection-options).
+For a complete list of connection string options, see the [MongoDB connection string documentation](https://www.mongodb.com/docs/manual/reference/connection-string-options/?deployment-type=atlas&interface-atlas-only=atlas-cli#std-label-connections-connection-options).
 
 ## Setting up a database
 

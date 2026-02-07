@@ -12,13 +12,13 @@ MySQL is a widely-used open-source relational database management system known f
 
 ## Connecting to your server
 
-MySQL adapters use the Go MySQL driver connection format:
+MySQL adapters use a standard MySQL connection URL:
 
 ```yaml
 adapters:
   my_mysql:
     connector: mysql
-    connection_string: 'user:password@tcp(host:3306)/database'
+    connection_string: 'mysql://user:password@host:3306/database'
 ```
 
 ### Connection parameters
@@ -26,7 +26,7 @@ adapters:
 Add parameters to the connection string for fine-tuning:
 
 ```yaml
-connection_string: 'user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC&timeout=10s'
+connection_string: 'mysql://user:pass@host:3306/db?charset=utf8mb4'
 ```
 
 ### Adapter options

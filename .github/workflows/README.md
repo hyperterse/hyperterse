@@ -1,15 +1,39 @@
 # GitHub Actions Workflows
 
-This directory contains GitHub Actions workflows for building, releasing, and publishing Hyperterse.
+This directory contains GitHub Actions workflows for building, testing, releasing, and publishing Hyperterse.
 
 ## Workflow Files
 
-### Main Workflows
+### CI Workflow
 
-- **`release.yml`** - Main release workflow triggered on version tags
-  - Builds binaries for all platforms
-  - Creates GitHub release
-  - Publishes to NPM and Homebrew using composite actions
+- **`ci.yml`** - Continuous Integration workflow for pull requests and pushes
+  - Runs on: `push` to main/refactor/rust, `pull_request` to main
+  - Jobs:
+    - **Check**: `cargo check` for fast compilation verification
+    - **Format**: `cargo fmt --check` for code formatting
+    - **Clippy**: Rust linter with `-D warnings`
+    - **Test**: Full test suite
+    - **Test (platforms)**: Tests on ubuntu, macos, and windows
+    - **Build (platforms)**: Release builds on all platforms
+    - **Security**: `cargo audit` for dependency vulnerabilities
+
+### Release Workflow
+
+- **`release.yml`** - Release workflow triggered on version tags (`v*`)
+  - Builds binaries for all supported platforms:
+    - `x86_64-unknown-linux-gnu` (linux-amd64)
+    - `aarch64-unknown-linux-gnu` (linux-arm64, via cross)
+    - `x86_64-apple-darwin` (darwin-amd64)
+    - `aarch64-apple-darwin` (darwin-arm64)
+    - `x86_64-pc-windows-msvc` (windows-amd64)
+  - Creates GitHub release with checksums
+  - Optionally publishes to NPM and Homebrew
+
+### Publish Workflow
+
+- **`publish.yml`** - Reusable workflow for publishing to distribution channels
+  - Can be called from `release.yml` or run manually
+  - Supports NPM and Homebrew publishing
 
 ### Composite Actions
 
@@ -19,65 +43,92 @@ This directory contains GitHub Actions workflows for building, releasing, and pu
   - Publishes to NPM registry
 
 - **`.github/actions/publish-homebrew/action.yml`** - Composite action for publishing to Homebrew
-  - Inputs: `version` (required), `tap_repo` (optional, defaults to `hyperterse/tap`), `token` (optional)
-  - Downloads binaries from GitHub release or uses provided artifacts
+  - Inputs: `version` (required), `tap_repo` (optional), `token` (optional)
+  - Downloads binaries from GitHub release
   - Calculates SHA256 checksums
   - Updates Homebrew formula and pushes to tap repository
 
-### Manual Workflows
-
-- **`manual-publish-npm.yml`** - Manual workflow for publishing to NPM
-  - Triggered via `workflow_dispatch`
-  - Extracts version from `distributions/npm/package.json`
-  - Uses `publish-npm` composite action
-
-- **`manual-publish-homebrew.yml`** - Manual workflow for publishing to Homebrew
-  - Triggered via `workflow_dispatch`
-  - Extracts version from `distributions/homebrew/hyperterse.rb`
-  - Optional input: `tap_repo` (defaults to `hyperterse/tap`)
-  - Uses `publish-homebrew` composite action
-
 ## Usage
 
-### Automatic Publishing (on Release)
+### Automatic CI (on Push/PR)
 
-When you push a version tag (e.g., `v1.2.3`), the `release.yml` workflow will:
-1. Build binaries for all platforms
-2. Create a GitHub release
-3. Automatically publish to NPM and Homebrew
+Every push and pull request to main triggers the CI workflow, which:
+1. Checks code formatting with `cargo fmt`
+2. Runs linting with `cargo clippy`
+3. Runs the full test suite
+4. Builds release binaries for all platforms
+
+### Creating a Release
+
+1. Update version manifests using the version script:
+   ```bash
+   bun run version:patch   # or --minor, --major
+   ```
+
+2. Push the tag to trigger the release workflow:
+   ```bash
+   git push --follow-tags
+   ```
+
+3. The release workflow will:
+   - Build binaries for all platforms
+   - Create a GitHub release with release notes
+   - Generate SHA256 checksums
+   - (Optionally) Publish to NPM and Homebrew
 
 ### Manual Publishing
 
 #### Publish to NPM Only
 
-1. Go to Actions → Manual Publish to NPM
+1. Go to Actions → Publish
 2. Click "Run workflow"
-3. The workflow will read the version from `distributions/npm/package.json` and publish
+3. Select `npm: true`
+4. The workflow will publish to NPM
 
 #### Publish to Homebrew Only
 
-1. Go to Actions → Manual Publish to Homebrew
+1. Go to Actions → Publish
 2. Click "Run workflow"
-3. Optionally specify a different tap repository
-4. The workflow will:
-   - Read the version from `distributions/homebrew/hyperterse.rb`
-   - Download binaries from the GitHub release for that version
-   - Calculate SHA256 checksums
-   - Update and push to the Homebrew tap
+3. Select `homebrew: true`
+4. The workflow will update the Homebrew tap
 
 ## Requirements
 
-### NPM Publishing
-- `NPM_TOKEN` secret must be set in repository settings
+### Secrets
 
-### Homebrew Publishing
-- `hyperterse/tap` repository must exist (or specify different repo)
-- `HOMEBREW_TAP_TOKEN` secret is optional (uses `GITHUB_TOKEN` if not set)
+- **`NPM_TOKEN`**: Required for NPM publishing
+- **`HOMEBREW_TAP_TOKEN`**: Optional for Homebrew publishing (uses `GITHUB_TOKEN` if not set)
+
+### Build Dependencies
+
+The workflows automatically install:
+- Rust toolchain (stable)
+- `cross` for cross-compilation (Linux ARM64)
+- `cargo-audit` for security audits
 
 ## Version Management
 
-Versions are managed in:
-- **NPM**: `distributions/npm/package.json` → `version` field
-- **Homebrew**: `distributions/homebrew/hyperterse.rb` → `version` field
+Versions are managed using the `bun run version:*` scripts:
 
-These are automatically updated by `scripts/version.sh` when creating version tags.
+```bash
+bun run version:major      # 1.0.0 → 2.0.0
+bun run version:minor      # 1.0.0 → 1.1.0
+bun run version:patch      # 1.0.0 → 1.0.1
+bun run version:bump --prerelease alpha  # 1.0.0 → 1.0.0-alpha.1
+```
+
+This automatically updates:
+- All `Cargo.toml` files (workspace and crates)
+- `distributions/npm/package.json`
+- `distributions/homebrew/hyperterse.rb`
+
+## Cross-Compilation
+
+For Linux ARM64, the workflow uses [cross](https://github.com/cross-rs/cross) for cross-compilation. Other targets build natively on their respective runners.
+
+## Caching
+
+All workflows use [rust-cache](https://github.com/Swatinem/rust-cache) for efficient caching of:
+- Cargo registry
+- Cargo index
+- Target directories (keyed by platform/target)

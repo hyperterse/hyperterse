@@ -20,10 +20,17 @@ hyperterse export -f config.terse -o dist
 
 ### Why export?
 
-- **No CLI required** — The script runs standalone
-- **Optimized** — Production-ready deployment
-- **Portable** — Move between environments easily
-- **Secure** — Credentials handled via environment variables
+- **No CLI required** — The launcher downloads and caches the binary on first run, then runs the server with the embedded config
+- **Portable** — Move the script (or the whole `dist/` folder) between environments
+- **Secure** — Credentials via environment variables (`{{ env.VAR }}` in config)
+
+### Deployment paths
+
+After running `hyperterse export`, you can deploy in three ways:
+
+1. **Launcher script** — Run the generated script (e.g. `./my-api`) on bare metal, VMs, or platforms like Railway and DigitalOcean. The script downloads the Hyperterse binary on first run and starts the server. No Docker or CLI needed.
+2. **Docker** — Use the generated `Dockerfile` and `docker-compose.yml` in the export directory. Build the image, then run it on Docker, Kubernetes, ECS, Cloud Run, Azure Container Apps, or any container host.
+3. **Manual** — Copy the release binary and `config.terse` to the target machine and run `hyperterse run -f config.terse` (requires the Hyperterse binary for your platform).
 
 ## How to deploy
 

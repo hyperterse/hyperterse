@@ -1,0 +1,16 @@
+[package]
+name = "hyperterse-types"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Type definitions for Hyperterse"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }

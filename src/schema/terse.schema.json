@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
+  "$comment": "Some validations (cross-references, placeholder checks) are enforced at runtime (see src/modules/parser/validator.rs).",
+  "title": "Terse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+      "description": "Configuration name (lower-kebab-case or lower_snake_case)."
+    },
+    "adapters": {
+      "description": "Database adapters (map: adapter name -> config).",
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/adapterInline"
+      }
+    },
+    "queries": {
+      "description": "Query definitions (map: query name -> config).",
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/queryInline"
+      }
+    },
+    "server": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional server configuration.",
+      "properties": {
+        "port": {
+          "description": "Port to listen on (accepts number or string for env-substitution).",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "log_level": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Log level (implementation-defined). Not strictly validated by schema."
+        },
+        "pool": {
+          "$ref": "#/$defs/poolConfig"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional export configuration.",
+      "properties": {
+        "base_url": {
+          "type": "string"
+        },
+        "out": {
+          "type": "string",
+          "description": "Output directory for export."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "adapterInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connector",
+        "connection_string"
+      ],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "enum": [
+            "postgres",
+            "mysql",
+            "redis",
+            "mongodb"
+          ],
+          "description": "Connector type."
+        },
+        "connection_string": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Connection string (supports {{ env.VAR }} substitution)."
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key-value pairs appended as query parameters to the connection string."
+        }
+      }
+    },
+    "queryInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "use",
+        "statement"
+      ],
+      "properties": {
+        "use": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
+          "description": "Adapter name to execute against."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SQL / Redis command / MongoDB JSON statement."
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "description": "Input parameters (map: input name -> config).",
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/inputInline"
+          }
+        }
+      }
+    },
+    "inputInline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "int",
+            "float",
+            "boolean",
+            "uuid",
+            "datetime"
+          ],
+          "description": "Input primitive type."
+        },
+        "description": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "If true, the input is optional and must have a default."
+        },
+        "default": {
+          "description": "Default value for optional inputs (type must match type)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "optional": {
+                "const": true
+              }
+            },
+            "required": [
+              "optional"
+            ]
+          },
+          "then": {
+            "required": [
+              "default"
+            ]
+          }
+        }
+      ]
+    },
+    "poolConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_connections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_connections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "acquire_timeout_secs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "idle_timeout_secs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_lifetime_secs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
