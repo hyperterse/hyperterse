@@ -13,10 +13,6 @@ pub struct ExportCommand {
     /// Output directory
     #[arg(short, long, default_value = "./export")]
     pub output: String,
-
-    /// Export format (json, yaml)
-    #[arg(short, long, default_value = "json")]
-    pub format: String,
 }
 
 impl ExportCommand {
@@ -32,25 +28,7 @@ impl ExportCommand {
             fs::create_dir_all(output_dir)?;
         }
 
-        // Export model configuration
-        let model_file = match self.format.to_lowercase().as_str() {
-            "yaml" | "yml" => {
-                let path = output_dir.join("model.yaml");
-                let content = serde_yaml::to_string(&model)
-                    .map_err(|e| HyperterseError::Config(format!("Failed to serialize: {}", e)))?;
-                fs::write(&path, content)?;
-                path
-            }
-            _ => {
-                let path = output_dir.join("model.json");
-                let content = serde_json::to_string_pretty(&model)
-                    .map_err(|e| HyperterseError::Config(format!("Failed to serialize: {}", e)))?;
-                fs::write(&path, content)?;
-                path
-            }
-        };
-
-        info!("Exported model: {}", model_file.display());
+        info!("Parsed model: {}", model.name);
 
         // Export OpenAPI spec
         let openapi_path = output_dir.join("openapi.json");
@@ -176,9 +154,7 @@ mod tests {
     fn test_export_command_args() {
         let cmd = ExportCommand {
             output: "./out".to_string(),
-            format: "yaml".to_string(),
         };
         assert_eq!(cmd.output, "./out");
-        assert_eq!(cmd.format, "yaml");
     }
 }

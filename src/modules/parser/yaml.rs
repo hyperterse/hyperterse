@@ -34,28 +34,18 @@ struct TerseConfig {
 struct TerseAdapter {
     connector: Connector,
 
-    /// Legacy field name used in README examples.
     #[serde(default)]
     connection_string: Option<String>,
 
-    /// Newer/alternate field name.
+    /// Key-value pairs appended as query parameters to the connection string.
     #[serde(default)]
-    url: Option<String>,
-
-    /// Adapter-specific options (ignored by core model for now).
-    #[serde(default)]
-    _options: Option<serde_yaml::Value>,
+    options: Option<HashMap<String, serde_yaml::Value>>,
 }
 
 #[derive(Debug, Deserialize)]
 struct TerseQuery {
-    /// Legacy field name used in README examples.
     #[serde(rename = "use")]
     adapter_use: Option<String>,
-
-    /// Alternate field name.
-    #[serde(default)]
-    adapter: Option<String>,
 
     statement: String,
 
@@ -74,13 +64,8 @@ struct TerseInput {
     #[serde(default)]
     description: Option<String>,
 
-    /// README uses `optional: true/false`
     #[serde(default)]
     optional: Option<bool>,
-
-    /// Allow `required: true/false` as well (wins over `optional` if set).
-    #[serde(default)]
-    required: Option<bool>,
 
     #[serde(default)]
     default: Option<serde_yaml::Value>,
@@ -97,31 +82,18 @@ struct TerseServer {
 
 #[derive(Debug, Deserialize)]
 struct TerseExport {
-    /// Legacy field name used in some configs.
     #[serde(default)]
     out: Option<String>,
-
-    /// Newer/alternate field name.
-    #[serde(default)]
-    output_dir: Option<String>,
 
     #[serde(default)]
     base_url: Option<String>,
 }
 
 impl YamlParser {
-    /// Parse a YAML string into a Model
+    /// Parse a YAML string into a Model (canonical .terse map-based format).
     pub fn parse(content: &str) -> Result<Model, HyperterseError> {
-        // First, substitute environment variables in the YAML content
         let substitutor = EnvSubstitutor::new();
         let substituted = substitutor.substitute(content)?;
-
-        // Try the current (vector-based) schema first.
-        if let Ok(model) = serde_yaml::from_str::<Model>(&substituted) {
-            return Ok(model);
-        }
-
-        // Fallback to README/`.terse` map-based schema.
         let terse = serde_yaml::from_str::<TerseConfig>(&substituted)
             .map_err(|e| HyperterseError::Config(format!("YAML parse error: {}", e)))?;
         terse_to_model(terse)
@@ -129,10 +101,6 @@ impl YamlParser {
 
     /// Parse a YAML string without environment variable substitution
     pub fn parse_raw(content: &str) -> Result<Model, HyperterseError> {
-        if let Ok(model) = serde_yaml::from_str::<Model>(content) {
-            return Ok(model);
-        }
-
         let terse = serde_yaml::from_str::<TerseConfig>(content)
             .map_err(|e| HyperterseError::Config(format!("YAML parse error: {}", e)))?;
         terse_to_model(terse)
@@ -142,27 +110,34 @@ impl YamlParser {
 fn terse_to_model(cfg: TerseConfig) -> Result<Model, HyperterseError> {
     let mut adapters: Vec<Adapter> = Vec::with_capacity(cfg.adapters.len());
     for (name, adapter) in cfg.adapters {
-        let url = adapter.connection_string.or(adapter.url).ok_or_else(|| {
+        let mut url = adapter.connection_string.ok_or_else(|| {
             HyperterseError::Config(format!(
-                "Adapter '{}' is missing 'connection_string' (or 'url')",
+                "Adapter '{}' is missing 'connection_string'",
                 name
             ))
         })?;
-
+        if let Some(opts) = adapter.options {
+            let separator = if url.contains('?') { "&" } else { "?" };
+            let params: Vec<String> = opts
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, yaml_value_to_string(v)))
+                .collect();
+            if !params.is_empty() {
+                url = format!("{}{}{}", url, separator, params.join("&"));
+            }
+        }
         adapters.push(Adapter::new(name, adapter.connector, url));
     }
 
     let mut queries: Vec<Query> = Vec::with_capacity(cfg.queries.len());
     for (name, query) in cfg.queries {
-        let adapter_name = query.adapter_use.or(query.adapter).ok_or_else(|| {
-            HyperterseError::Config(format!("Query '{}' is missing 'use' (or 'adapter')", name))
+        let adapter_name = query.adapter_use.ok_or_else(|| {
+            HyperterseError::Config(format!("Query '{}' is missing 'use'", name))
         })?;
 
         let mut inputs: Vec<Input> = Vec::with_capacity(query.inputs.len());
         for (input_name, input) in query.inputs {
-            let required = input
-                .required
-                .unwrap_or_else(|| !input.optional.unwrap_or(false));
+            let required = !input.optional.unwrap_or(false);
 
             let default = match input.default {
                 None => None,
@@ -200,7 +175,7 @@ fn terse_to_model(cfg: TerseConfig) -> Result<Model, HyperterseError> {
 
     let export = cfg.export.map(|e| ExportConfig {
         base_url: e.base_url,
-        output_dir: e.output_dir.or(e.out),
+        output_dir: e.out,
     });
 
     Ok(Model {
@@ -210,6 +185,16 @@ fn terse_to_model(cfg: TerseConfig) -> Result<Model, HyperterseError> {
         server,
         export,
     })
+}
+
+fn yaml_value_to_string(value: &serde_yaml::Value) -> String {
+    match value {
+        serde_yaml::Value::Null => String::new(),
+        serde_yaml::Value::Bool(b) => b.to_string(),
+        serde_yaml::Value::Number(n) => n.to_string(),
+        serde_yaml::Value::String(s) => s.clone(),
+        other => serde_yaml::to_string(other).unwrap_or_default().trim().to_string(),
+    }
 }
 
 fn yaml_scalar_to_string(value: serde_yaml::Value) -> Option<String> {
@@ -234,8 +219,8 @@ mod tests {
     fn test_parse_minimal_config() {
         let yaml = r#"
 name: minimal-api
-adapters: []
-queries: []
+adapters: {}
+queries: {}
 "#;
         let model = YamlParser::parse(yaml).unwrap();
         assert_eq!(model.name, "minimal-api");
@@ -272,8 +257,18 @@ server:
         let model = YamlParser::parse(yaml).unwrap();
         assert_eq!(model.name, "full-api");
         assert_eq!(model.adapters.len(), 2);
-        assert_eq!(model.adapters[0].connector, Connector::Postgres);
-        assert_eq!(model.adapters[1].connector, Connector::Redis);
+        let postgres = model
+            .adapters
+            .iter()
+            .find(|a| a.name == "postgres-db")
+            .expect("missing postgres-db adapter");
+        let redis = model
+            .adapters
+            .iter()
+            .find(|a| a.name == "redis-cache")
+            .expect("missing redis-cache adapter");
+        assert_eq!(postgres.connector, Connector::Postgres);
+        assert_eq!(redis.connector, Connector::Redis);
         assert_eq!(model.queries.len(), 1);
         assert_eq!(model.queries[0].inputs.len(), 1);
         assert!(!model.queries[0].inputs[0].required);
@@ -314,5 +309,25 @@ queries:
         let yaml = "invalid: yaml: content: [";
         let result = YamlParser::parse(yaml);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_options_passthrough_appended_to_connection_string() {
+        let yaml = r#"
+name: opts-api
+adapters:
+  pg:
+    connector: postgres
+    connection_string: "postgresql://localhost:5432/demo"
+    options:
+      sslmode: disable
+      connect_timeout: 10
+queries: {}
+"#;
+        let model = YamlParser::parse(yaml).unwrap();
+        let adapter = model.adapters.iter().find(|a| a.name == "pg").unwrap();
+        assert!(adapter.url.contains("postgresql://localhost:5432/demo"));
+        assert!(adapter.url.contains("sslmode=disable"));
+        assert!(adapter.url.contains("connect_timeout=10"));
     }
 }

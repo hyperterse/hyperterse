@@ -16,50 +16,28 @@
       "description": "Configuration name (lower-kebab-case or lower_snake_case)."
     },
     "adapters": {
-      "description": "Database adapters. Supported in both legacy `.terse` (map) and current (array) formats.",
-      "oneOf": [
-        {
-          "type": "array",
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/adapter"
-          }
-        },
-        {
-          "type": "object",
-          "default": {},
-          "propertyNames": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/adapterInline"
-          }
-        }
-      ]
+      "description": "Database adapters (map: adapter name -> config).",
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/adapterInline"
+      }
     },
     "queries": {
-      "description": "Query definitions. Supported in both legacy `.terse` (map) and current (array) formats.",
-      "oneOf": [
-        {
-          "type": "array",
-          "default": [],
-          "items": {
-            "$ref": "#/$defs/query"
-          }
-        },
-        {
-          "type": "object",
-          "default": {},
-          "propertyNames": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/queryInline"
-          }
-        }
-      ]
+      "description": "Query definitions (map: query name -> config).",
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/queryInline"
+      }
     },
     "server": {
       "type": "object",
@@ -97,54 +75,20 @@
         "base_url": {
           "type": "string"
         },
-        "output_dir": {
-          "type": "string"
-        },
         "out": {
           "type": "string",
-          "description": "Legacy alias for output_dir used in older `.terse` configs."
+          "description": "Output directory for export."
         }
       }
     }
   },
   "$defs": {
-    "adapter": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "connector",
-        "url"
-      ],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
-          "description": "Adapter name."
-        },
-        "connector": {
-          "type": "string",
-          "enum": [
-            "postgres",
-            "mysql",
-            "redis",
-            "mongodb"
-          ],
-          "description": "Connector type."
-        },
-        "url": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Connection URL (supports {{ env.VAR }} substitution)."
-        }
-      }
-    },
     "adapterInline": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "connector"
+        "connector",
+        "connection_string"
       ],
       "properties": {
         "connector": {
@@ -160,81 +104,14 @@
         "connection_string": {
           "type": "string",
           "minLength": 1,
-          "description": "Connection string (legacy field name, preferred in `.terse` examples)."
-        },
-        "url": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Connection URL (alias for connection_string)."
+          "description": "Connection string (supports {{ env.VAR }} substitution)."
         },
         "options": {
-          "description": "Connector-specific options (currently ignored by the Rust core model)."
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "connection_string"
-          ]
-        },
-        {
-          "required": [
-            "url"
-          ]
-        }
-      ]
-    },
-    "query": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "adapter",
-        "statement"
-      ],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
-          "description": "Query name (becomes endpoint path)."
-        },
-        "adapter": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
-          "description": "Adapter name to execute against."
-        },
-        "statement": {
-          "type": "string",
-          "minLength": 1,
-          "description": "SQL / Redis command / MongoDB JSON statement."
-        },
-        "description": {
-          "type": "string"
-        },
-        "inputs": {
-          "description": "Input parameters. Supported in both legacy `.terse` (map) and current (array) formats.",
-          "oneOf": [
-            {
-              "type": "array",
-              "default": [],
-              "items": {
-                "$ref": "#/$defs/input"
-              }
-            },
-            {
-              "type": "object",
-              "default": {},
-              "propertyNames": {
-                "type": "string",
-                "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
-              },
-              "additionalProperties": {
-                "$ref": "#/$defs/inputInline"
-              }
-            }
-          ]
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Key-value pairs appended as query parameters to the connection string."
         }
       }
     },
@@ -242,16 +119,11 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "use",
         "statement"
       ],
       "properties": {
         "use": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
-          "description": "Adapter name to execute against (legacy field name)."
-        },
-        "adapter": {
           "type": "string",
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",
@@ -266,213 +138,18 @@
           "type": "string"
         },
         "inputs": {
-          "description": "Input parameters. Map form is recommended for `.terse` configs.",
-          "oneOf": [
-            {
-              "type": "array",
-              "default": [],
-              "items": {
-                "$ref": "#/$defs/input"
-              }
-            },
-            {
-              "type": "object",
-              "default": {},
-              "propertyNames": {
-                "type": "string",
-                "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
-              },
-              "additionalProperties": {
-                "$ref": "#/$defs/inputInline"
-              }
-            }
-          ]
-        }
-      },
-      "anyOf": [
-        {
-          "required": [
-            "use"
-          ]
-        },
-        {
-          "required": [
-            "adapter"
-          ]
-        }
-      ]
-    },
-    "input": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "type"
-      ],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$",
-          "description": "Input parameter name (referenced as {{ inputs.<name> }})."
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "string",
-            "int",
-            "float",
-            "boolean",
-            "uuid",
-            "datetime"
-          ],
-          "description": "Input primitive type."
-        },
-        "required": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether this input is required (default: true)."
-        },
-        "default": {
-          "description": "Default value for optional inputs (type must match `type`)."
-        },
-        "description": {
-          "type": "string"
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "required": {
-                "const": false
-              }
-            },
-            "required": [
-              "required"
-            ]
+          "description": "Input parameters (map: input name -> config).",
+          "type": "object",
+          "default": {},
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
           },
-          "then": {
-            "required": [
-              "default"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "string"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "default": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "datetime"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "default": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "uuid"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "default": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "int"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "default": {
-                "type": "integer"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "float"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "default": {
-                "type": "number"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "boolean"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "default": {
-                "type": "boolean"
-              }
-            }
+          "additionalProperties": {
+            "$ref": "#/$defs/inputInline"
           }
         }
-      ]
+      }
     },
     "inputInline": {
       "type": "object",
@@ -498,34 +175,13 @@
         },
         "optional": {
           "type": "boolean",
-          "description": "Legacy flag. If true, the input is considered optional (and must provide a default)."
-        },
-        "required": {
-          "type": "boolean",
-          "description": "If set, overrides `optional`. If false, a `default` must be provided."
+          "description": "If true, the input is optional and must have a default."
         },
         "default": {
-          "description": "Default value for optional inputs (type must match `type`)."
+          "description": "Default value for optional inputs (type must match type)."
         }
       },
       "allOf": [
-        {
-          "if": {
-            "properties": {
-              "required": {
-                "const": false
-              }
-            },
-            "required": [
-              "required"
-            ]
-          },
-          "then": {
-            "required": [
-              "default"
-            ]
-          }
-        },
         {
           "if": {
             "properties": {
