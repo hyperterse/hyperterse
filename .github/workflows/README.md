@@ -80,4 +80,4 @@ Versions are managed in:
 - **NPM**: `distributions/npm/package.json` → `version` field
 - **Homebrew**: `distributions/homebrew/hyperterse.rb` → `version` field
 
-These are automatically updated by `scripts/version.sh` when creating version tags.
+These are automatically updated by `scripts/version.ts` when creating version tags.

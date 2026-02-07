@@ -7,10 +7,10 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 generate: ## Generate protobuf code using protoc
-	@./scripts/generate-proto.sh
+	@bun run scripts/generate-proto.ts
 
 build: generate ## Build the project
-	@./scripts/build.sh
+	@bun run scripts/build.ts
 
 run: build ## Build and run the server (requires CONFIG_FILE env var or -file flag)
 	@if [ -z "$(CONFIG_FILE)" ]; then \
@@ -22,7 +22,7 @@ run: build ## Build and run the server (requires CONFIG_FILE env var or -file fl
 
 setup: ## Complete setup: install dependencies and generate code
 	@echo "Running setup script..."
-	@./scripts/setup.sh
+	@bun run scripts/setup.ts
 	@echo ""
 	@echo "✓ Setup complete! Run 'make build' to build the project."
 

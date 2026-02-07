@@ -1,10 +1,10 @@
 # Distribution Manifests
 
-This directory contains distribution manifests for different package managers. These manifests are **automatically updated** by `scripts/version.sh` when you create a new version tag.
+This directory contains distribution manifests for different package managers. These manifests are **automatically updated** by `scripts/version.ts` when you create a new version tag.
 
 ## Automatic Version Updates
 
-When you run `scripts/version.sh` to create a new version tag, it will:
+When you run `scripts/version.ts` to create a new version tag, it will:
 1. Update all distribution manifests with the new version
 2. Commit the manifest changes
 3. Create the git tag
@@ -12,10 +12,10 @@ When you run `scripts/version.sh` to create a new version tag, it will:
 **Example:**
 ```bash
 # This will update all manifests to 1.2.3, commit them, and create tag v1.2.3
-./scripts/version.sh --version 1.2.3
+bun run scripts/version.ts --version 1.2.3
 
 # Or use bump commands
-./scripts/version.sh --patch  # Bumps patch version and updates all manifests
+bun run scripts/version.ts --patch  # Bumps patch version and updates all manifests
 ```
 
 ## Homebrew
@@ -38,7 +38,7 @@ brew install distributions/homebrew/hyperterse.rb
 
 **Files:** `npm/package.json`, `npm/install.js`
 
-The `install.js` postinstall script automatically detects the platform and architecture to download the correct binary during `npm install`. The version in `package.json` is automatically updated by `scripts/version.sh`.
+The `install.js` postinstall script automatically detects the platform and architecture to download the correct binary during `npm install`. The version in `package.json` is automatically updated by `scripts/version.ts`.
 
 **Manual usage:**
 ```bash

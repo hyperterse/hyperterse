@@ -57,7 +57,7 @@ When you push a version tag (e.g., `v1.2.3`), the workflow will:
 2. **Create GitHub release** with binaries and checksums
 3. **Publish to NPM** (if `NPM_TOKEN` is set)
    - Publishes the package from `distributions/npm/`
-   - Uses the version from `package.json` (updated by `scripts/version.sh`)
+   - Uses the version from `package.json` (updated by `scripts/version.ts`)
 4. **Update Homebrew tap** (runs automatically)
    - Calculates SHA256 checksums for all binaries
    - Updates the formula with version and checksums

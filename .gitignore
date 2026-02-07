@@ -48,3 +48,6 @@ dist/
 distributions/**/dist
 
 .cursor
+
+# Node
+node_modules

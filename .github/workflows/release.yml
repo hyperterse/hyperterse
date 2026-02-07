@@ -40,6 +40,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Install build dependencies
         run: |
           # Ensure GOPATH/bin is in PATH for protoc-gen-go
@@ -48,13 +51,13 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
       - name: Install dependencies
-        run: ./scripts/check-deps.sh
+        run: bun run scripts/check-deps.ts
 
       - name: Generate protobuf files
-        run: ./scripts/generate-proto.sh
+        run: bun run scripts/generate-proto.ts
 
       - name: Build binary
-        run: ./scripts/release.sh ${{ matrix.goos }} ${{ matrix.goarch }}
+        run: bun run scripts/release.ts ${{ matrix.goos }} ${{ matrix.goarch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -80,8 +83,11 @@ jobs:
         with:
           path: dist
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Flatten binaries
-        run: ./scripts/create-archives.sh dist
+        run: bun run scripts/create-archives.ts dist
 
       - name: Generate checksums
         run: |

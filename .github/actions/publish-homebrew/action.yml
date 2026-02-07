@@ -60,6 +60,9 @@ runs:
         fi
         echo "✓ Version matches: $FORMULA_VERSION"
 
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+
     - name: Update Homebrew formula with SHA256
       shell: bash
       run: |
@@ -70,7 +73,7 @@ runs:
         sed -i "s/^  version \".*\"/  version \"${VERSION}\"/" "$FORMULA_FILE"
 
         # Update SHA256 checksums using helper script
-        ./scripts/update-homebrew-sha256.sh \
+        bun run scripts/update-homebrew-sha256.ts \
           "$FORMULA_FILE" \
           "${{ steps.sha256.outputs.darwin_amd64 }}" \
           "${{ steps.sha256.outputs.darwin_arm64 }}" \
