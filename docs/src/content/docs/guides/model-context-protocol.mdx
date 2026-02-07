@@ -29,7 +29,7 @@ MCP is a standard protocol for connecting AI assistants to external data sources
 
 ## How it works
 
-Hyperterse exposes a single MCP endpoint at `POST /mcp` that implements JSON-RPC 2.0:
+Hyperterse exposes a single MCP endpoint at `/mcp` using **Streamable HTTP** and JSON-RPC 2.0:
 
 ```
 ┌─────────────┐         ┌─────────────────┐         ┌──────────┐
@@ -108,6 +108,7 @@ Execute a tool (query):
 ```bash
 curl -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
+  -H "MCP-Protocol-Version: 2025-11-25" \
   -d '{
     "jsonrpc": "2.0",
     "method": "tools/call",
@@ -181,6 +182,7 @@ import requests
 def call_mcp_tool(tool_name, arguments):
     response = requests.post(
         "http://localhost:8080/mcp",
+        headers={"MCP-Protocol-Version": "2025-11-25"},
         json={
             "jsonrpc": "2.0",
             "method": "tools/call",

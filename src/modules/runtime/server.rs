@@ -18,6 +18,7 @@ use tracing::{debug, info, warn};
 use crate::connectors::ConnectorManager;
 use crate::executor::QueryExecutor;
 use crate::handlers::{LlmsHandler, McpHandler, OpenApiHandler, QueryHandler};
+use crate::state::AppState;
 
 /// Runtime server for Hyperterse
 pub struct Runtime {
@@ -73,7 +74,7 @@ impl Runtime {
 
     /// Build the Axum router
     fn build_router(&self) -> Router {
-        let executor = self.executor.clone();
+        let app_state = AppState::new(self.executor.clone());
 
         // CORS configuration
         let cors = CorsLayer::new()
@@ -97,7 +98,7 @@ impl Runtime {
             // Health check
             .route("/health", get(Self::health_check))
             // State
-            .with_state(executor)
+            .with_state(app_state)
             // Middleware
             .layer(cors)
             .layer(timeout)

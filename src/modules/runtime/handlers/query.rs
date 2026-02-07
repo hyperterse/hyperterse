@@ -7,10 +7,9 @@ use axum::{
     Json,
 };
 use hyperterse_types::runtime::{QueryRequest, QueryResponse};
-use std::sync::Arc;
 use tracing::{error, info};
 
-use crate::executor::QueryExecutor;
+use crate::state::AppState;
 
 /// Handler for query execution requests
 pub struct QueryHandler;
@@ -18,13 +17,13 @@ pub struct QueryHandler;
 impl QueryHandler {
     /// Handle POST /query/{query_name}
     pub async fn execute(
-        State(executor): State<Arc<QueryExecutor>>,
+        State(state): State<AppState>,
         Path(query_name): Path<String>,
         Json(request): Json<QueryRequest>,
     ) -> impl IntoResponse {
         info!("Executing query: {}", query_name);
 
-        match executor.execute(&query_name, request.inputs).await {
+        match state.executor.execute(&query_name, request.inputs).await {
             Ok(results) => {
                 info!(
                     "Query '{}' executed successfully, {} rows returned",

@@ -2,17 +2,16 @@
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde_json::json;
-use std::sync::Arc;
 
-use crate::executor::QueryExecutor;
+use crate::state::AppState;
 
 /// Handler for OpenAPI documentation
 pub struct OpenApiHandler;
 
 impl OpenApiHandler {
     /// Handle GET /docs
-    pub async fn handle(State(executor): State<Arc<QueryExecutor>>) -> impl IntoResponse {
-        let model = executor.model();
+    pub async fn handle(State(state): State<AppState>) -> impl IntoResponse {
+        let model = state.executor.model();
         let spec = Self::generate_spec(model);
         (StatusCode::OK, Json(spec))
     }

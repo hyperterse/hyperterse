@@ -10,6 +10,12 @@ use std::collections::HashMap;
 static INPUT_PATTERN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\{\{\s*inputs\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap());
 
+/// Regex pattern for quoted input placeholders in MongoDB JSON: "{{ inputs.fieldName }}"
+/// This captures the surrounding quotes so they can be replaced together,
+/// preventing double-quoting when the value is serialized as JSON.
+static QUOTED_INPUT_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#""(\{\{\s*inputs\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\})""#).unwrap());
+
 /// Regex pattern for environment variable placeholders: {{ env.VAR_NAME }}
 static ENV_PATTERN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").unwrap());

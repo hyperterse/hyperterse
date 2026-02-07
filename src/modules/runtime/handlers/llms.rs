@@ -5,17 +5,16 @@ use axum::{
     http::{header, StatusCode},
     response::IntoResponse,
 };
-use std::sync::Arc;
 
-use crate::executor::QueryExecutor;
+use crate::state::AppState;
 
 /// Handler for LLM documentation
 pub struct LlmsHandler;
 
 impl LlmsHandler {
     /// Handle GET /llms.txt
-    pub async fn handle(State(executor): State<Arc<QueryExecutor>>) -> impl IntoResponse {
-        let model = executor.model();
+    pub async fn handle(State(state): State<AppState>) -> impl IntoResponse {
+        let model = state.executor.model();
         let content = Self::generate_llms_txt(model);
 
         (

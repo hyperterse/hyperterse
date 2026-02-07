@@ -18,7 +18,7 @@ pub struct InitCommand {
     pub output: String,
 
     /// Database connector type
-    #[arg(short, long, default_value = "postgres")]
+    #[arg(short = 'd', long, default_value = "postgres")]
     pub connector: String,
 }
 

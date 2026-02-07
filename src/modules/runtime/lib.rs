@@ -7,6 +7,7 @@ pub mod connectors;
 pub mod executor;
 pub mod handlers;
 pub mod server;
+pub mod state;
 
 pub use connectors::{Connector, ConnectorManager};
 pub use executor::QueryExecutor;

@@ -4,6 +4,8 @@
   "private": true,
   "description": "Hyperterse - Build System Scripts (Bun Shell)",
   "scripts": {
+    "hyperterse:debug": "./target/debug/hyperterse",
+    "hyperterse:release": "./target/release/hyperterse",
     "build": "bun run scripts/build.ts",
     "build:release": "bun run scripts/build.ts --release",
     "build:all": "bun run scripts/build.ts --all",

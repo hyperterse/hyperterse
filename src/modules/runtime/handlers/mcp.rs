@@ -3,16 +3,14 @@
 use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     Json,
 };
-use hyperterse_types::runtime::{error_codes, McpRequest, McpResponse};
+use hyperterse_types::runtime::{error_codes, McpResponse};
 use serde_json::json;
-use std::sync::Arc;
 use tracing::{error, info};
-use uuid::Uuid;
 
-use crate::executor::QueryExecutor;
+use crate::state::{AppState, MCP_LATEST_PROTOCOL_VERSION, MCP_SESSION_ID_HEADER};
 
 /// Handler for MCP protocol requests
 pub struct McpHandler;
@@ -20,69 +18,201 @@ pub struct McpHandler;
 impl McpHandler {
     /// Handle POST /mcp (JSON-RPC 2.0)
     pub async fn handle_rpc(
-        State(executor): State<Arc<QueryExecutor>>,
+        State(state): State<AppState>,
         headers: HeaderMap,
-        Json(request): Json<McpRequest>,
-    ) -> impl IntoResponse {
-        // Validate JSON-RPC version
-        if request.jsonrpc != "2.0" {
+        Json(message): Json<serde_json::Value>,
+    ) -> Response {
+        let jsonrpc = message
+            .get("jsonrpc")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+
+        if jsonrpc != "2.0" {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(McpResponse::error(
-                    request.id,
+                    message.get("id").cloned().unwrap_or(json!(null)),
                     error_codes::INVALID_REQUEST,
                     "Invalid JSON-RPC version",
                 )),
-            );
+            )
+                .into_response();
         }
 
-        info!("MCP request: method={}", request.method);
+        // Responses or notifications from the client can be acknowledged with 202.
+        // (Streamable HTTP transport spec)
+        let method = message.get("method").and_then(|v| v.as_str());
+        let id = message.get("id").cloned();
 
-        match request.method.as_str() {
-            "tools/list" => Self::handle_tools_list(&executor, request.id),
-            "tools/call" => Self::handle_tools_call(&executor, request.id, request.params).await,
-            "initialize" => Self::handle_initialize(request.id, &headers),
-            "ping" => Self::handle_ping(request.id),
+        // Session management is optional: if a client provides MCP-Session-Id we
+        // accept it, but we do NOT reject requests that omit it.  This allows
+        // simple / direct MCP connections (e.g. Claude Desktop, curl) to work
+        // without first calling initialize to obtain a session.
+
+        // If this is a JSON-RPC response (no method, has result/error), accept it.
+        if method.is_none() && (message.get("result").is_some() || message.get("error").is_some()) {
+            return StatusCode::ACCEPTED.into_response();
+        }
+
+        let Some(method) = method else {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(McpResponse::error(
+                    id.unwrap_or(json!(null)),
+                    error_codes::INVALID_REQUEST,
+                    "Invalid JSON-RPC message",
+                )),
+            )
+                .into_response();
+        };
+
+        // Notifications: accept and do not respond with a JSON body.
+        // (Most notably: notifications/initialized)
+        if id.is_none() {
+            info!("MCP notification: method={}", method);
+            return StatusCode::ACCEPTED.into_response();
+        }
+
+        let id = id.unwrap();
+
+        info!("MCP request: method={}", method);
+        let params = message.get("params").cloned().unwrap_or(json!({}));
+
+        match method {
+            "tools/list" => Self::handle_tools_list(&state, id, &headers)
+                .await
+                .into_response(),
+            "tools/call" => Self::handle_tools_call(&state, id, params, &headers)
+                .await
+                .into_response(),
+            "initialize" => Self::handle_initialize(&state, id, &headers).await,
+            "ping" => Self::handle_ping(id).into_response(),
             _ => (
                 StatusCode::OK,
                 Json(McpResponse::error(
-                    request.id,
+                    id,
                     error_codes::METHOD_NOT_FOUND,
-                    format!("Method not found: {}", request.method),
+                    format!("Method not found: {}", method),
                 )),
-            ),
+            )
+                .into_response(),
         }
     }
 
     /// Handle GET /mcp (SSE endpoint for server-initiated messages)
-    pub async fn handle_sse() -> impl IntoResponse {
-        // For now, return a simple message indicating SSE is available
-        // Full SSE implementation would use axum's SSE response type
-        (
-            StatusCode::OK,
-            Json(json!({
-                "message": "MCP SSE endpoint",
-                "session_id": Uuid::new_v4().to_string()
-            })),
-        )
+    pub async fn handle_sse(State(state): State<AppState>, headers: HeaderMap) -> Response {
+        use axum::response::sse::{Event, KeepAlive, Sse};
+        use futures::StreamExt;
+        use std::convert::Infallible;
+        use tokio_stream::wrappers::BroadcastStream;
+
+        // Resolve session: use existing session if header provided, otherwise
+        // create an ephemeral session so that sessionless clients can still
+        // open an SSE stream.
+        let session = if let Some(session_id) = headers
+            .get(MCP_SESSION_ID_HEADER)
+            .and_then(|v| v.to_str().ok())
+        {
+            match state.mcp_sessions.get(session_id).await {
+                Some(s) => s,
+                None => {
+                    return (
+                        StatusCode::NOT_FOUND,
+                        Json(json!({"error": "Unknown MCP session"})),
+                    )
+                        .into_response();
+                }
+            }
+        } else {
+            // No session header — create an ephemeral session for this SSE
+            // connection so the stream machinery works without auth.
+            let ephemeral_id = state.mcp_sessions.create().await;
+            state.mcp_sessions.get(&ephemeral_id).await.unwrap()
+        };
+
+        let rx = session.tx.subscribe();
+        let session_for_events = session.clone();
+        let stream = BroadcastStream::new(rx).filter_map(move |msg| {
+            let session = session_for_events.clone();
+            async move {
+                match msg {
+                    Ok(value) => {
+                        let id = session.next_event_seq().to_string();
+                        let data =
+                            serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_string());
+                        Some(Ok::<Event, Infallible>(Event::default().id(id).data(data)))
+                    }
+                    Err(_) => None,
+                }
+            }
+        });
+
+        // Prime the client with an event id + empty data field (recommended by spec).
+        let priming_event = {
+            let session = session.clone();
+            let id = session.next_event_seq().to_string();
+            futures::stream::once(async move {
+                Ok::<Event, Infallible>(Event::default().id(id).data(""))
+            })
+        };
+
+        let combined = priming_event.chain(stream);
+
+        Sse::new(combined)
+            .keep_alive(KeepAlive::new())
+            .into_response()
     }
 
     /// Handle DELETE /mcp (session termination)
-    pub async fn handle_delete() -> impl IntoResponse {
+    pub async fn handle_delete(State(state): State<AppState>, headers: HeaderMap) -> Response {
         info!("MCP session termination requested");
-        (
-            StatusCode::OK,
-            Json(json!({"message": "Session terminated"})),
-        )
+        let session_id = headers
+            .get(MCP_SESSION_ID_HEADER)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        // If no session header is provided, just acknowledge — there's nothing
+        // to terminate when sessions are not in use.
+        let Some(session_id) = session_id else {
+            return (
+                StatusCode::OK,
+                Json(json!({"message": "No session to terminate"})),
+            )
+                .into_response();
+        };
+
+        let removed = state.mcp_sessions.remove(&session_id).await;
+        if removed {
+            (
+                StatusCode::OK,
+                Json(json!({"message": "Session terminated"})),
+            )
+                .into_response()
+        } else {
+            (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "Unknown MCP session"})),
+            )
+                .into_response()
+        }
     }
 
     /// Handle initialize method
-    fn handle_initialize(
+    async fn handle_initialize(
+        state: &AppState,
         id: serde_json::Value,
         _headers: &HeaderMap,
-    ) -> (StatusCode, Json<McpResponse>) {
+    ) -> Response {
+        // Accept any MCP-Protocol-Version header value (or absent).  We respond
+        // with our latest supported version and let the client negotiate down if
+        // needed.  This keeps the server compatible with older and newer clients
+        // without rejecting them during initialization.
+
+        // Create a new server-side session and return it in MCP-Session-Id header.
+        let session_id = state.mcp_sessions.create().await;
+
         let result = json!({
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": MCP_LATEST_PROTOCOL_VERSION,
             "capabilities": {
                 "tools": {}
             },
@@ -92,7 +222,12 @@ impl McpHandler {
             }
         });
 
-        (StatusCode::OK, Json(McpResponse::success(id, result)))
+        (
+            StatusCode::OK,
+            [(MCP_SESSION_ID_HEADER, session_id)],
+            Json(McpResponse::success(id, result)),
+        )
+            .into_response()
     }
 
     /// Handle ping method
@@ -101,11 +236,12 @@ impl McpHandler {
     }
 
     /// Handle tools/list method
-    fn handle_tools_list(
-        executor: &QueryExecutor,
+    async fn handle_tools_list(
+        state: &AppState,
         id: serde_json::Value,
+        _headers: &HeaderMap,
     ) -> (StatusCode, Json<McpResponse>) {
-        let model = executor.model();
+        let model = state.executor.model();
 
         let tools: Vec<serde_json::Value> = model
             .queries
@@ -157,9 +293,10 @@ impl McpHandler {
 
     /// Handle tools/call method
     async fn handle_tools_call(
-        executor: &QueryExecutor,
+        state: &AppState,
         id: serde_json::Value,
         params: serde_json::Value,
+        _headers: &HeaderMap,
     ) -> (StatusCode, Json<McpResponse>) {
         let name = params.get("name").and_then(|v| v.as_str());
         let arguments = params.get("arguments");
@@ -180,7 +317,7 @@ impl McpHandler {
             .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
 
-        match executor.execute(tool_name, inputs).await {
+        match state.executor.execute(tool_name, inputs).await {
             Ok(results) => {
                 let content = json!([{
                     "type": "text",
