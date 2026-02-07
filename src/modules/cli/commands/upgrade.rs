@@ -8,7 +8,7 @@ use tracing::info;
 #[derive(Args, Debug)]
 pub struct UpgradeCommand {
     /// Target version (latest if not specified)
-    #[arg(short, long)]
+    #[arg(long)]
     pub version: Option<String>,
 
     /// Check for updates without installing
