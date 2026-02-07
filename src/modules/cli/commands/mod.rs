@@ -6,7 +6,9 @@ mod generate;
 mod init;
 mod run;
 mod upgrade;
+mod completion;
 
+pub use completion::CompletionCommand;
 pub use dev::DevCommand;
 pub use export::ExportCommand;
 pub use generate::{GenerateCommand, GenerateSubcommand};
@@ -65,6 +67,10 @@ pub enum Commands {
 
     /// Export configuration
     Export(ExportCommand),
+
+    /// Generate shell completion scripts (hidden)
+    #[command(hide = true)]
+    Completion(CompletionCommand),
 }
 
 impl Cli {

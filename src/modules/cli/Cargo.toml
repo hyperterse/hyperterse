@@ -23,6 +23,7 @@ hyperterse-types = { workspace = true }
 
 # CLI
 clap = { workspace = true, features = ["derive"] }
+clap_complete = "4.5"
 
 # Async runtime
 tokio = { workspace = true, features = ["full"] }

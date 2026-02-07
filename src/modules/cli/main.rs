@@ -55,6 +55,9 @@ async fn run() -> Result<(), HyperterseError> {
         Commands::Export(cmd) => {
             cmd.execute(&config_path).await?;
         }
+        Commands::Completion(cmd) => {
+            cmd.execute();
+        }
     }
 
     Ok(())
