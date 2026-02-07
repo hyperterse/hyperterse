@@ -2,7 +2,7 @@
 
 use clap::Args;
 use hyperterse_core::HyperterseError;
-use hyperterse_parser::parse_file;
+use hyperterse_parser::{parse_file, parse_string};
 use hyperterse_runtime::Runtime;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
@@ -19,24 +19,37 @@ pub struct DevCommand {
     #[arg(short, long)]
     pub port: Option<u16>,
 
+    /// Configuration as string (instead of file). When set, file watching is disabled.
+    #[arg(short, long)]
+    pub source: Option<String>,
+
     /// Debounce delay in milliseconds for file changes
     #[arg(long, default_value = "500")]
     pub debounce: u64,
 }
 
 impl DevCommand {
-    /// Execute the dev command with file watching
+    /// Execute the dev command with file watching (or run once when --source is used)
     pub async fn execute(&self, config_path: &str) -> Result<(), HyperterseError> {
-        info!("Starting development mode with hot reload");
-        info!("Watching: {}", config_path);
-
-        // Parse initial configuration
-        let model = parse_file(config_path)?;
+        let model = if let Some(ref source) = self.source {
+            info!("Starting development mode with config from --source (no file watching)");
+            parse_string(source)?
+        } else {
+            info!("Starting development mode with hot reload");
+            info!("Watching: {}", config_path);
+            parse_file(config_path)?
+        };
 
         // Create runtime (port override handled internally, preserved across reloads)
         let runtime = Arc::new(RwLock::new(
             Runtime::with_port_override(model, self.port).await?,
         ));
+
+        if self.source.is_some() {
+            // No file to watch: just run the server
+            let r = runtime.read().await;
+            return r.run().await;
+        }
 
         // Set up file watcher
         let (tx, mut rx) = mpsc::channel::<()>(10);
@@ -133,6 +146,7 @@ mod tests {
     fn test_dev_command_args() {
         let cmd = DevCommand {
             port: Some(3000),
+            source: None,
             debounce: 1000,
         };
         assert_eq!(cmd.port, Some(3000));

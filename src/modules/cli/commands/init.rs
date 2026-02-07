@@ -106,12 +106,7 @@ impl InitCommand {
                 r#"  find-users:
     use: main
     statement: |
-      {
-        "collection": "users",
-        "operation": "find",
-        "filter": {},
-        "options": { "limit": {{ inputs.limit }} }
-      }
+      { "database": "mydb", "find": "users", "filter": {}, "limit": {{ inputs.limit }} }
     description: "Find users"
     inputs:
       limit:

@@ -1006,6 +1006,7 @@ dependencies = [
 name = "hyperterse-cli"
 version = "1.2.1"
 dependencies = [
+ "base64 0.21.7",
  "clap",
  "clap_complete",
  "hyperterse-core",
