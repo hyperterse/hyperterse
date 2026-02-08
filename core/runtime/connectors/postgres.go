@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
 	_ "github.com/lib/pq"
 )
 
@@ -17,9 +18,16 @@ type PostgresConnector struct {
 }
 
 // NewPostgresConnector creates a new PostgreSQL connector
-func NewPostgresConnector(connectionString string, options map[string]string) (*PostgresConnector, error) {
+func NewPostgresConnector(def *protoconnectors.ConnectorDef) (*PostgresConnector, error) {
+	connectionString := def.GetConnectionString()
+	options := def.GetOptions()
+
+	if def.GetConfig().GetJsonStatements() {
+		return nil, fmt.Errorf("json_statements is not supported for postgres")
+	}
+
 	// Append all options to connection string if provided
-	if options != nil && len(options) > 0 {
+	if len(options) > 0 {
 		// Check if connection string is URL format (starts with postgres:// or postgresql://)
 		if strings.HasPrefix(connectionString, "postgres://") || strings.HasPrefix(connectionString, "postgresql://") {
 			// Parse the URL format connection string

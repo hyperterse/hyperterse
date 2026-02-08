@@ -8,7 +8,7 @@ sidebar:
 import Aside from '@/components/admonition.astro'
 import { Steps } from '@astrojs/starlight/components'
 
-MongoDB is a document-oriented NoSQL database. Hyperterse provides support for MongoDB using the official [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver), enabling you to run find, findOne, insertOne, insertMany, updateOne, updateMany, deleteOne, deleteMany, aggregate, and countDocuments operations.
+MongoDB is a document-oriented NoSQL database. Hyperterse provides support for MongoDB using the official [MongoDB Go Driver](https://github.com/mongodb/mongo-go-driver). Statements are passed directly as [MongoDB database commands](https://www.mongodb.com/docs/manual/reference/command/), giving you access to any operation MongoDB supports.
 
 ## Connecting to your server
 
@@ -109,109 +109,26 @@ It is very easy to set up a database for Hyperterse. You can use your existing M
 
 ## Usage
 
-MongoDB queries in Hyperterse use JSON statements. The `statement` field contains a JSON object specifying the database, collection, operation, and any filters or options:
-
-**Find documents with filter and limit:**
+MongoDB queries in Hyperterse use JSON statements with two fields: `database` and `command`. The `command` field takes a raw [MongoDB database command](https://www.mongodb.com/docs/manual/reference/command/) — the same syntax used by `db.runCommand()` in the MongoDB shell.
 
 ```yaml
-queries:
-  find-users:
-    use: main_db
-    description: 'Find users by name'
-    statement: |
-      {"database":"mydb","collection":"users","operation":"find","filter":{"name":"{{ inputs.name }}"},"options":{"limit":10}}
-    inputs:
-      name:
-        type: string
+statement: |
+  {"database": "mydb", "command": {"find": "users", "filter": {"name": "{{ inputs.name }}"}, "limit": 10}}
 ```
 
-Hyperterse supports all standard MongoDB operations including find, findOne, insertOne, insertMany, updateOne, updateMany, deleteOne, deleteMany, aggregate, and countDocuments. Use parameterized inputs with `{{ inputs.name }}` for dynamic values. For collections using ObjectId fields, pass them as `{"$oid":"hexstring"}` in filters and updates.
+<Aside type="caution">
+  The **command name** (e.g. `"find"`, `"insert"`) **must be the first key**
+  inside the `command` object. This is a MongoDB requirement.
+</Aside>
 
-### Supported operations
+Use parameterized inputs with `{{ inputs.name }}` for dynamic values. For ObjectId fields, pass them as `{"$oid": "hexstring"}` in filters and updates.
 
-- **find** – query documents (optional: `filter`, `options` with `limit`, `sort`, `projection`, `skip`)
-- **findOne** – single document (optional: `filter`, `options` with `sort`, `projection`, `skip`)
-- **insertOne** – insert one document (`document`)
-- **insertMany** – insert many documents (`documents` array)
-- **updateOne** – update one document (`filter`, `update`, optional `options.upsert`)
-- **updateMany** – update many documents (`filter`, `update`, optional `options.upsert`)
-- **deleteOne** – delete one document (`filter`)
-- **deleteMany** – delete many documents (`filter`)
-- **aggregate** – aggregation pipeline (`pipeline` array)
-- **countDocuments** – count documents (`filter`, optional `options.limit`, `options.skip`)
+### Statement format
 
-### Examples
-
-**Find one document:**
-
-```yaml
-queries:
-  get-user:
-    use: main_db
-    description: 'Get user by ID'
-    statement: |
-      {"database":"mydb","collection":"users","operation":"findOne","filter":{"_id":{"$oid":"{{ inputs.userId }}"}}}
-    inputs:
-      userId:
-        type: string
-```
-
-**Insert one document:**
-
-```yaml
-queries:
-  create-user:
-    use: main_db
-    description: 'Create a user'
-    statement: |
-      {"database":"mydb","collection":"users","operation":"insertOne","document":{"name":"{{ inputs.name }}","email":"{{ inputs.email }}"}}
-    inputs:
-      name:
-        type: string
-      email:
-        type: string
-```
-
-**Update one document:**
-
-```yaml
-queries:
-  update-user:
-    use: main_db
-    description: 'Update user email'
-    statement: |
-      {"database":"mydb","collection":"users","operation":"updateOne","filter":{"_id":{"$oid":"{{ inputs.userId }}"}},"update":{"$set":{"email":"{{ inputs.email }}"}}}
-    inputs:
-      userId:
-        type: string
-      email:
-        type: string
-```
-
-**Delete one document:**
-
-```yaml
-queries:
-  delete-user:
-    use: main_db
-    description: 'Delete user by ID'
-    statement: |
-      {"database":"mydb","collection":"users","operation":"deleteOne","filter":{"_id":{"$oid":"{{ inputs.userId }}"}}}
-    inputs:
-      userId:
-        type: string
-```
-
-**Aggregate:**
-
-```yaml
-queries:
-  user-stats:
-    use: main_db
-    description: 'Count users by status'
-    statement: |
-      {"database":"mydb","collection":"users","operation":"aggregate","pipeline":[{"$group":{"_id":"$status","count":{"$sum":1}}}]}
-```
+| Field      | Description                                                                                                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `database` | The MongoDB database name to run the command against.                                                                                             |
+| `command`  | A raw MongoDB command object. See [MongoDB command reference](https://www.mongodb.com/docs/manual/reference/command/) for all available commands. |
 
 ## Performance
 
@@ -245,4 +162,6 @@ For MongoDB Atlas, use the `mongodb+srv://` URI provided by Atlas. The driver ha
 
 ### Invalid statement JSON
 
-The query `statement` must be valid JSON. Ensure quotes are correct and that `{{ inputs.x }}` placeholders are inside quoted strings. After substitution, the connector parses the result as JSON; malformed JSON will return an error.
+The query `statement` must be valid JSON with `database` and `command` fields. Ensure quotes are correct and that `{{ inputs.x }}` placeholders are inside quoted strings. After substitution, the connector parses the result as JSON; malformed JSON will return an error.
+
+The command name (e.g. `"find"`, `"insert"`) **must be the first key** inside the `command` object. MongoDB rejects commands where the command name is not the first field.

@@ -12,4 +12,13 @@ enum Connector {
   CONNECTOR_MYSQL = 3;
   CONNECTOR_MONGODB = 4;
 }
+message ConnectorDef {
+  string connection_string = 1;
+  map<string, string> options = 2;
+  ConnectorConfig config = 3;
+}
+
+message ConnectorConfig {
+  bool json_statements = 1;
+}
 

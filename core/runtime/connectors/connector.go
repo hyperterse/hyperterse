@@ -24,8 +24,8 @@ type Connector interface {
 	Close() error
 }
 
-// NewConnector creates a new connector based on the adapter configuration
-// Environment variables in connection_string are substituted at runtime (server startup)
+// NewConnector creates a new connector based on the adapter configuration.
+// Environment variables in connection_string are substituted at runtime (server startup).
 func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 	if adapter.ConnectionString == "" {
 		return nil, fmt.Errorf("adapter '%s' missing connection string", adapter.Name)
@@ -42,15 +42,25 @@ func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 		options = adapter.Options.Options
 	}
 
+	// Build ConnectorDef from adapter fields
+	def := &connectors.ConnectorDef{
+		ConnectionString: connectionString,
+		Options:          options,
+		Config: &connectors.ConnectorConfig{
+			JsonStatements: false,
+		},
+	}
+
 	switch adapter.Connector {
 	case connectors.Connector_CONNECTOR_POSTGRES:
-		return NewPostgresConnector(connectionString, options)
+		return NewPostgresConnector(def)
 	case connectors.Connector_CONNECTOR_MYSQL:
-		return NewMySQLConnector(connectionString, options)
+		return NewMySQLConnector(def)
 	case connectors.Connector_CONNECTOR_REDIS:
-		return NewRedisConnector(connectionString, adapter.Options)
+		return NewRedisConnector(def)
 	case connectors.Connector_CONNECTOR_MONGODB:
-		return NewMongoDBConnector(connectionString, options)
+		def.Config.JsonStatements = true
+		return NewMongoDBConnector(def)
 	case connectors.Connector_CONNECTOR_UNSPECIFIED:
 		return nil, fmt.Errorf("adapter '%s' has unspecified connector type", adapter.Name)
 	default:

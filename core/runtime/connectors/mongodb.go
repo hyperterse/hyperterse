@@ -1,6 +1,7 @@
 package connectors
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	mongoOptions "go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -21,29 +23,28 @@ type MongoDBConnector struct {
 }
 
 // NewMongoDBConnector creates a new MongoDB connector
-func NewMongoDBConnector(connectionString string, options map[string]string) (*MongoDBConnector, error) {
+func NewMongoDBConnector(def *protoconnectors.ConnectorDef) (*MongoDBConnector, error) {
+	connectionString := def.GetConnectionString()
+	options := def.GetOptions()
+
+	if !def.GetConfig().GetJsonStatements() {
+		return nil, fmt.Errorf("json_statements must be true for mongodb")
+	}
+
 	log := logger.New("connector:mongodb")
 	log.Debugf("Opening MongoDB connection")
 
 	// Append all options to connection string if provided
-	if options != nil && len(options) > 0 {
-		// Check if connection string is MongoDB URL format (starts with mongodb:// or mongodb+srv://)
+	if len(options) > 0 {
 		if strings.HasPrefix(connectionString, "mongodb://") || strings.HasPrefix(connectionString, "mongodb+srv://") {
-			// Parse the MongoDB connection string
 			parsedURL, err := url.Parse(connectionString)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse mongodb connection string: %w", err)
 			}
-
-			// Get existing query parameters
 			query := parsedURL.Query()
-
-			// Append all options directly to query parameters
 			for key, value := range options {
 				query.Set(key, value)
 			}
-
-			// Rebuild connection string with updated query parameters
 			parsedURL.RawQuery = query.Encode()
 			connectionString = parsedURL.String()
 		}
@@ -70,20 +71,105 @@ func NewMongoDBConnector(connectionString string, options map[string]string) (*M
 	return &MongoDBConnector{client: client}, nil
 }
 
-// mongoStatement represents the JSON structure for a MongoDB operation
+// mongoStatement represents the JSON structure for a MongoDB command.
+// Command is kept as json.RawMessage so we can parse it into an ordered bson.D,
+// which is required by RunCommand (the command name must be the first key).
 type mongoStatement struct {
-	Database   string           `json:"database"`
-	Collection string           `json:"collection"`
-	Operation  string           `json:"operation"`
-	Filter     map[string]any   `json:"filter"`
-	Document   map[string]any   `json:"document"`
-	Documents  []map[string]any `json:"documents"`
-	Update     map[string]any   `json:"update"`
-	Pipeline   []map[string]any `json:"pipeline"`
-	Options    map[string]any   `json:"options"`
+	Database string          `json:"database"`
+	Command  json.RawMessage `json:"command"`
 }
 
-// toBSON converts map[string]any to bson.M for driver calls (handles nested maps and slices)
+// Execute runs a raw MongoDB command via RunCommand.
+// The statement must be JSON with "database" and "command" fields.
+//
+// Example statements:
+//
+//	{ "database": "mydb", "command": { "find": "orders", "filter": {} } }
+//	{ "database": "mydb", "command": { "find": "orders", "filter": { "id": "123" }, "limit": 1, "singleBatch": true } }
+//	{ "database": "mydb", "command": { "insert": "orders", "documents": [{ "id": "456", "total": 100 }] } }
+//	{ "database": "mydb", "command": { "update": "orders", "updates": [{ "q": { "id": "123" }, "u": { "$set": { "total": 200 } } }] } }
+//	{ "database": "mydb", "command": { "delete": "orders", "deletes": [{ "q": { "id": "123" }, "limit": 1 }] } }
+//	{ "database": "mydb", "command": { "aggregate": "orders", "pipeline": [{ "$match": { "total": { "$gt": 50 } } }], "cursor": {} } }
+//	{ "database": "mydb", "command": { "count": "orders", "query": {} } }
+func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
+	var stmt mongoStatement
+	if err := json.Unmarshal([]byte(statement), &stmt); err != nil {
+		return nil, fmt.Errorf("mongodb statement must be valid JSON: %w", err)
+	}
+
+	if stmt.Database == "" {
+		return nil, fmt.Errorf("mongodb statement must include database")
+	}
+	if len(stmt.Command) == 0 {
+		return nil, fmt.Errorf("mongodb statement must include command")
+	}
+
+	cmd, err := commandToBsonD(stmt.Command)
+	if err != nil {
+		return nil, fmt.Errorf("invalid mongodb command: %w", err)
+	}
+
+	db := m.client.Database(stmt.Database)
+
+	var result bson.M
+	if err := db.RunCommand(ctx, cmd).Decode(&result); err != nil {
+		return nil, fmt.Errorf("mongodb command failed: %w", err)
+	}
+
+	// If the result contains a cursor (find/aggregate), extract documents from firstBatch
+	if cursor, ok := result["cursor"]; ok {
+		if cursorDoc, ok := cursor.(bson.M); ok {
+			if firstBatch, ok := cursorDoc["firstBatch"]; ok {
+				if docs, ok := firstBatch.(bson.A); ok {
+					results := make([]map[string]any, 0, len(docs))
+					for _, doc := range docs {
+						if m, ok := doc.(bson.M); ok {
+							results = append(results, bsonMToMap(m))
+						}
+					}
+					return results, nil
+				}
+			}
+		}
+	}
+
+	// For non-cursor results (insert, update, delete, count, etc.), return the raw result
+	return []map[string]any{bsonMToMap(result)}, nil
+}
+
+// commandToBsonD parses command JSON into bson.D preserving key order.
+// RunCommand requires the command name (e.g. "find") to be the first key.
+func commandToBsonD(raw json.RawMessage) (bson.D, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+
+	// expect opening {
+	t, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	if delim, ok := t.(json.Delim); !ok || delim != '{' {
+		return nil, fmt.Errorf("command must be a JSON object")
+	}
+
+	var d bson.D
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key := t.(string)
+
+		var val any
+		if err := dec.Decode(&val); err != nil {
+			return nil, err
+		}
+		d = append(d, bson.E{Key: key, Value: toBSONValue(val)})
+	}
+
+	return d, nil
+}
+
+// toBSON converts map[string]any to bson.M (handles nested maps and slices)
 func toBSON(m map[string]any) bson.M {
 	if m == nil {
 		return nil
@@ -110,308 +196,6 @@ func toBSONValue(v any) any {
 		return arr
 	default:
 		return v
-	}
-}
-
-func toBSONSlice(docs []map[string]any) []any {
-	if docs == nil {
-		return nil
-	}
-	out := make([]any, len(docs))
-	for i, m := range docs {
-		out[i] = toBSON(m)
-	}
-	return out
-}
-
-// Execute executes a MongoDB operation. The statement must be a JSON object with database, collection, operation, and operation-specific fields.
-func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
-	var stmt mongoStatement
-	if err := json.Unmarshal([]byte(statement), &stmt); err != nil {
-		return nil, fmt.Errorf("mongodb statement must be valid JSON: %w", err)
-	}
-
-	if stmt.Database == "" || stmt.Collection == "" {
-		return nil, fmt.Errorf("mongodb statement must include database and collection")
-	}
-	if stmt.Operation == "" {
-		return nil, fmt.Errorf("mongodb statement must include operation (find, findOne, insertOne, insertMany, updateOne, updateMany, deleteOne, deleteMany, aggregate, countDocuments)")
-	}
-
-	coll := m.client.Database(stmt.Database).Collection(stmt.Collection)
-	filter := toBSON(stmt.Filter)
-
-	switch stmt.Operation {
-	case "find":
-		return m.executeFind(ctx, coll, filter, stmt.Options)
-	case "findOne":
-		return m.executeFindOne(ctx, coll, filter, stmt.Options)
-	case "insertOne":
-		return m.executeInsertOne(ctx, coll, stmt.Document)
-	case "insertMany":
-		return m.executeInsertMany(ctx, coll, stmt.Documents)
-	case "updateOne":
-		return m.executeUpdateOne(ctx, coll, filter, stmt.Update, stmt.Options)
-	case "updateMany":
-		return m.executeUpdateMany(ctx, coll, filter, stmt.Update, stmt.Options)
-	case "deleteOne":
-		return m.executeDeleteOne(ctx, coll, filter)
-	case "deleteMany":
-		return m.executeDeleteMany(ctx, coll, filter)
-	case "aggregate":
-		return m.executeAggregate(ctx, coll, stmt.Pipeline)
-	case "countDocuments":
-		return m.executeCountDocuments(ctx, coll, filter, stmt.Options)
-	default:
-		return nil, fmt.Errorf("unsupported mongodb operation: %s", stmt.Operation)
-	}
-}
-
-func (m *MongoDBConnector) executeFind(ctx context.Context, coll *mongo.Collection, filter bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	opts := mongoOptions.Find()
-	if optsMap != nil {
-		if v, ok := optsMap["limit"]; ok {
-			if n, ok := toInt64(v); ok {
-				opts.SetLimit(n)
-			}
-		}
-		if v, ok := optsMap["sort"]; ok {
-			if sortMap, ok := v.(map[string]any); ok {
-				opts.SetSort(toBSON(sortMap))
-			}
-		}
-		if v, ok := optsMap["projection"]; ok {
-			if projMap, ok := v.(map[string]any); ok {
-				opts.SetProjection(toBSON(projMap))
-			}
-		}
-		if v, ok := optsMap["skip"]; ok {
-			if n, ok := toInt64(v); ok {
-				opts.SetSkip(n)
-			}
-		}
-	}
-
-	if filter == nil {
-		filter = bson.M{}
-	}
-
-	cur, err := coll.Find(ctx, filter, opts)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb find failed: %w", err)
-	}
-	defer cur.Close(ctx)
-
-	var results []map[string]any
-	for cur.Next(ctx) {
-		var doc bson.M
-		if err := cur.Decode(&doc); err != nil {
-			return nil, fmt.Errorf("mongodb decode failed: %w", err)
-		}
-		results = append(results, bsonMToMap(doc))
-	}
-	if err := cur.Err(); err != nil {
-		return nil, fmt.Errorf("mongodb find cursor error: %w", err)
-	}
-	return results, nil
-}
-
-func (m *MongoDBConnector) executeFindOne(ctx context.Context, coll *mongo.Collection, filter bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	opts := mongoOptions.FindOne()
-	if optsMap != nil {
-		if v, ok := optsMap["sort"]; ok {
-			if sortMap, ok := v.(map[string]any); ok {
-				opts.SetSort(toBSON(sortMap))
-			}
-		}
-		if v, ok := optsMap["projection"]; ok {
-			if projMap, ok := v.(map[string]any); ok {
-				opts.SetProjection(toBSON(projMap))
-			}
-		}
-		if v, ok := optsMap["skip"]; ok {
-			if n, ok := toInt64(v); ok {
-				opts.SetSkip(n)
-			}
-		}
-	}
-
-	if filter == nil {
-		filter = bson.M{}
-	}
-
-	var doc bson.M
-	err := coll.FindOne(ctx, filter, opts).Decode(&doc)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return []map[string]any{}, nil
-		}
-		return nil, fmt.Errorf("mongodb findOne failed: %w", err)
-	}
-	return []map[string]any{bsonMToMap(doc)}, nil
-}
-
-func (m *MongoDBConnector) executeInsertOne(ctx context.Context, coll *mongo.Collection, doc map[string]any) ([]map[string]any, error) {
-	if doc == nil {
-		return nil, fmt.Errorf("insertOne requires document")
-	}
-	res, err := coll.InsertOne(ctx, toBSON(doc))
-	if err != nil {
-		return nil, fmt.Errorf("mongodb insertOne failed: %w", err)
-	}
-	return []map[string]any{{"insertedId": bsonValueToAny(res.InsertedID)}}, nil
-}
-
-func (m *MongoDBConnector) executeInsertMany(ctx context.Context, coll *mongo.Collection, docs []map[string]any) ([]map[string]any, error) {
-	if docs == nil {
-		return nil, fmt.Errorf("insertMany requires documents array")
-	}
-	res, err := coll.InsertMany(ctx, toBSONSlice(docs))
-	if err != nil {
-		return nil, fmt.Errorf("mongodb insertMany failed: %w", err)
-	}
-	normalized := make([]any, len(res.InsertedIDs))
-	for i, id := range res.InsertedIDs {
-		normalized[i] = bsonValueToAny(id)
-	}
-	return []map[string]any{{"insertedIds": normalized}}, nil
-}
-
-func (m *MongoDBConnector) executeUpdateOne(ctx context.Context, coll *mongo.Collection, filter, update bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	if filter == nil {
-		filter = bson.M{}
-	}
-	if update == nil {
-		return nil, fmt.Errorf("updateOne requires update")
-	}
-	opts := mongoOptions.UpdateOne()
-	if optsMap != nil {
-		if v, ok := optsMap["upsert"]; ok {
-			if b, ok := v.(bool); ok {
-				opts.SetUpsert(b)
-			}
-		}
-	}
-	res, err := coll.UpdateOne(ctx, filter, update, opts)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb updateOne failed: %w", err)
-	}
-	return []map[string]any{
-		{"matchedCount": res.MatchedCount, "modifiedCount": res.ModifiedCount, "upsertedCount": res.UpsertedCount, "upsertedId": res.UpsertedID},
-	}, nil
-}
-
-func (m *MongoDBConnector) executeUpdateMany(ctx context.Context, coll *mongo.Collection, filter, update bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	if filter == nil {
-		filter = bson.M{}
-	}
-	if update == nil {
-		return nil, fmt.Errorf("updateMany requires update")
-	}
-	opts := mongoOptions.UpdateMany()
-	if optsMap != nil {
-		if v, ok := optsMap["upsert"]; ok {
-			if b, ok := v.(bool); ok {
-				opts.SetUpsert(b)
-			}
-		}
-	}
-	res, err := coll.UpdateMany(ctx, filter, update, opts)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb updateMany failed: %w", err)
-	}
-	return []map[string]any{
-		{"matchedCount": res.MatchedCount, "modifiedCount": res.ModifiedCount, "upsertedCount": res.UpsertedCount, "upsertedId": res.UpsertedID},
-	}, nil
-}
-
-func (m *MongoDBConnector) executeDeleteOne(ctx context.Context, coll *mongo.Collection, filter bson.M) ([]map[string]any, error) {
-	if filter == nil {
-		filter = bson.M{}
-	}
-	res, err := coll.DeleteOne(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb deleteOne failed: %w", err)
-	}
-	return []map[string]any{{"deletedCount": res.DeletedCount}}, nil
-}
-
-func (m *MongoDBConnector) executeDeleteMany(ctx context.Context, coll *mongo.Collection, filter bson.M) ([]map[string]any, error) {
-	if filter == nil {
-		filter = bson.M{}
-	}
-	res, err := coll.DeleteMany(ctx, filter)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb deleteMany failed: %w", err)
-	}
-	return []map[string]any{{"deletedCount": res.DeletedCount}}, nil
-}
-
-func (m *MongoDBConnector) executeAggregate(ctx context.Context, coll *mongo.Collection, pipeline []map[string]any) ([]map[string]any, error) {
-	if pipeline == nil {
-		return nil, fmt.Errorf("aggregate requires pipeline array")
-	}
-	pipe := make([]bson.M, len(pipeline))
-	for i, stage := range pipeline {
-		pipe[i] = toBSON(stage)
-	}
-
-	cur, err := coll.Aggregate(ctx, pipe)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb aggregate failed: %w", err)
-	}
-	defer cur.Close(ctx)
-
-	var results []map[string]any
-	for cur.Next(ctx) {
-		var doc bson.M
-		if err := cur.Decode(&doc); err != nil {
-			return nil, fmt.Errorf("mongodb aggregate decode failed: %w", err)
-		}
-		results = append(results, bsonMToMap(doc))
-	}
-	if err := cur.Err(); err != nil {
-		return nil, fmt.Errorf("mongodb aggregate cursor error: %w", err)
-	}
-	return results, nil
-}
-
-func (m *MongoDBConnector) executeCountDocuments(ctx context.Context, coll *mongo.Collection, filter bson.M, optsMap map[string]any) ([]map[string]any, error) {
-	if filter == nil {
-		filter = bson.M{}
-	}
-	opts := mongoOptions.Count()
-	if optsMap != nil {
-		if v, ok := optsMap["limit"]; ok {
-			if n, ok := toInt64(v); ok {
-				opts.SetLimit(n)
-			}
-		}
-		if v, ok := optsMap["skip"]; ok {
-			if n, ok := toInt64(v); ok {
-				opts.SetSkip(n)
-			}
-		}
-	}
-	n, err := coll.CountDocuments(ctx, filter, opts)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb countDocuments failed: %w", err)
-	}
-	return []map[string]any{{"count": n}}, nil
-}
-
-func toInt64(v any) (int64, bool) {
-	switch val := v.(type) {
-	case float64:
-		return int64(val), true
-	case int:
-		return int64(val), true
-	case int64:
-		return val, true
-	case int32:
-		return int64(val), true
-	default:
-		return 0, false
 	}
 }
 

@@ -15,7 +15,7 @@ adapters:
       sslmode: disable
   my_mongo:
     connector: mongodb
-    connection_string: "mongodb://localhost:27017"
+    connection_string: "mongodb://demo:demo@localhost:27017"
 
 queries:
   get-user-by-id:
@@ -34,16 +34,28 @@ queries:
     use: my_mongo
     description: "Get all orders"
     statement: |
-      { "database": "my_mongo", "collection": "orders", "operation": "find", "filter": {} }
+      { "database": "demo", "command": { "find": "shipping", "limit": 100 } }
 
   get-order-by-id:
     use: my_mongo
     description: "Get an order by id"
     statement: |
-      { "database": "my_mongo", "collection": "orders", "operation": "findOne", "filter": { "id": "{{ inputs.orderId }}" } }
+      { "database": "demo", "command": { "find": "shipping", "filter": { "order_id": {{ inputs.orderId }} }, "limit": 1, "singleBatch": true } }
     inputs:
       orderId:
-        type: string
+        type: int
         description: "The ID of the order to retrieve"
+        optional: false
+        default: 123
+
+  get-order-by-handler:
+    use: my_mongo
+    description: "Get an order by handler"
+    statement: |
+      { "database": "demo", "command": { "find": "shipping", "filter": { "handler": { "$regex": "{{ inputs.handler }}", "$options": "i" } } } }
+    inputs:
+      handler:
+        type: string
+        description: "The handler of the order to retrieve"
         optional: false
         default: "123"

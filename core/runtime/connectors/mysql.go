@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/hyperterse/hyperterse/core/logger"
+	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
 )
 
 // MySQLConnector implements the Connector interface for MySQL
@@ -17,7 +18,14 @@ type MySQLConnector struct {
 }
 
 // NewMySQLConnector creates a new MySQL connector
-func NewMySQLConnector(connectionString string, options map[string]string) (*MySQLConnector, error) {
+func NewMySQLConnector(def *protoconnectors.ConnectorDef) (*MySQLConnector, error) {
+	connectionString := def.GetConnectionString()
+	options := def.GetOptions()
+
+	if def.GetConfig().GetJsonStatements() {
+		return nil, fmt.Errorf("json_statements is not supported for mysql")
+	}
+
 	// Convert URL format (mysql://user:pass@host:port/db) to DSN format (user:pass@tcp(host:port)/db)
 	if strings.HasPrefix(connectionString, "mysql://") {
 		parsedURL, err := url.Parse(connectionString)
