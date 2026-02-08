@@ -1,34 +1,77 @@
 {
-  "$comment": "Cross-reference validations: (1) The 'use' field in queries must reference valid adapter names defined in 'adapters'. (2) Statement input references ({{ inputs.x }}) must match defined inputs. These validations are performed by core/parser/validator.go. Standard JSON Schema Draft 07 doesn't support dynamic cross-references, but some validators (e.g., AJV with $data) can validate this.",
-  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "additionalProperties": false,
-  "description": "JSON schema for Hyperterse .terse configuration files.",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
+  "title": "Terselang",
+  "description": "JSON schema for Hyperterse configuration files.",
+  "type": "object",
   "properties": {
+    "name": {
+      "type": "string",
+      "description": "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "minLength": 1
+    },
+    "export": {
+      "type": "object",
+      "description": "Optional export configuration",
+      "properties": {
+        "out": {
+          "type": "string",
+          "description": "Output directory path (script filename uses config name)",
+          "minLength": 1
+        },
+        "clean_dir": {
+          "type": "boolean",
+          "description": "Clean output directory before exporting (default: false)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "server": {
+      "type": "object",
+      "description": "Optional server configuration",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "Server port (default: 8080)",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "log_level": {
+          "type": "integer",
+          "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
+          "minimum": 1,
+          "maximum": 4
+        }
+      },
+      "additionalProperties": false
+    },
     "adapters": {
-      "additionalProperties": false,
+      "type": "object",
       "description": "Adapter configurations (required, must have at least one entry)",
       "minProperties": 1,
       "patternProperties": {
         "^[a-zA-Z][a-zA-Z0-9_-]*$": {
-          "additionalProperties": false,
+          "type": "object",
           "properties": {
-            "connection_string": {
-              "description": "Database connection string (required)",
-              "minLength": 1,
-              "type": "string"
-            },
             "connector": {
+              "type": "string",
               "description": "Connector type (required)",
               "enum": [
                 "postgres",
                 "redis",
                 "mysql",
                 "mongodb"
-              ],
-              "type": "string"
+              ]
+            },
+            "connection_string": {
+              "type": "string",
+              "description": "Database connection string (required)",
+              "minLength": 1
             },
             "options": {
+              "type": "object",
+              "description": "Connector-specific options",
               "additionalProperties": {
                 "oneOf": [
                   {
@@ -41,61 +84,86 @@
                     "type": "number"
                   }
                 ]
-              },
-              "description": "Connector-specific options",
-              "type": "object"
+              }
             }
           },
           "required": [
             "connector",
             "connection_string"
           ],
-          "type": "object"
+          "additionalProperties": false
         }
       },
-      "type": "object"
-    },
-    "export": {
-      "additionalProperties": false,
-      "description": "Optional export configuration",
-      "properties": {
-        "clean_dir": {
-          "description": "Clean output directory before exporting (default: false)",
-          "type": "boolean"
-        },
-        "out": {
-          "description": "Output directory path (script filename uses config name)",
-          "minLength": 1,
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "name": {
-      "description": "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
-      "minLength": 1,
-      "pattern": "^[a-z][a-z0-9_-]*$",
-      "type": "string"
+      "additionalProperties": false
     },
     "queries": {
-      "additionalProperties": false,
+      "type": "object",
       "description": "Query definitions (required, must have at least one entry)",
       "minProperties": 1,
       "patternProperties": {
         "^[a-z][a-z0-9_-]*$": {
-          "additionalProperties": false,
+          "type": "object",
           "properties": {
+            "use": {
+              "description": "References to adapter names (required, must reference valid adapters)",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                }
+              ]
+            },
             "description": {
+              "type": "string",
               "description": "Query description (required)",
-              "minLength": 1,
-              "type": "string"
+              "minLength": 1
+            },
+            "statement": {
+              "type": "string",
+              "description": "SQL or command string (required)",
+              "minLength": 1
             },
             "inputs": {
-              "additionalProperties": false,
+              "type": "object",
               "description": "Input parameter definitions",
               "patternProperties": {
                 "^[a-zA-Z][a-zA-Z0-9_-]*$": {
-                  "additionalProperties": false,
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "description": "Input type (required)",
+                      "enum": [
+                        "string",
+                        "int",
+                        "float",
+                        "boolean",
+                        "datetime"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Input description"
+                    },
+                    "optional": {
+                      "type": "boolean",
+                      "description": "Whether the input is optional"
+                    },
+                    "default": {
+                      "description": "Default value (required if optional=true, type depends on input type)"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
                   "allOf": [
                     {
                       "if": {
@@ -195,59 +263,10 @@
                       }
                     }
                   ],
-                  "properties": {
-                    "default": {
-                      "description": "Default value (required if optional=true, type depends on input type)"
-                    },
-                    "description": {
-                      "description": "Input description",
-                      "type": "string"
-                    },
-                    "optional": {
-                      "description": "Whether the input is optional",
-                      "type": "boolean"
-                    },
-                    "type": {
-                      "description": "Input type (required)",
-                      "enum": [
-                        "string",
-                        "int",
-                        "float",
-                        "boolean",
-                        "datetime"
-                      ],
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ],
-                  "type": "object"
+                  "additionalProperties": false
                 }
               },
-              "type": "object"
-            },
-            "statement": {
-              "description": "SQL or command string (required)",
-              "minLength": 1,
-              "type": "string"
-            },
-            "use": {
-              "description": "References to adapter names (required, must reference valid adapters)",
-              "oneOf": [
-                {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                {
-                  "items": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "minItems": 1,
-                  "type": "array"
-                }
-              ]
+              "additionalProperties": false
             }
           },
           "required": [
@@ -255,29 +274,10 @@
             "description",
             "statement"
           ],
-          "type": "object"
+          "additionalProperties": false
         }
       },
-      "type": "object"
-    },
-    "server": {
-      "additionalProperties": false,
-      "description": "Optional server configuration",
-      "properties": {
-        "log_level": {
-          "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
-          "maximum": 4,
-          "minimum": 1,
-          "type": "integer"
-        },
-        "port": {
-          "description": "Server port (default: 8080)",
-          "maximum": 65535,
-          "minimum": 1,
-          "type": "integer"
-        }
-      },
-      "type": "object"
+      "additionalProperties": false
     }
   },
   "required": [
@@ -285,6 +285,6 @@
     "adapters",
     "queries"
   ],
-  "title": "Hyperterse",
-  "type": "object"
+  "additionalProperties": false,
+  "$comment": "Cross-reference validations: (1) The 'use' field in queries must reference valid adapter names defined in 'adapters'. (2) Statement input references ({{ inputs.x }}) must match defined inputs. These validations are performed by core/parser/validator.go. Standard JSON Schema Draft 07 doesn't support dynamic cross-references, but some validators (e.g., AJV with $data) can validate this."
 }

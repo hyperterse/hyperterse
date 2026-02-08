@@ -15,21 +15,14 @@ if (!connectorsProtoFile || !primitivesProtoFile) {
 }
 
 // Read proto files
-const connectorsContent = await Bun.file(
-  resolve(projectRoot, connectorsProtoFile)
-).text();
-const primitivesContent = await Bun.file(
-  resolve(projectRoot, primitivesProtoFile)
-).text();
+const connectorsContent = await Bun.file(resolve(projectRoot, connectorsProtoFile)).text();
+const primitivesContent = await Bun.file(resolve(projectRoot, primitivesProtoFile)).text();
 
 // Parse enum values from proto file content
 function parseEnumValues(content: string, enumName: string): string[] {
   const values: string[] = [];
 
-  const enumPattern = new RegExp(
-    `enum\\s+${enumName}\\s*\\{([^}]+)\\}`,
-    "s"
-  );
+  const enumPattern = new RegExp(`enum\\s+${enumName}\\s*\\{([^}]+)\\}`, "s");
   const match = content.match(enumPattern);
   if (!match?.[1]) return values;
 
@@ -65,14 +58,13 @@ const queryNamePattern = "^[a-z][a-z0-9_-]*$";
 const schema = {
   $schema: "http://json-schema.org/draft-07/schema#",
   $id: "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/terse.schema.json",
-  title: "Hyperterse",
-  description: "JSON schema for Hyperterse .terse configuration files.",
+  title: "Terselang",
+  description: "JSON schema for Hyperterse configuration files.",
   type: "object" as const,
   properties: {
     name: {
       type: "string" as const,
-      description:
-        "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
+      description: "Configuration name (required) - must be lower-kebab-case or lower_snake_case",
       pattern: queryNamePattern,
       minLength: 1,
     },
@@ -82,14 +74,12 @@ const schema = {
       properties: {
         out: {
           type: "string" as const,
-          description:
-            "Output directory path (script filename uses config name)",
+          description: "Output directory path (script filename uses config name)",
           minLength: 1,
         },
         clean_dir: {
           type: "boolean" as const,
-          description:
-            "Clean output directory before exporting (default: false)",
+          description: "Clean output directory before exporting (default: false)",
         },
       },
       additionalProperties: false,
@@ -106,8 +96,7 @@ const schema = {
         },
         log_level: {
           type: "integer" as const,
-          description:
-            "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
+          description: "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
           minimum: 1,
           maximum: 4,
         },
@@ -116,8 +105,7 @@ const schema = {
     },
     adapters: {
       type: "object" as const,
-      description:
-        "Adapter configurations (required, must have at least one entry)",
+      description: "Adapter configurations (required, must have at least one entry)",
       minProperties: 1,
       patternProperties: {
         [namePattern]: {
@@ -153,16 +141,14 @@ const schema = {
     },
     queries: {
       type: "object" as const,
-      description:
-        "Query definitions (required, must have at least one entry)",
+      description: "Query definitions (required, must have at least one entry)",
       minProperties: 1,
       patternProperties: {
         [queryNamePattern]: {
           type: "object" as const,
           properties: {
             use: {
-              description:
-                "References to adapter names (required, must reference valid adapters)",
+              description: "References to adapter names (required, must reference valid adapters)",
               oneOf: [
                 { type: "string" as const, minLength: 1 },
                 {
@@ -227,8 +213,7 @@ const schema = {
                       then: {
                         properties: {
                           default: {
-                            description:
-                              "Default value (required if optional=true)",
+                            description: "Default value (required if optional=true)",
                             type: "string" as const,
                           },
                         },
@@ -242,8 +227,7 @@ const schema = {
                       then: {
                         properties: {
                           default: {
-                            description:
-                              "Default value (required if optional=true)",
+                            description: "Default value (required if optional=true)",
                             type: "integer" as const,
                           },
                         },
@@ -257,8 +241,7 @@ const schema = {
                       then: {
                         properties: {
                           default: {
-                            description:
-                              "Default value (required if optional=true)",
+                            description: "Default value (required if optional=true)",
                             type: "number" as const,
                           },
                         },
@@ -272,8 +255,7 @@ const schema = {
                       then: {
                         properties: {
                           default: {
-                            description:
-                              "Default value (required if optional=true)",
+                            description: "Default value (required if optional=true)",
                             type: "boolean" as const,
                           },
                         },
