@@ -1,3 +1,26 @@
+# v1.3.0
+
+Timestamp: 2026-02-08
+
+## ✨ Features
+
+- **MongoDB connector** — New database connector for MongoDB, including BSON-to-JSON parsing and support for MongoDB connection strings and queries
+
+## 🐛 Bug Fixes
+
+- **MySQL connection strings** — Fixed URL-to-DSN conversion for MySQL connection strings
+- **MongoDB JSON responses** — Simplified and corrected JSON serialization of MongoDB query results
+
+## 🔧 Improvements
+
+- **`.env` loading** — Environment files are now loaded earlier and more reliably during startup
+
+## ⚠️ Schema Changes
+
+- Configuration schema updated to support `mongodb` as a connector type in adapters
+
+---
+
 # v1.2.1
 
 Timestamp: 2026-02-02
