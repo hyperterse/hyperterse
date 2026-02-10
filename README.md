@@ -257,6 +257,12 @@ Development mode (hot reload):
 hyperterse dev -f config.terse
 ```
 
+Validate configuration:
+
+```bash
+hyperterse validate -f config.terse
+```
+
 Generate artifacts:
 
 ```bash

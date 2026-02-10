@@ -31,7 +31,7 @@ func init() {
 	runCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
 	runCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "", false, "Enable verbose logging (sets log level to DEBUG)")
-	runCmd.Flags().StringVarP(&source, "source", "s", "", "YAML configuration as a string (alternative to --file)")
+	runCmd.Flags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
 	runCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
 	runCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
 }
