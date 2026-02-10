@@ -88,7 +88,6 @@ func NewMySQLConnector(def *protoconnectors.ConnectorDef) (*MySQLConnector, erro
 
 	db, err := sql.Open("mysql", connectionString)
 	if err != nil {
-		log.Errorf("Failed to open MySQL connection: %v", err)
 		return nil, fmt.Errorf("failed to open mysql connection: %w", err)
 	}
 
@@ -96,7 +95,6 @@ func NewMySQLConnector(def *protoconnectors.ConnectorDef) (*MySQLConnector, erro
 	log.Debugf("Testing connection with ping")
 	if err := db.Ping(); err != nil {
 		db.Close()
-		log.Errorf("Failed to ping MySQL database: %v", err)
 		return nil, fmt.Errorf("failed to ping mysql database: %w", err)
 	}
 
@@ -161,9 +159,7 @@ func (m *MySQLConnector) Close() error {
 		log := logger.New("connector:mysql")
 		log.Debugf("Closing MySQL connection pool")
 		err := m.db.Close()
-		if err != nil {
-			log.Errorf("Error closing MySQL connection: %v", err)
-		} else {
+		if err == nil {
 			log.Debugf("MySQL connection pool closed")
 		}
 		return err

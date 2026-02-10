@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	connectrpc.com/connect v1.19.1
+	github.com/dgraph-io/ristretto v0.2.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/joho/godotenv v1.5.1
@@ -27,7 +28,6 @@ require (
 	github.com/bep/golibsass v1.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/dgraph-io/ristretto v0.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect

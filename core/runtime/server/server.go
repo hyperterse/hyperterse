@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,7 +52,6 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 	// Initialize connectors using ConnectorManager (parallel initialization)
 	manager := connectors.NewConnectorManager()
 	if err := manager.InitializeAll(model.Adapters); err != nil {
-		log.Errorf("Failed to initialize connectors: %v", err)
 		return nil, err
 	}
 
@@ -113,10 +113,15 @@ func (r *Runtime) StartAsync() error {
 
 	log.Debugf("Engine configuration: ReadTimeout=15s, WriteTimeout=0 (unlimited), IdleTimeout=60s")
 
+	listener, err := net.Listen("tcp", r.server.Addr)
+	if err != nil {
+		return log.Errorf("failed to bind server on %s: %w", r.server.Addr, err)
+	}
+
 	go func() {
 		log.Successf("Hyperterse engine listening on http://127.0.0.1:%s", r.port)
-		if err := r.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Errorf("Engine error: %v", err)
+		if err := r.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+			log.Warnf("Engine error: %v", err)
 		}
 	}()
 
@@ -380,7 +385,7 @@ func (r *Runtime) registerRoutes() {
 				// Parse JSON body
 				var requestBody map[string]any
 				if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
-					handlerLog.Errorf("Failed to parse JSON body: %v", err)
+					handlerLog.Warnf("Failed to parse JSON body: %v", err)
 					writeErrorResponse(w, http.StatusBadRequest, "Invalid JSON")
 					return
 				}
@@ -400,7 +405,7 @@ func (r *Runtime) registerRoutes() {
 				}
 				resp, err := queryService.ExecuteQuery(req.Context(), connect.NewRequest(reqProto))
 				if err != nil {
-					handlerLog.Errorf("Query execution failed: %v", err)
+					handlerLog.Warnf("Query execution failed: %v", err)
 					writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 					return
 				}
@@ -477,7 +482,6 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	// Initialize new connectors in parallel using a new manager
 	newManager := connectors.NewConnectorManager()
 	if err := newManager.InitializeAll(model.Adapters); err != nil {
-		log.Errorf("Failed to initialize new connectors: %v", err)
 		return err
 	}
 
@@ -543,12 +547,11 @@ func (r *Runtime) Stop() error {
 	if r.server != nil {
 		log.Debugf("Shutting down engine")
 		if err := r.server.Shutdown(ctx); err != nil {
-			log.Errorf("Error shutting down engine: %v", err)
 			// If graceful shutdown fails, force close
 			if closeErr := r.server.Close(); closeErr != nil {
-				log.Errorf("Error force closing engine: %v", closeErr)
+				return log.Errorf("failed to shutdown server gracefully: %w (and force close failed: %v)", err, closeErr)
 			}
-			return err
+			return log.Errorf("failed to shutdown server gracefully: %w", err)
 		}
 		log.Debugf("Engine stopped")
 	}

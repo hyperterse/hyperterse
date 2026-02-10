@@ -46,6 +46,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 // PrepareRuntime loads config, validates, and creates a runtime ready to start
 func PrepareRuntime() (*runtime.Runtime, error) {
+	log := logger.New("main")
 	// Set log level early based on CLI flags (before loading config)
 	// This ensures logs during config loading respect the log level
 	// We'll update it after loading config if config file specifies a different level
@@ -73,7 +74,7 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		var err error
 		filePath, err = logger.SetLogFile()
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize log file: %w", err)
+			return nil, log.Errorf("failed to initialize log file: %w", err)
 		}
 	}
 
@@ -91,12 +92,12 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 	// Load from source string if provided, otherwise from file
 	if source != "" {
 		if configFile != "" {
-			return nil, fmt.Errorf("cannot specify both --file and --source flags")
+			return nil, log.Errorf("cannot specify both --file and --source flags")
 		}
 		model, err = internal.LoadConfigFromString(source)
 	} else {
 		if configFile == "" {
-			return nil, fmt.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
+			return nil, log.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
 		}
 		model, err = internal.LoadConfig(configFile)
 	}
@@ -110,8 +111,6 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 	if logLevel == 0 && !verbose {
 		logger.SetLogLevel(resolvedLogLevel)
 	}
-
-	log := logger.New("main")
 
 	// Log file path if streaming is enabled
 	if logFile {
@@ -150,8 +149,6 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 	}
 
 	if err := parser.Validate(model); err != nil {
-		// Validation errors are already logged by the validator
-		// Just return the error to exit the program
 		return nil, err
 	}
 	log.Infof("Validation successful")

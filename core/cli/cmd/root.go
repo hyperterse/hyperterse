@@ -37,6 +37,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:           "hyperterse",
 	Short:         "Hyperterse\nConnect your data to your AI agents",
+	SilenceUsage:  true,
 	SilenceErrors: true, // Errors are already logged, suppress Cobra's error output
 }
 

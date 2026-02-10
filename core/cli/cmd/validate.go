@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/hyperterse/hyperterse/core/cli/internal"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/parser"
@@ -16,7 +14,7 @@ var validateCmd = &cobra.Command{
 	Short:         "Validate a Hyperterse configuration file",
 	RunE:          validateConfig,
 	SilenceUsage:  true,
-	SilenceErrors: true, // Errors are already logged by parser/validator
+	SilenceErrors: true,
 }
 
 func init() {
@@ -36,15 +34,13 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 
 	if source != "" {
 		if configFile != "" {
-			log.Errorf("cannot specify both --file and --source flags")
-			os.Exit(1)
+			return log.Errorf("cannot specify both --file and --source flags")
 		}
 		model, err = internal.LoadConfigFromString(source)
 		loadFrom = "source"
 	} else {
 		if configFile == "" {
-			log.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
-			os.Exit(1)
+			return log.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
 		}
 		model, err = internal.LoadConfig(configFile)
 		loadFrom = configFile
@@ -54,8 +50,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := parser.Validate(model); err != nil {
-		log.Errorf("validation failed: %v", err)
-		os.Exit(1)
+		return log.Errorf("validation failed: %w", err)
 	}
 
 	log.Successf("Configuration is valid: %s", loadFrom)

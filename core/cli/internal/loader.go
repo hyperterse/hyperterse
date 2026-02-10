@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -19,8 +18,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Errorf("Failed to read configuration file: %v", err)
-		return nil, fmt.Errorf("error reading file: %w", err)
+		return nil, log.Errorf("error reading file: %w", err)
 	}
 
 	log.Debugf("File size: %d bytes", len(content))
@@ -34,8 +32,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 		log.Debugf("Parsing configuration with YAML parser")
 		model, err = parser.ParseYAMLWithConfig(content)
 		if err != nil {
-			log.Errorf("YAML parsing failed: %v", err)
-			return nil, fmt.Errorf("config error: %w", err)
+			return nil, log.Errorf("config error: %w", err)
 		}
 	} else {
 		parserType = "DSL"
@@ -43,8 +40,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 		p := parser.NewParser(string(content))
 		model, err = p.Parse()
 		if err != nil {
-			log.Errorf("DSL parsing failed: %v", err)
-			return nil, fmt.Errorf("parsing error: %w", err)
+			return nil, log.Errorf("parsing error: %w", err)
 		}
 	}
 
@@ -64,8 +60,7 @@ func LoadConfigFromString(yamlContent string) (*hyperterse.Model, error) {
 
 	model, err := parser.ParseYAMLWithConfig([]byte(yamlContent))
 	if err != nil {
-		log.Errorf("YAML parsing failed: %v", err)
-		return nil, fmt.Errorf("config error: %w", err)
+		return nil, log.Errorf("config error: %w", err)
 	}
 
 	log.Debugf("Configuration parsed successfully")

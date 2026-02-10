@@ -304,14 +304,15 @@ func (l *Logger) Error(message string) {
 	l.writeLog(LogLevelError, "E", colorRed, bgRed, message)
 }
 
-// Errorf logs at ERROR level with formatting
-func (l *Logger) Errorf(format string, args ...any) {
-	l.Error(fmt.Sprintf(format, args...))
+// Errorf builds a tagged error with formatting.
+// It mirrors fmt.Errorf semantics, including support for %w wrapping.
+func (l *Logger) Errorf(format string, args ...any) error {
+	return WithTag(l.tag, fmt.Errorf(format, args...))
 }
 
-// Errorln logs at ERROR level (for backward compatibility)
-func (l *Logger) Errorln(args ...any) {
-	l.Error(fmt.Sprint(args...))
+// Errorln builds a tagged error from sprinted arguments.
+func (l *Logger) Errorln(args ...any) error {
+	return WithTag(l.tag, fmt.Errorf("%s", fmt.Sprint(args...)))
 }
 
 // Warn logs at WARN level
@@ -378,7 +379,7 @@ func (l *Logger) PrintError(title string, err error) {
 	if err == nil {
 		return
 	}
-	l.Errorf("%s: %v", title, err)
+	l.Error(fmt.Sprintf("%s: %v", title, err))
 }
 
 // PrintSuccess logs a success message at INFO level (for backward compatibility)
@@ -401,9 +402,9 @@ func (l *Logger) PrintValidationErrors(errors []string) {
 	if len(errors) == 0 {
 		return
 	}
-	l.Errorf("Validation Errors (%d)", len(errors))
+	l.Error(fmt.Sprintf("Validation Errors (%d)", len(errors)))
 	for i, err := range errors {
-		l.Errorf("  %d. %s", i+1, err)
+		l.Error(fmt.Sprintf("  %d. %s", i+1, err))
 	}
 }
 

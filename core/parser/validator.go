@@ -27,8 +27,12 @@ func (ve *ValidationErrors) Error() string {
 	if len(ve.Errors) == 0 {
 		return ""
 	}
-	// Return simple message - detailed errors are already logged by validator
-	return fmt.Sprintf("validation failed with %d error(s)", len(ve.Errors))
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("validation failed with %d error(s):", len(ve.Errors)))
+	for i, errMsg := range ve.Errors {
+		builder.WriteString(fmt.Sprintf("\n  %d. %s", i+1, errMsg))
+	}
+	return builder.String()
 }
 
 // Format returns a formatted string representation of the errors
@@ -270,12 +274,7 @@ func Validate(model *hyperterse.Model) error {
 	}
 
 	if len(errors) > 0 {
-		log.Errorf("Validation failed with %d error(s)", len(errors))
-		log.Errorf("Error: Validation Errors (%d)", len(errors))
-		for i, errMsg := range errors {
-			log.Errorf("  %d. %s", i+1, errMsg)
-		}
-		return &ValidationErrors{Errors: errors}
+		return log.Errorf("%w", &ValidationErrors{Errors: errors})
 	}
 
 	log.Infof("Validation completed successfully")

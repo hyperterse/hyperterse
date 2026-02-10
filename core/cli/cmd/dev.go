@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -95,22 +94,20 @@ func runDevServer(cmd *cobra.Command, args []string) error {
 			// This allows the old server to keep running if config is invalid
 			newRt, err := PrepareRuntime()
 			if err != nil {
-				log.Errorf("Failed to load new config, keeping current server running: %v", err)
+				log.Warnf("Failed to load new config, keeping current server running: %v", err)
 				continue
 			}
 
 			// Stop old runtime before starting new one
 			if err := rt.Stop(); err != nil {
-				log.Errorf("Failed to stop server gracefully: %v", err)
 				// Return error since we can't safely start new server if old one didn't stop
 				// (would cause "address already in use" error)
-				return fmt.Errorf("failed to stop server for reload: %w", err)
+				return log.Errorf("failed to stop server for reload: %w", err)
 			}
 
 			// Start new runtime
 			if err := newRt.StartAsync(); err != nil {
-				log.Errorf("Failed to start new server: %v", err)
-				return err
+				return log.Errorf("failed to start new server: %w", err)
 			}
 
 			rt = newRt

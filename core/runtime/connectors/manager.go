@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"os"
 	"sync"
 
 	"github.com/hyperterse/hyperterse/core/logger"
@@ -37,10 +36,17 @@ func (m *ConnectorManager) InitializeAll(adapters []*hyperterse.Adapter) error {
 	log := logger.New("connector")
 	log.Debugf("Initializing %d adapter(s)", len(adapters))
 
-	g, _ := errgroup.WithContext(context.Background())
+	g, ctx := errgroup.WithContext(context.Background())
 
 	for _, adapter := range adapters {
+		adapter := adapter
 		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			connectorTag := fmt.Sprintf("connector:%s", adapter.Name)
 			connLog := logger.New(connectorTag)
 
@@ -54,8 +60,7 @@ func (m *ConnectorManager) InitializeAll(adapters []*hyperterse.Adapter) error {
 
 			conn, err := NewConnector(adapter)
 			if err != nil {
-				connLog.Errorf("Failed to create connector: %v", err)
-				os.Exit(1)
+				return connLog.Errorf("%w", err)
 			}
 
 			m.mu.Lock()
@@ -69,9 +74,8 @@ func (m *ConnectorManager) InitializeAll(adapters []*hyperterse.Adapter) error {
 
 	if err := g.Wait(); err != nil {
 		// Cleanup any successfully opened connectors on failure
-		log.Errorf("Initialization failed, closing all connectors: %v", err)
 		m.CloseAll()
-		os.Exit(1)
+		return err
 	}
 
 	log.Debugf("All connectors initialized successfully")
@@ -101,7 +105,7 @@ func (m *ConnectorManager) CloseAll() error {
 			connLog := logger.New(connectorTag)
 			connLog.Debugf("Closing connector")
 			if err := conn.Close(); err != nil {
-				errChan <- fmt.Errorf("connector '%s': %w", name, err)
+				errChan <- connLog.Errorf("%w", err)
 			} else {
 				connLog.Debugf("Connector closed successfully")
 			}

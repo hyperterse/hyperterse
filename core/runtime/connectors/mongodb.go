@@ -53,7 +53,6 @@ func NewMongoDBConnector(def *protoconnectors.ConnectorDef) (*MongoDBConnector, 
 	opts := mongoOptions.Client().ApplyURI(connectionString)
 	client, err := mongo.Connect(opts)
 	if err != nil {
-		log.Errorf("Failed to connect to MongoDB: %v", err)
 		return nil, fmt.Errorf("failed to connect to mongodb: %w", err)
 	}
 
@@ -63,7 +62,6 @@ func NewMongoDBConnector(def *protoconnectors.ConnectorDef) (*MongoDBConnector, 
 	log.Debugf("Testing connection with ping")
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
 		_ = client.Disconnect(ctx)
-		log.Errorf("Failed to ping MongoDB: %v", err)
 		return nil, fmt.Errorf("failed to ping mongodb: %w", err)
 	}
 
@@ -271,9 +269,7 @@ func (m *MongoDBConnector) Close() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		err := m.client.Disconnect(ctx)
-		if err != nil {
-			log.Errorf("Error closing MongoDB connection: %v", err)
-		} else {
+		if err == nil {
 			log.Debugf("MongoDB connection closed")
 		}
 		return err

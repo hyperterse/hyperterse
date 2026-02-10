@@ -36,28 +36,24 @@ func init() {
 func exportBundle(cmd *cobra.Command, args []string) error {
 	log := logger.New("export")
 	if configFile == "" {
-		log.Errorf("Please provide a file path using -f or --file")
-		os.Exit(1)
+		return log.Errorf("please provide a file path using -f or --file")
 	}
 
 	// Read config file
 	configContent, err := os.ReadFile(configFile)
 	if err != nil {
-		log.Errorf("Error reading config file: %v", err)
-		os.Exit(1)
+		return log.Errorf("error reading config file: %w", err)
 	}
 
 	// Load and validate config to get name and export settings
 	model, err := internal.LoadConfig(configFile)
 	if err != nil {
-		log.Errorf("Error loading config: %v", err)
-		os.Exit(1)
+		return log.Errorf("error loading config: %w", err)
 	}
 
 	// Validate name is present
 	if model.Name == "" {
-		log.Errorf("Config name is required")
-		os.Exit(1)
+		return log.Errorf("config name is required")
 	}
 
 	// Determine output directory (CLI flag takes precedence over config, then default)
@@ -82,14 +78,13 @@ func exportBundle(cmd *cobra.Command, args []string) error {
 	// Clean directory if requested
 	if cleanDir {
 		if err := cleanDirectory(log, outputDir); err != nil {
-			os.Exit(1)
+			return err
 		}
 	}
 
 	// Create output directory if it doesn't exist
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		log.Errorf("Error creating output directory: %v", err)
-		os.Exit(1)
+		return log.Errorf("error creating output directory: %w", err)
 	}
 
 	// Script filename always uses config name
@@ -98,13 +93,12 @@ func exportBundle(cmd *cobra.Command, args []string) error {
 	// Find the hyperterse binary
 	binaryPath, err := findBinary(log)
 	if err != nil {
-		os.Exit(1)
+		return err
 	}
 
 	binaryContent, err := os.ReadFile(binaryPath)
 	if err != nil {
-		log.Errorf("Error reading binary: %v", err)
-		os.Exit(1)
+		return log.Errorf("error reading binary: %w", err)
 	}
 
 	// Generate bash script content
@@ -112,8 +106,7 @@ func exportBundle(cmd *cobra.Command, args []string) error {
 
 	// Write script to file
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		log.Errorf("Error writing script file: %v", err)
-		os.Exit(1)
+		return log.Errorf("error writing script file: %w", err)
 	}
 
 	log.Successf("Exported script to ./%s", scriptPath)
@@ -132,8 +125,7 @@ func findBinary(log *logger.Logger) (string, error) {
 	// Try to get the current executable path
 	execPath, err := os.Executable()
 	if err != nil {
-		log.Errorf("Could not determine executable path: %v", err)
-		os.Exit(1)
+		return "", log.Errorf("could not determine executable path: %w", err)
 	}
 
 	// Resolve symlinks to get the actual path
@@ -144,8 +136,7 @@ func findBinary(log *logger.Logger) (string, error) {
 
 	// Check if the executable exists and is readable
 	if _, err := os.Stat(execPath); err != nil {
-		log.Errorf("Executable not found at %s: %v", execPath, err)
-		os.Exit(1)
+		return "", log.Errorf("executable not found at %s: %w", execPath, err)
 	}
 
 	return execPath, nil
@@ -160,27 +151,23 @@ func cleanDirectory(log *logger.Logger, dirPath string) error {
 		return nil
 	}
 	if err != nil {
-		log.Errorf("Error checking directory %s: %v", dirPath, err)
-		os.Exit(1)
+		return log.Errorf("error checking directory %s: %w", dirPath, err)
 	}
 	if !info.IsDir() {
-		log.Errorf("Path %s is not a directory", dirPath)
-		os.Exit(1)
+		return log.Errorf("path %s is not a directory", dirPath)
 	}
 
 	// Read directory contents
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		log.Errorf("Error reading directory %s: %v", dirPath, err)
-		os.Exit(1)
+		return log.Errorf("error reading directory %s: %w", dirPath, err)
 	}
 
 	// Remove all entries
 	for _, entry := range entries {
 		entryPath := filepath.Join(dirPath, entry.Name())
 		if err := os.RemoveAll(entryPath); err != nil {
-			log.Errorf("Error removing %s: %v", entryPath, err)
-			os.Exit(1)
+			return log.Errorf("error removing %s: %w", entryPath, err)
 		}
 	}
 

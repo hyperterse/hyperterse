@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
@@ -45,8 +44,7 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	}
 
 	if query == nil {
-		log.Errorf("Query not found: %s", queryName)
-		return nil, fmt.Errorf("query '%s' not found", queryName)
+		return nil, log.Errorf("query '%s' not found", queryName)
 	}
 
 	log.Infof("Executing query: %s", queryName)
@@ -55,8 +53,7 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	log.Debugf("Validating inputs")
 	validatedInputs, err := utils.ValidateInputs(query, userInputs)
 	if err != nil {
-		log.Errorf("Input validation failed: %v", err)
-		return nil, fmt.Errorf("input validation failed: %w", err)
+		return nil, log.Errorf("input validation failed: %w", err)
 	}
 	log.Debugf("Input validation successful, %d input(s)", len(validatedInputs))
 
@@ -70,16 +67,14 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	log.Debugf("Substituting environment variables")
 	statementWithEnvVars, err := runtimeutils.SubstituteEnvVars(query.Statement)
 	if err != nil {
-		log.Errorf("Failed to substitute environment variables: %v", err)
-		return nil, fmt.Errorf("query '%s': failed to substitute environment variables in statement: %w", queryName, err)
+		return nil, log.Errorf("query '%s': failed to substitute environment variables in statement: %w", queryName, err)
 	}
 
 	// Substitute inputs in statement
 	log.Debugf("Substituting inputs")
 	finalStatement, err := utils.SubstituteInputs(statementWithEnvVars, validatedInputs, inputTypeMap)
 	if err != nil {
-		log.Errorf("Template substitution failed: %v", err)
-		return nil, fmt.Errorf("template substitution failed: %w", err)
+		return nil, log.Errorf("template substitution failed: %w", err)
 	}
 	log.Debugf("Final statement: %s", finalStatement)
 
@@ -96,16 +91,14 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 
 	// Get the connector(s) for this query
 	if len(query.Use) == 0 {
-		log.Errorf("Query has no adapter specified")
-		return nil, fmt.Errorf("query '%s' has no adapter specified", queryName)
+		return nil, log.Errorf("query '%s' has no adapter specified", queryName)
 	}
 
 	// Use the first adapter (supporting multiple adapters can be added later)
 	adapterName := query.Use[0]
 	conn, exists := e.connectorManager.Get(adapterName)
 	if !exists {
-		log.Errorf("Adapter not found: %s", adapterName)
-		return nil, fmt.Errorf("adapter '%s' not found", adapterName)
+		return nil, log.Errorf("adapter '%s' not found", adapterName)
 	}
 
 	// Find the adapter to get connector type
@@ -126,8 +119,7 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	// Execute the query with context for cancellation support
 	results, err := conn.Execute(ctx, finalStatement, validatedInputs)
 	if err != nil {
-		log.Errorf("Query execution failed: %v", err)
-		return nil, fmt.Errorf("query execution failed: %w", err)
+		return nil, log.Errorf("query execution failed: %w", err)
 	}
 
 	if cacheEnabled {
@@ -180,7 +172,8 @@ func (e *Executor) GetQuery(queryName string) (*hyperterse.Query, error) {
 			return q, nil
 		}
 	}
-	return nil, fmt.Errorf("query '%s' not found", queryName)
+	log := logger.New("executor")
+	return nil, log.Errorf("query '%s' not found", queryName)
 }
 
 // GetAllQueries returns all query definitions

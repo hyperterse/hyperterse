@@ -77,7 +77,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 
 	var req JSONRPCRequest
 	if err := json.Unmarshal(requestBody, &req); err != nil {
-		log.Errorf("JSON-RPC parse error: %v", err)
+		log.Warnf("JSON-RPC parse error: %v", err)
 		// Parse error
 		errorResp := JSONRPCResponse{
 			JSONRPC: "2.0",
@@ -198,7 +198,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		// Call ListTools handler
 		resp, err := mcpHandler.ListTools(ctx, &runtime.ListToolsRequest{})
 		if err != nil {
-			log.Errorf("ListTools failed: %v", err)
+			log.Warnf("ListTools failed: %v", err)
 			jsonrpcErr = &JSONRPCError{
 				Code:    JSONRPCInternalError,
 				Message: "Internal error",
@@ -315,7 +315,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		}
 		resp, err := mcpHandler.CallTool(ctx, callReq)
 		if err != nil {
-			log.Errorf("CallTool failed: %v", err)
+			log.Warnf("CallTool failed: %v", err)
 			jsonrpcErr = &JSONRPCError{
 				Code:    JSONRPCInternalError,
 				Message: "Internal error",

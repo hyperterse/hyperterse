@@ -46,7 +46,7 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 	// Execute the query with context for cancellation support
 	results, err := h.executor.ExecuteQuery(ctx, req.QueryName, inputs)
 	if err != nil {
-		log.Errorf("Query execution failed: %v", err)
+		log.Warnf("Query execution failed: %v", err)
 		return &runtime.ExecuteQueryResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -166,7 +166,7 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 	// Execute the query with context for cancellation support
 	results, err := h.executor.ExecuteQuery(ctx, req.Name, inputs)
 	if err != nil {
-		log.Errorf("Tool execution failed: %v", err)
+		log.Warnf("Tool execution failed: %v", err)
 		errorJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
 		return &runtime.CallToolResponse{
 			Content: string(errorJSON),
@@ -179,7 +179,7 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 	// Convert results to JSON
 	resultsJSON, err := json.Marshal(results)
 	if err != nil {
-		log.Errorf("Failed to marshal results: %v", err)
+		log.Warnf("Failed to marshal results: %v", err)
 		errorJSON, _ := json.Marshal(map[string]string{"error": "failed to serialize results"})
 		return &runtime.CallToolResponse{
 			Content: string(errorJSON),
