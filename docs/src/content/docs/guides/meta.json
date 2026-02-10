@@ -1,5 +1,5 @@
 {
   "title": "Guides",
   "icon": "GraduationCap",
-  "pages": ["mcp-protocol", "openapi", "ai-integration"]
+  "pages": ["mcp-protocol", "openapi", "ai-integration", "caching"]
 }

@@ -42,6 +42,32 @@
           "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)",
           "minimum": 1,
           "maximum": 4
+        },
+        "queries": {
+          "type": "object",
+          "description": "Optional query execution defaults",
+          "properties": {
+            "cache": {
+              "type": "object",
+              "description": "Global/default query cache settings",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Enable executor-level query caching"
+                },
+                "ttl": {
+                  "type": "integer",
+                  "description": "Cache TTL in seconds",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "enabled"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -130,6 +156,25 @@
               "type": "string",
               "description": "SQL or command string (required)",
               "minLength": 1
+            },
+            "cache": {
+              "type": "object",
+              "description": "Optional per-query cache override",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Enable or disable cache for this query"
+                },
+                "ttl": {
+                  "type": "integer",
+                  "description": "Per-query cache TTL in seconds",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "enabled"
+              ],
+              "additionalProperties": false
             },
             "inputs": {
               "type": "object",

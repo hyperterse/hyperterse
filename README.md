@@ -166,7 +166,8 @@ Response:
 * **[Getting Started](https://docs.hyperterse.com/getting-started/quick-start)** - Quick start guide and installation
 * **[CLI Reference](https://docs.hyperterse.com/reference/cli)** - Complete command-line interface reference
 * **[Configuration Guide](https://docs.hyperterse.com/reference/configuration)** - Configuration file reference
-* **[Guides](https://docs.hyperterse.com/guides)** - Practical guides for AI integration, OpenAPI, and MCP
+* **[Guides](https://docs.hyperterse.com/guides)** - Practical guides for AI integration, OpenAPI, MCP, and caching
+* **[Caching Guide](https://docs.hyperterse.com/guides/caching)** - Executor-level query caching, TTL, and override strategy
 * **[Concepts](https://docs.hyperterse.com/concepts)** - Core concepts: adapters, queries, and inputs
 * **[Databases](https://docs.hyperterse.com/databases)** - Database-specific documentation
 * **[Deployment](https://docs.hyperterse.com/deployment)** - Deployment guides for various platforms

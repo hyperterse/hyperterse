@@ -1,0 +1,219 @@
+---
+title: Caching
+description: Configure and operate executor-level query caching with server defaults and query overrides.
+---
+
+import Aside from '@/components/admonition.astro'
+
+Hyperterse supports executor-level query caching. This means a cache hit skips connector execution and returns cached results directly. Because all query transports converge on the same executor path, the behavior is consistent across REST, ConnectRPC, and MCP.
+
+## How caching works
+
+When a query is executed:
+
+1. Hyperterse validates inputs.
+2. It builds the final statement after environment + input substitution.
+3. It computes a cache key
+4. It checks the cache:
+   - hit: returns cached rows
+   - miss: calls connector, stores result with TTL, returns fresh rows
+
+This keeps cache semantics deterministic and transport-agnostic.
+
+## Configuration structure
+
+Caching is configured in two places:
+
+- Global/default settings: `server.queries.cache`
+- Per-query override: `queries.<name>.cache`
+
+### Global defaults
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+      ttl: 120
+```
+
+| Field     | Type      | Default | Description                                         |
+| --------- | --------- | :-----: | --------------------------------------------------- |
+| `enabled` | `boolean` | `false` | Enables caching globally                            |
+| `ttl`     | `int`     |  `120`  | Default cache TTL (seconds) when caching is enabled |
+
+### Query override
+
+```yaml
+queries:
+  get-user-by-id:
+    use: main_db
+    description: 'Get one user'
+    cache:
+      enabled: true
+      ttl: 30
+    statement: |
+      SELECT id, name, email
+      FROM users
+      WHERE id = {{ inputs.userId }}
+    inputs:
+      userId:
+        type: int
+```
+
+| Field     | Type      | Description                                              |
+| --------- | --------- | -------------------------------------------------------- |
+| `enabled` | `boolean` | Required when `cache` block is present                   |
+| `ttl`     | `int`     | Optional TTL override in seconds (default remains `120`) |
+
+## Precedence rules
+
+Cache policy is resolved in this order:
+
+1. Start with defaults:
+   - `enabled = false`
+   - `ttl = 120`
+2. Apply `server.queries.cache` values (if present).
+3. Apply `queries.<name>.cache` values (if present).
+
+### Examples
+
+#### Global enabled, no query override
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+```
+
+- All queries cache with `ttl=120`.
+
+#### Global enabled with custom TTL
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+      ttl: 300
+```
+
+- All queries cache with `ttl=300`, unless a query overrides TTL.
+
+#### Query-level opt-out
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+      ttl: 300
+
+queries:
+  list-audit-events:
+    use: main_db
+    description: 'Always fetch latest events'
+    cache:
+      enabled: false
+    statement: 'SELECT * FROM audit_events ORDER BY created_at DESC LIMIT 100'
+```
+
+- `list-audit-events` bypasses cache even though global cache is enabled.
+
+#### Query-level TTL override
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+      ttl: 300
+
+queries:
+  list-products:
+    use: main_db
+    description: 'Product catalog'
+    cache:
+      enabled: true
+      ttl: 30
+    statement: 'SELECT id, name, price FROM products'
+```
+
+- `list-products` uses `ttl=30`.
+- Other queries use `ttl=300`.
+
+## Recommended TTL strategy
+
+Use data volatility to pick TTL:
+
+- **10-30s**: rapidly changing data (live metrics, dashboards)
+- **60-300s**: standard app reads (catalogs, profile lookups)
+- **300-900s**: slower-changing reference data
+- **0 or disabled**: writes, highly sensitive reads, strict real-time requirements
+
+Start conservative, monitor behavior, then increase where safe.
+
+## What should (and should not) be cached
+
+Good candidates:
+
+- Read-heavy lookups
+- Repeated queries with identical normalized statement output
+- Expensive aggregations that tolerate slight staleness
+
+Avoid or disable:
+
+- Mutation queries
+- Security-sensitive reads requiring strict freshness
+- Highly user-specific queries with poor repeat rate
+
+## Behavior across handlers
+
+Caching is implemented at executor level, so these all share the same behavior:
+
+- REST API endpoints
+- MCP tool calls (`tools/call`)
+
+No handler-specific cache configuration is needed.
+
+## Operational notes
+
+- Cache is process-local in-memory.
+- Restart clears cache contents.
+- Cache key includes final rendered statement, so different input values naturally produce distinct keys.
+
+<Aside
+  type="note"
+  title="Implementation note"
+>
+  Hyperterse uses an in-memory cache backend with TTL expiration and cost-based
+  eviction. Cache sizing is currently internal and not exposed as user config.
+</Aside>
+
+## Troubleshooting
+
+### I expected a cache hit but got a miss
+
+Common reasons:
+
+- Different final statement text due to changed inputs/env-substitutions
+- TTL expired
+- Query has `cache.enabled: false`
+- Global cache disabled and query-level cache not enabled
+
+### Cache seems stale
+
+Common reasons:
+
+- Lower the `ttl` for that query
+- Disable caching for strict real-time endpoints
+- Verify whether source data changes more frequently than TTL
+
+### Memory pressure increased
+
+Common reasons:
+
+- Shorten TTL values for high-cardinality queries
+- Disable caching on low hit-rate queries
+- Cache only stable, repeatable read paths

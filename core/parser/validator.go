@@ -54,6 +54,17 @@ func Validate(model *hyperterse.Model) error {
 		}
 	}
 
+	// 0b. Validate optional server.queries.cache configuration
+	if model.Server != nil && model.Server.Queries != nil && model.Server.Queries.Cache != nil {
+		cache := model.Server.Queries.Cache
+		if !cache.HasEnabled {
+			errors = append(errors, "server.queries.cache.enabled is required when server.queries.cache is specified")
+		}
+		if cache.HasTtl && cache.Ttl <= 0 {
+			errors = append(errors, "server.queries.cache.ttl must be greater than 0 when specified")
+		}
+	}
+
 	// 1. Validate adapters is required and has at least one entry
 	if len(model.Adapters) == 0 {
 		errors = append(errors, "adapters is required and should have at least one entry")
@@ -244,6 +255,16 @@ func Validate(model *hyperterse.Model) error {
 				errors = append(errors, fmt.Sprintf("%s.type is required", dataPrefix))
 			} else if !types.IsValidPrimitiveType(typeStr) {
 				errors = append(errors, fmt.Sprintf("%s.type '%s' must be one of: %s", dataPrefix, typeStr, strings.Join(types.GetValidPrimitives(), ", ")))
+			}
+		}
+
+		// 12. Validate optional query.cache override
+		if query.Cache != nil {
+			if !query.Cache.HasEnabled {
+				errors = append(errors, fmt.Sprintf("%s.cache.enabled is required when %s.cache is specified", prefix, prefix))
+			}
+			if query.Cache.HasTtl && query.Cache.Ttl <= 0 {
+				errors = append(errors, fmt.Sprintf("%s.cache.ttl must be greater than 0 when specified", prefix))
 			}
 		}
 	}

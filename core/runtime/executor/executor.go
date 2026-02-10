@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -11,10 +12,13 @@ import (
 	runtimeutils "github.com/hyperterse/hyperterse/core/runtime/utils"
 )
 
+const defaultCacheTTLSeconds = int32(120)
+
 // Executor executes queries against database connectors
 type Executor struct {
 	connectorManager *connectors.ConnectorManager
 	model            *hyperterse.Model
+	cache            *queryCache
 }
 
 // NewExecutor creates a new query executor
@@ -22,6 +26,7 @@ func NewExecutor(model *hyperterse.Model, manager *connectors.ConnectorManager) 
 	return &Executor{
 		connectorManager: manager,
 		model:            model,
+		cache:            newQueryCache(),
 	}
 }
 
@@ -78,6 +83,17 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	}
 	log.Debugf("Final statement: %s", finalStatement)
 
+	cacheEnabled, cacheTTL := e.resolveCachePolicy(query)
+	if cacheEnabled {
+		cacheKey := buildCacheKey(queryName, finalStatement)
+		if cachedResults, found := e.cache.Get(cacheKey); found {
+			log.Debugf("Cache hit for query: %s", queryName)
+			log.Infof("Query execution completed (cache hit)")
+			return cachedResults, nil
+		}
+		log.Debugf("Cache miss for query: %s", queryName)
+	}
+
 	// Get the connector(s) for this query
 	if len(query.Use) == 0 {
 		log.Errorf("Query has no adapter specified")
@@ -114,9 +130,47 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 		return nil, fmt.Errorf("query execution failed: %w", err)
 	}
 
+	if cacheEnabled {
+		cacheKey := buildCacheKey(queryName, finalStatement)
+		e.cache.Set(cacheKey, results, cacheTTL)
+	}
+
 	log.Debugf("Query executed successfully, %d result(s)", len(results))
 	log.Infof("Query execution completed")
 	return results, nil
+}
+
+func (e *Executor) resolveCachePolicy(query *hyperterse.Query) (bool, time.Duration) {
+	enabled := false
+	ttlSeconds := defaultCacheTTLSeconds
+
+	if e.model != nil &&
+		e.model.Server != nil &&
+		e.model.Server.Queries != nil &&
+		e.model.Server.Queries.Cache != nil {
+		serverCache := e.model.Server.Queries.Cache
+		if serverCache.HasEnabled {
+			enabled = serverCache.Enabled
+		}
+		if serverCache.HasTtl {
+			ttlSeconds = serverCache.Ttl
+		}
+	}
+
+	if query != nil && query.Cache != nil {
+		if query.Cache.HasEnabled {
+			enabled = query.Cache.Enabled
+		}
+		if query.Cache.HasTtl {
+			ttlSeconds = query.Cache.Ttl
+		}
+	}
+
+	if !enabled || ttlSeconds <= 0 {
+		return false, 0
+	}
+
+	return true, time.Duration(ttlSeconds) * time.Second
 }
 
 // GetQuery returns a query definition by name

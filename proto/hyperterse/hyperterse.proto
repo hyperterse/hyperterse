@@ -12,6 +12,18 @@ import "proto/primitives/primitives.proto";
 message ServerConfig {
   string port = 1; // Server port (default: "8080")
   int32 log_level = 2; // Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)
+  ServerQueriesConfig queries = 3; // Optional query execution settings
+}
+
+message CacheConfig {
+  bool enabled = 1; // Enables query result caching
+  int32 ttl = 2; // Cache TTL in seconds (default: 120 when omitted)
+  bool has_enabled = 3; // Internal parser flag to detect explicit 'enabled' presence
+  bool has_ttl = 4; // Internal parser flag to detect explicit 'ttl' presence
+}
+
+message ServerQueriesConfig {
+  CacheConfig cache = 1; // Global/default query cache settings
 }
 
 // Export Configuration
@@ -55,6 +67,7 @@ message Query {
   string description = 4; // Required
   repeated Input inputs = 5;
   repeated Data data = 6;
+  CacheConfig cache = 7; // Optional query-level cache override (including opt-out)
 }
 
 // Input Parameter Definition

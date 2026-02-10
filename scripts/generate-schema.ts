@@ -100,6 +100,30 @@ const schema = {
           minimum: 1,
           maximum: 4,
         },
+        queries: {
+          type: "object" as const,
+          description: "Optional query execution defaults",
+          properties: {
+            cache: {
+              type: "object" as const,
+              description: "Global/default query cache settings",
+              properties: {
+                enabled: {
+                  type: "boolean" as const,
+                  description: "Enable executor-level query caching",
+                },
+                ttl: {
+                  type: "integer" as const,
+                  description: "Cache TTL in seconds",
+                  minimum: 1,
+                },
+              },
+              required: ["enabled"],
+              additionalProperties: false,
+            },
+          },
+          additionalProperties: false,
+        },
       },
       additionalProperties: false,
     },
@@ -167,6 +191,23 @@ const schema = {
               type: "string" as const,
               description: "SQL or command string (required)",
               minLength: 1,
+            },
+            cache: {
+              type: "object" as const,
+              description: "Optional per-query cache override",
+              properties: {
+                enabled: {
+                  type: "boolean" as const,
+                  description: "Enable or disable cache for this query",
+                },
+                ttl: {
+                  type: "integer" as const,
+                  description: "Per-query cache TTL in seconds",
+                  minimum: 1,
+                },
+              },
+              required: ["enabled"],
+              additionalProperties: false,
             },
             inputs: {
               type: "object" as const,

@@ -29,12 +29,27 @@ Configure the runtime server. All fields are optional.
 server:
   port: '8080'
   log_level: 3
+  queries:
+    cache:
+      enabled: true
+      ttl: 60
 ```
 
 | Field     | Type  | Default | Description      |
 | --------- | ----- | :-----: | ---------------- |
 | port      | `int` |  8080   | HTTP server port |
 | log_level | `int` |    3    | Log verbosity    |
+
+### Query cache defaults
+
+Set global query cache defaults at `server.queries.cache`. This cache is in-memory and applied at executor level, so it covers REST, MCP, and ConnectRPC handlers.
+
+| Field     | Type      | Default | Description                           |
+| --------- | --------- | :-----: | ------------------------------------- |
+| `enabled` | `boolean` | `false` | Enables query result caching globally |
+| `ttl`     | `int`     |  `120`  | Cache TTL in seconds                  |
+
+For complete behavior, precedence rules, and troubleshooting, see the [Caching Guide](/guides/caching).
 
 There are 4 log levels:
 
@@ -104,6 +119,9 @@ queries:
   query-name:
     use: adapter_name
     description: 'Human-readable description'
+    cache:
+      enabled: true
+      ttl: 30
     statement: |
       SELECT * FROM table WHERE id = {{ inputs.id }}
     inputs:
@@ -125,6 +143,16 @@ queries:
 | Field    | Type | Description                 |
 | -------- | ---- | --------------------------- |
 | `inputs` | map  | Input parameter definitions |
+| `cache`  | map  | Query-level cache override  |
+
+### Query cache override
+
+Use `queries.<name>.cache` to override global `server.queries.cache` settings.
+
+| Field     | Type      | Description                                                                     |
+| --------- | --------- | ------------------------------------------------------------------------------- |
+| `enabled` | `boolean` | Required when cache block is provided; set to `false` to opt out for this query |
+| `ttl`     | `int`     | Optional per-query TTL override in seconds (default `120`)                      |
 
 ## Inputs
 
@@ -254,6 +282,10 @@ name: my-api
 server:
   port: '8080'
   log_level: 3
+  queries:
+    cache:
+      enabled: true
+      ttl: 60
 
 export:
   out: dist
@@ -274,6 +306,9 @@ queries:
   list-users:
     use: main_db
     description: 'List users with pagination'
+    cache:
+      enabled: true
+      ttl: 30
     statement: |
       SELECT id, name, email, created_at
       FROM users
@@ -304,6 +339,8 @@ queries:
   get-user-by-id:
     use: main_db
     description: 'Get a single user by ID'
+    cache:
+      enabled: false
     statement: |
       SELECT id, name, email, role, created_at
       FROM users

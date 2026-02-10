@@ -144,6 +144,14 @@ func (m *ConnectorManager) Count() int {
 	return len(m.connectors)
 }
 
+// Register adds or replaces a connector by name.
+// Primarily useful for tests and custom runtime wiring.
+func (m *ConnectorManager) Register(name string, conn Connector) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.connectors[name] = conn
+}
+
 // collectErrors collects all errors from a channel and combines them
 func collectErrors(errChan <-chan error) error {
 	var errs []error

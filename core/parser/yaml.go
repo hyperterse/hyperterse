@@ -73,6 +73,17 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 			}
 		}
 
+		// Parse server.queries.cache configuration
+		if queriesRaw, ok := serverRaw["queries"].(map[string]any); ok {
+			serverQueriesConfig := &hyperterse.ServerQueriesConfig{}
+			if cacheRaw, ok := queriesRaw["cache"].(map[string]any); ok {
+				serverQueriesConfig.Cache = parseCacheConfig(cacheRaw)
+			}
+			if serverQueriesConfig.Cache != nil {
+				serverConfig.Queries = serverQueriesConfig
+			}
+		}
+
 		model.Server = serverConfig
 	}
 
@@ -216,9 +227,46 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 				}
 			}
 
+			// Parse optional query-level cache override
+			if cacheRaw, ok := queryMap["cache"].(map[string]any); ok {
+				query.Cache = parseCacheConfig(cacheRaw)
+			}
+
 			model.Queries = append(model.Queries, query)
 		}
 	}
 
 	return model, nil
+}
+
+func parseCacheConfig(cacheRaw map[string]any) *hyperterse.CacheConfig {
+	cacheConfig := &hyperterse.CacheConfig{}
+	hasAnyField := false
+
+	if enabledRaw, ok := cacheRaw["enabled"]; ok {
+		if enabled, ok := enabledRaw.(bool); ok {
+			cacheConfig.Enabled = enabled
+			cacheConfig.HasEnabled = true
+			hasAnyField = true
+		}
+	}
+
+	if ttlRaw, ok := cacheRaw["ttl"]; ok {
+		switch v := ttlRaw.(type) {
+		case int:
+			cacheConfig.Ttl = int32(v)
+			cacheConfig.HasTtl = true
+			hasAnyField = true
+		case float64:
+			cacheConfig.Ttl = int32(v)
+			cacheConfig.HasTtl = true
+			hasAnyField = true
+		}
+	}
+
+	if !hasAnyField {
+		return nil
+	}
+
+	return cacheConfig
 }
