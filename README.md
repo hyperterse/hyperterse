@@ -70,7 +70,7 @@ Generate REST endpoints, OpenAPI specs, LLM-readable docs, and MCP tools from on
 
 ### Database independence
 
-Work across PostgreSQL, MySQL, and Redis using a consistent, unified interface.
+Work across PostgreSQL, MySQL, MongoDB, and Redis using a consistent, unified interface.
 
 ### Fast and iterative development
 
