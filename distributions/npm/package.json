@@ -26,8 +26,15 @@
     "database",
     "api",
     "mcp",
+    "model context protocol",
     "ai",
-    "agents"
+    "agents",
+    "postgres",
+    "mysql",
+    "mongodb",
+    "redis",
+    "skills",
+    "rest"
   ],
   "engines": {
     "node": ">=14.0.0"
