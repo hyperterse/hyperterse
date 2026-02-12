@@ -1,3 +1,19 @@
+# v1.4.0
+
+Timestamp: 2026-02-12
+
+## ✨ Features
+
+- **Config validation command** — Added a dedicated CLI command to validate `.terse` configuration files before runtime
+- **Query execution caching** — Added executor-level query caching to reduce repeated work and improve runtime performance
+
+## 🔧 Improvements
+
+- **CLI error handling and logging** — Improved command-level error handling and log output for clearer diagnostics
+- **Observability setup** — Added analytics and observability wiring to improve operational visibility
+
+---
+
 # v1.3.0
 
 Timestamp: 2026-02-08
