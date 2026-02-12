@@ -10,11 +10,15 @@ import (
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	mongoOptions "go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // MongoDBConnector implements the Connector interface for MongoDB
@@ -90,20 +94,34 @@ type mongoStatement struct {
 //	{ "database": "mydb", "command": { "aggregate": "orders", "pipeline": [{ "$match": { "total": { "$gt": 50 } } }], "cursor": {} } }
 //	{ "database": "mydb", "command": { "count": "orders", "query": {} } }
 func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
+	start := time.Now()
+	tracer := otel.Tracer("runtime/connectors/mongodb")
+	ctx, span := tracer.Start(ctx, "connector.mongodb.execute")
+	defer span.End()
+	span.SetAttributes(attribute.String(observability.AttrConnectorType, "mongodb"))
+
 	var stmt mongoStatement
 	if err := json.Unmarshal([]byte(statement), &stmt); err != nil {
+		span.SetStatus(codes.Error, "invalid_statement")
+		observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("mongodb statement must be valid JSON: %w", err)
 	}
 
 	if stmt.Database == "" {
+		span.SetStatus(codes.Error, "missing_database")
+		observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("mongodb statement must include database")
 	}
 	if len(stmt.Command) == 0 {
+		span.SetStatus(codes.Error, "missing_command")
+		observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("mongodb statement must include command")
 	}
 
 	cmd, err := commandToBsonD(stmt.Command)
 	if err != nil {
+		span.SetStatus(codes.Error, "invalid_command")
+		observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("invalid mongodb command: %w", err)
 	}
 
@@ -111,6 +129,8 @@ func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params
 
 	var result bson.M
 	if err := db.RunCommand(ctx, cmd).Decode(&result); err != nil {
+		span.SetStatus(codes.Error, "command_failed")
+		observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("mongodb command failed: %w", err)
 	}
 
@@ -125,6 +145,7 @@ func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params
 							results = append(results, bsonMToMap(m))
 						}
 					}
+					observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", true, float64(time.Since(start).Milliseconds()))
 					return results, nil
 				}
 			}
@@ -132,6 +153,7 @@ func (m *MongoDBConnector) Execute(ctx context.Context, statement string, params
 	}
 
 	// For non-cursor results (insert, update, delete, count, etc.), return the raw result
+	observability.RecordConnectorOperation(ctx, "", "mongodb", "execute", true, float64(time.Since(start).Milliseconds()))
 	return []map[string]any{bsonMToMap(result)}, nil
 }
 

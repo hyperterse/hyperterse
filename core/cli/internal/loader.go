@@ -94,3 +94,11 @@ func ResolveLogLevel(verbose bool, cliLogLevel int, model *hyperterse.Model) int
 	}
 	return logger.LogLevelInfo
 }
+
+// ResolveOTLPEndpoint resolves the OTLP endpoint from CLI/env/default.
+func ResolveOTLPEndpoint() string {
+	if envEndpoint := os.Getenv("HYPERTERSE_OTEL_ENDPOINT"); envEndpoint != "" {
+		return envEndpoint
+	}
+	return "localhost:4317"
+}

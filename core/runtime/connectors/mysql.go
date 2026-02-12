@@ -6,10 +6,15 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // MySQLConnector implements the Connector interface for MySQL
@@ -104,8 +109,16 @@ func NewMySQLConnector(def *protoconnectors.ConnectorDef) (*MySQLConnector, erro
 
 // Execute executes a SQL statement against MySQL with context support
 func (m *MySQLConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
+	start := time.Now()
+	tracer := otel.Tracer("runtime/connectors/mysql")
+	ctx, span := tracer.Start(ctx, "connector.mysql.execute")
+	defer span.End()
+	span.SetAttributes(attribute.String(observability.AttrConnectorType, "mysql"))
+
 	rows, err := m.db.QueryContext(ctx, statement)
 	if err != nil {
+		span.SetStatus(codes.Error, "query_failed")
+		observability.RecordConnectorOperation(ctx, "", "mysql", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
@@ -113,6 +126,8 @@ func (m *MySQLConnector) Execute(ctx context.Context, statement string, params m
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
+		span.SetStatus(codes.Error, "columns_failed")
+		observability.RecordConnectorOperation(ctx, "", "mysql", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("failed to get columns: %w", err)
 	}
 
@@ -128,6 +143,8 @@ func (m *MySQLConnector) Execute(ctx context.Context, statement string, params m
 
 		// Scan row into values
 		if err := rows.Scan(valuePtrs...); err != nil {
+			span.SetStatus(codes.Error, "scan_failed")
+			observability.RecordConnectorOperation(ctx, "", "mysql", "execute", false, float64(time.Since(start).Milliseconds()))
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
@@ -147,9 +164,12 @@ func (m *MySQLConnector) Execute(ctx context.Context, statement string, params m
 	}
 
 	if err := rows.Err(); err != nil {
+		span.SetStatus(codes.Error, "rows_iteration_failed")
+		observability.RecordConnectorOperation(ctx, "", "mysql", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
+	observability.RecordConnectorOperation(ctx, "", "mysql", "execute", true, float64(time.Since(start).Milliseconds()))
 	return results, nil
 }
 

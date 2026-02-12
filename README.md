@@ -20,10 +20,10 @@ Hyperterse is a high-performance runtime server that transforms database queries
 
 You describe your queries once, in a simple configuration file. Hyperterse does the rest:
 
-* Generates individual, typed endpoints
-* Validates inputs automatically
-* Produces OpenAPI documentation
-* Exposes queries safely to AI systems
+- Generates individual, typed endpoints
+- Validates inputs automatically
+- Produces OpenAPI documentation
+- Exposes queries safely to AI systems
 
 No ORMs. No boilerplate. No exposed SQL.
 
@@ -33,20 +33,20 @@ No ORMs. No boilerplate. No exposed SQL.
 
 Hyperterse is built with AI in mind.
 
-* **AI agents and assistants** - Safely query databases through MCP without exposing raw SQL.
-* **LLM tool calling** - Let models discover and invoke database operations autonomously.
-* **Retrieval-augmented generation (RAG)** - Use structured database queries as reliable context.
-* **Conversational interfaces** - Power chatbots that access live business data.
-* **AI-driven analytics** - Enable models to generate insights through validated queries.
-* **Multi-agent systems** - Share consistent database access across agents.
-* **Natural language to SQL pipelines** - Bridge human input and databases using tool calls.
-* **AI dashboards** - Query and visualize data dynamically.
+- **AI agents and assistants** - Safely query databases through MCP without exposing raw SQL.
+- **LLM tool calling** - Let models discover and invoke database operations autonomously.
+- **Retrieval-augmented generation (RAG)** - Use structured database queries as reliable context.
+- **Conversational interfaces** - Power chatbots that access live business data.
+- **AI-driven analytics** - Enable models to generate insights through validated queries.
+- **Multi-agent systems** - Share consistent database access across agents.
+- **Natural language to SQL pipelines** - Bridge human input and databases using tool calls.
+- **AI dashboards** - Query and visualize data dynamically.
 
 ### Traditional Use Cases
 
-* **Database-backed APIs** without boilerplate
-* **Lightweight microservices** without ORM overhead
-* **Rapid prototyping** with configuration-first workflows
+- **Database-backed APIs** without boilerplate
+- **Lightweight microservices** without ORM overhead
+- **Rapid prototyping** with configuration-first workflows
 
 ## Features
 
@@ -96,9 +96,9 @@ curl -fsSL https://hyperterse.com/install | bash
 
 **Supported platforms:**
 
-* Linux (amd64, arm64, arm)
-* macOS (Intel, Apple Silicon)
-* Windows (amd64, arm64)
+- Linux (amd64, arm64, arm)
+- macOS (Intel, Apple Silicon)
+- Windows (amd64, arm64)
 
 For more installation options, see the [installation guide](https://docs.hyperterse.com/getting-started/installation).
 
@@ -163,22 +163,22 @@ Response:
 
 📚 **[Read the docs →](https://docs.hyperterse.com)**
 
-* **[Getting Started](https://docs.hyperterse.com/getting-started/quick-start)** - Quick start guide and installation
-* **[CLI Reference](https://docs.hyperterse.com/reference/cli)** - Complete command-line interface reference
-* **[Configuration Guide](https://docs.hyperterse.com/reference/configuration)** - Configuration file reference
-* **[Guides](https://docs.hyperterse.com/guides)** - Practical guides for AI integration, OpenAPI, MCP, and caching
-* **[Caching Guide](https://docs.hyperterse.com/guides/caching)** - Executor-level query caching, TTL, and override strategy
-* **[Concepts](https://docs.hyperterse.com/concepts)** - Core concepts: adapters, queries, and inputs
-* **[Databases](https://docs.hyperterse.com/databases)** - Database-specific documentation
-* **[Deployment](https://docs.hyperterse.com/deployment)** - Deployment guides for various platforms
+- **[Getting Started](https://docs.hyperterse.com/getting-started/quick-start)** - Quick start guide and installation
+- **[CLI Reference](https://docs.hyperterse.com/reference/cli)** - Complete command-line interface reference
+- **[Configuration Guide](https://docs.hyperterse.com/reference/configuration)** - Configuration file reference
+- **[Guides](https://docs.hyperterse.com/guides)** - Practical guides for AI integration, OpenAPI, MCP, and caching
+- **[Caching Guide](https://docs.hyperterse.com/guides/caching)** - Executor-level query caching, TTL, and override strategy
+- **[Concepts](https://docs.hyperterse.com/concepts)** - Core concepts: adapters, queries, and inputs
+- **[Databases](https://docs.hyperterse.com/databases)** - Database-specific documentation
+- **[Deployment](https://docs.hyperterse.com/deployment)** - Deployment guides for various platforms
 
 ### Runtime Endpoints
 
 When running, Hyperterse exposes several endpoints:
 
-* **OpenAPI Documentation**: `GET /docs` - Interactive API documentation
-* **LLM Documentation**: `GET /llms.txt` - AI-friendly documentation format
-* **MCP Protocol**: `POST /mcp` - Model Context Protocol JSON-RPC endpoint
+- **OpenAPI Documentation**: `GET /docs` - Interactive API documentation
+- **LLM Documentation**: `GET /llms.txt` - AI-friendly documentation format
+- **MCP Protocol**: `POST /mcp` - Model Context Protocol JSON-RPC endpoint
 
 ## Examples
 
@@ -316,10 +316,10 @@ For complete configuration reference, see the [configuration guide](https://docs
 
 Hyperterse is designed with security as a baseline:
 
-* 🔒 **Credentials are never exposed** - Connection strings stay server-side
-* 🛡️ **SQL is never returned to clients** - Raw queries remain hidden
-* ✅ **Inputs are validated and escaped** - Strong typing prevents injection
-* 🔇 **Errors are sanitized by default** - Internal details stay internal
+- 🔒 **Credentials are never exposed** - Connection strings stay server-side
+- 🛡️ **SQL is never returned to clients** - Raw queries remain hidden
+- ✅ **Inputs are validated and escaped** - Strong typing prevents injection
+- 🔇 **Errors are sanitized by default** - Internal details stay internal
 
 For production deployments, place Hyperterse behind a reverse proxy for authentication, rate limiting, and TLS. See the [production security guide](https://docs.hyperterse.com/security/production) for best practices.
 
@@ -339,16 +339,14 @@ Please keep changes focused and well-tested. For major changes, open an issue fi
 
 ## Support
 
-* 🌐 **Website**: [hyperterse.com](https://hyperterse.com)
-* 📖 **Documentation**: [docs.hyperterse.com](https://docs.hyperterse.com)
-* 🐛 **Issues**: [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
-* 💬 **Discussions**: [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
-
+- 🌐 **Website**: [hyperterse.com](https://hyperterse.com)
+- 📖 **Documentation**: [docs.hyperterse.com](https://docs.hyperterse.com)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
 
 ---
 
 <div align="center">
-
 
 Made with care by the Hyperterse team.
 

@@ -39,6 +39,7 @@ message Model {
   repeated Query queries = 3;
   ServerConfig server = 4; // Optional server configuration
   ExportConfig export = 5; // Optional export configuration
+  string version = 6; // Optional service version for observability
 }
 
 // Adapter Configuration

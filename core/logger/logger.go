@@ -1,17 +1,21 @@
 package logger
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/term"
 )
 
@@ -55,6 +59,13 @@ var (
 	logFile      *os.File
 	logFileMutex sync.Mutex
 	logWriter    io.Writer = os.Stdout // Default to stdout, can be MultiWriter
+
+	otelLogMode        bool
+	otelLogModeMutex   sync.RWMutex
+	serviceContextMu   sync.RWMutex
+	serviceName        = "hyperterse"
+	serviceVersion     = "dev"
+	serviceEnvironment = "development"
 )
 
 // SetLogLevel sets the global log level
@@ -64,6 +75,34 @@ func SetLogLevel(level int) {
 	if level >= LogLevelError && level <= LogLevelDebug {
 		globalLogLevel = level
 	}
+}
+
+// SetServiceContext sets common service attributes for structured logs.
+func SetServiceContext(name, version, environment string) {
+	serviceContextMu.Lock()
+	defer serviceContextMu.Unlock()
+	if name != "" {
+		serviceName = name
+	}
+	if version != "" {
+		serviceVersion = version
+	}
+	if environment != "" {
+		serviceEnvironment = environment
+	}
+}
+
+// SetOTELLogMode toggles OTel-style structured JSON output mode.
+func SetOTELLogMode(enabled bool) {
+	otelLogModeMutex.Lock()
+	defer otelLogModeMutex.Unlock()
+	otelLogMode = enabled
+}
+
+func isOTELLogModeEnabled() bool {
+	otelLogModeMutex.RLock()
+	defer otelLogModeMutex.RUnlock()
+	return otelLogMode
 }
 
 // GetLogLevel returns the current global log level
@@ -257,6 +296,75 @@ func (l *Logger) formatLogEntry(level int, levelChar string, levelColor string, 
 	return fmt.Sprintf("%s  %s  %s: %s\n", timestampStr, levelStr, tagStr, message)
 }
 
+func (l *Logger) formatOTELLogEntry(ctx context.Context, level int, levelText string, message string, attrs map[string]any) string {
+	timestamp := time.Now().UTC().Format(time.RFC3339Nano)
+	serviceContextMu.RLock()
+	svcName := serviceName
+	svcVersion := serviceVersion
+	svcEnv := serviceEnvironment
+	serviceContextMu.RUnlock()
+
+	stringAttrs := map[string]string{
+		"service.name":           svcName,
+		"service.version":        svcVersion,
+		"deployment.environment": svcEnv,
+		"log.tag":                l.tag,
+	}
+	for k, v := range attrs {
+		switch typed := v.(type) {
+		case string:
+			stringAttrs[k] = typed
+		case bool:
+			stringAttrs[k] = strconv.FormatBool(typed)
+		case int:
+			stringAttrs[k] = strconv.Itoa(typed)
+		case int32:
+			stringAttrs[k] = strconv.FormatInt(int64(typed), 10)
+		case int64:
+			stringAttrs[k] = strconv.FormatInt(typed, 10)
+		case float64:
+			stringAttrs[k] = strconv.FormatFloat(typed, 'f', -1, 64)
+		default:
+			stringAttrs[k] = fmt.Sprintf("%v", typed)
+		}
+	}
+
+	if ctx != nil {
+		spanCtx := trace.SpanContextFromContext(ctx)
+		if spanCtx.IsValid() {
+			stringAttrs["trace_id"] = spanCtx.TraceID().String()
+			stringAttrs["span_id"] = spanCtx.SpanID().String()
+		}
+	}
+
+	record := map[string]any{
+		"timestamp":       timestamp,
+		"severity_text":   levelText,
+		"severity_number": severityNumber(level),
+		"body":            message,
+		"attributes":      stringAttrs,
+	}
+
+	payload, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Sprintf("%s  %s  %s: %s\n", timestamp, levelText, l.tag, message)
+	}
+	return string(payload) + "\n"
+}
+
+func severityNumber(level int) int {
+	switch level {
+	case LogLevelError:
+		return 17
+	case LogLevelWarn:
+		return 13
+	case LogLevelInfo:
+		return 9
+	default:
+		return 5
+	}
+}
+
 // writeLog writes a log entry if it passes level and tag filters
 // If message contains newlines, each line is logged separately with the tag
 func (l *Logger) writeLog(level int, levelChar string, levelColor string, levelBgColor string, message string) {
@@ -274,12 +382,12 @@ func (l *Logger) writeLog(level int, levelChar string, levelColor string, levelB
 		return
 	}
 
-	l.writeLogUnfiltered(level, levelChar, levelColor, levelBgColor, message)
+	l.writeLogUnfiltered(context.Background(), level, levelChar, levelColor, levelBgColor, message, nil)
 }
 
 // writeLogUnfiltered writes a log entry without checking log level or tag filters
 // Used for critical messages that should always be shown
-func (l *Logger) writeLogUnfiltered(level int, levelChar string, levelColor string, levelBgColor string, message string) {
+func (l *Logger) writeLogUnfiltered(ctx context.Context, level int, levelChar string, levelColor string, levelBgColor string, message string, attrs map[string]any) {
 	// Split message by newlines and log each line separately
 	lines := strings.Split(message, "\n")
 	for i, line := range lines {
@@ -290,6 +398,9 @@ func (l *Logger) writeLogUnfiltered(level int, levelChar string, levelColor stri
 
 		// Format and write log entry
 		logEntry := l.formatLogEntry(level, levelChar, levelColor, levelBgColor, line)
+		if isOTELLogModeEnabled() {
+			logEntry = l.formatOTELLogEntry(ctx, level, levelCharToText(levelChar), line, attrs)
+		}
 
 		logFileMutex.Lock()
 		writer := logWriter
@@ -297,6 +408,36 @@ func (l *Logger) writeLogUnfiltered(level int, levelChar string, levelColor stri
 
 		writer.Write([]byte(logEntry))
 	}
+}
+
+func levelCharToText(levelChar string) string {
+	switch levelChar {
+	case "E":
+		return "ERROR"
+	case "W":
+		return "WARN"
+	case "I":
+		return "INFO"
+	case "D":
+		return "DEBUG"
+	default:
+		return levelChar
+	}
+}
+
+func (l *Logger) writeLogCtx(ctx context.Context, level int, levelChar string, levelColor string, levelBgColor string, message string, attrs map[string]any) {
+	// Check log level
+	logLevelMutex.RLock()
+	shouldLog := level <= globalLogLevel
+	logLevelMutex.RUnlock()
+
+	if !shouldLog {
+		return
+	}
+	if !shouldLogTag(l.tag) {
+		return
+	}
+	l.writeLogUnfiltered(ctx, level, levelChar, levelColor, levelBgColor, message, attrs)
 }
 
 // Error logs at ERROR level
@@ -340,7 +481,7 @@ func (l *Logger) Info(message string) {
 func (l *Logger) Success(message string) {
 	// Create a temporary logger with "success" tag
 	successLogger := &Logger{tag: "Success", interactive: l.interactive}
-	successLogger.writeLogUnfiltered(LogLevelInfo, "✔", colorGreen, bgGreen, message)
+	successLogger.writeLogUnfiltered(context.Background(), LogLevelInfo, "✔", colorGreen, bgGreen, message, nil)
 }
 
 // Successf logs at INFO level but always shows regardless of log level, with "success" as the tag
@@ -422,4 +563,33 @@ func (l *Logger) Multiline(lines []any) {
 			l.Info(lineStr)
 		}
 	}
+}
+
+// Context-aware logging APIs for trace/span correlation.
+func (l *Logger) ErrorCtx(ctx context.Context, message string, attrs map[string]any) {
+	l.writeLogCtx(ctx, LogLevelError, "E", colorRed, bgRed, message, attrs)
+}
+
+func (l *Logger) WarnCtx(ctx context.Context, message string, attrs map[string]any) {
+	l.writeLogCtx(ctx, LogLevelWarn, "W", colorYellow, bgYellow, message, attrs)
+}
+
+func (l *Logger) InfoCtx(ctx context.Context, message string, attrs map[string]any) {
+	l.writeLogCtx(ctx, LogLevelInfo, "I", colorCyan, bgCyan, message, attrs)
+}
+
+func (l *Logger) DebugCtx(ctx context.Context, message string, attrs map[string]any) {
+	l.writeLogCtx(ctx, LogLevelDebug, "D", colorDim, bgDim, message, attrs)
+}
+
+func (l *Logger) InfofCtx(ctx context.Context, attrs map[string]any, format string, args ...any) {
+	l.InfoCtx(ctx, fmt.Sprintf(format, args...), attrs)
+}
+
+func (l *Logger) WarnfCtx(ctx context.Context, attrs map[string]any, format string, args ...any) {
+	l.WarnCtx(ctx, fmt.Sprintf(format, args...), attrs)
+}
+
+func (l *Logger) DebugfCtx(ctx context.Context, attrs map[string]any, format string, args ...any) {
+	l.DebugCtx(ctx, fmt.Sprintf(format, args...), attrs)
 }

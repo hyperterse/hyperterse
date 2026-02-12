@@ -17,11 +17,17 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/proto/runtime"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
 	"github.com/hyperterse/hyperterse/core/runtime/handlers"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Runtime represents the Hyperterse runtime server
@@ -36,10 +42,12 @@ type Runtime struct {
 	mcpHandler       *handlers.MCPServiceHandler
 	shutdownCtx      context.Context
 	shutdownCancel   context.CancelFunc
+	observability    *observability.Providers
+	tracer           trace.Tracer
 }
 
 // NewRuntime creates a new runtime instance
-func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
+func NewRuntime(model *hyperterse.Model, port string, serviceVersion string) (*Runtime, error) {
 	if port == "" {
 		port = "8080"
 	}
@@ -48,6 +56,11 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 
 	log.Infof("Initializing runtime")
 	log.Debugf("Port: %s", port)
+
+	obsProviders, err := observability.Setup(context.Background(), model, serviceVersion)
+	if err != nil {
+		return nil, log.Errorf("failed to initialize observability: %w", err)
+	}
 
 	// Initialize connectors using ConnectorManager (parallel initialization)
 	manager := connectors.NewConnectorManager()
@@ -73,6 +86,8 @@ func NewRuntime(model *hyperterse.Model, port string) (*Runtime, error) {
 		port:             port,
 		shutdownCtx:      shutdownCtx,
 		shutdownCancel:   shutdownCancel,
+		observability:    obsProviders,
+		tracer:           otel.Tracer("runtime"),
 	}, nil
 }
 
@@ -105,7 +120,7 @@ func (r *Runtime) StartAsync() error {
 
 	r.server = &http.Server{
 		Addr:         ":" + r.port,
-		Handler:      r.mux,
+		Handler:      otelhttp.NewHandler(r.mux, "hyperterse_http_server"),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 0, // Disable write timeout for SSE connections (they're long-lived)
 		IdleTimeout:  60 * time.Second,
@@ -143,7 +158,7 @@ func (r *Runtime) registerRoutes() {
 
 	// Register MCP endpoint - Streamable HTTP transport (replaces deprecated SSE transport)
 	// MCP Streamable HTTP: POST for client messages, GET for server-initiated messages
-	r.mux.HandleFunc("/mcp", func(w http.ResponseWriter, req *http.Request) {
+	r.mux.HandleFunc("/mcp", r.instrumentEndpoint("/mcp", func(w http.ResponseWriter, req *http.Request) {
 		// Set CORS headers for cross-origin requests
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
@@ -328,7 +343,7 @@ func (r *Runtime) registerRoutes() {
 		default:
 			http.Error(w, "Method not allowed. Only GET, POST, and DELETE requests are supported.", http.StatusMethodNotAllowed)
 		}
-	})
+	}))
 	utilityRoutes = append(utilityRoutes, "POST /mcp (Streamable HTTP - JSON-RPC requests)")
 	utilityRoutes = append(utilityRoutes, "GET /mcp (Streamable HTTP - server-initiated messages)")
 	utilityRoutes = append(utilityRoutes, "DELETE /mcp (Streamable HTTP - session termination)")
@@ -342,7 +357,7 @@ func (r *Runtime) registerRoutes() {
 	utilityRoutes = append(utilityRoutes, "GET /docs")
 
 	// Heartbeat endpoint for health checks
-	r.mux.HandleFunc("/heartbeat", func(w http.ResponseWriter, req *http.Request) {
+	r.mux.HandleFunc("/heartbeat", r.instrumentEndpoint("/heartbeat", func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -350,7 +365,7 @@ func (r *Runtime) registerRoutes() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]bool{"success": true})
-	})
+	}))
 	utilityRoutes = append(utilityRoutes, "GET /heartbeat")
 
 	// Register individual endpoints for each query
@@ -358,11 +373,17 @@ func (r *Runtime) registerRoutes() {
 		queryName := query.Name
 		endpointPath := "/query/" + queryName
 
-		r.mux.HandleFunc(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
+		r.mux.HandleFunc(endpointPath, r.instrumentEndpoint(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
 			return func(w http.ResponseWriter, req *http.Request) {
 				handlerLog := logger.New("handler")
-				handlerLog.Infof("Request: %s %s", req.Method, req.URL.Path)
-				handlerLog.Debugf("Query: %s", q.Name)
+				handlerLog.InfofCtx(req.Context(), map[string]any{
+					observability.AttrHTTPMethod: req.Method,
+					observability.AttrHTTPRoute:  req.URL.Path,
+					observability.AttrQueryName:  q.Name,
+				}, "Request: %s %s", req.Method, req.URL.Path)
+				handlerLog.DebugfCtx(req.Context(), map[string]any{
+					observability.AttrQueryName: q.Name,
+				}, "Query: %s", q.Name)
 
 				// Helper function to return error in documented format
 				writeErrorResponse := func(w http.ResponseWriter, statusCode int, errorMsg string) {
@@ -450,7 +471,7 @@ func (r *Runtime) registerRoutes() {
 
 				json.NewEncoder(w).Encode(responseJSON)
 			}
-		}(query))
+		}(query)))
 
 		queryRoutes = append(queryRoutes, fmt.Sprintf("POST %s", endpointPath))
 	}
@@ -557,6 +578,15 @@ func (r *Runtime) Stop() error {
 	}
 
 	log.Infof("Engine shutdown complete")
+
+	if r.observability != nil {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		if err := r.observability.Shutdown(shutdownCtx); err != nil {
+			log.Warnf("Observability shutdown error: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -578,4 +608,36 @@ func generateSessionID() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *statusRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (rt *Runtime) instrumentEndpoint(route string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		ctx, span := rt.tracer.Start(req.Context(), "http."+route)
+		span.SetAttributes(
+			attribute.String(observability.AttrHTTPMethod, req.Method),
+			attribute.String(observability.AttrHTTPRoute, route),
+		)
+		defer span.End()
+
+		recorder := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
+		next(recorder, req.WithContext(ctx))
+
+		durationMS := float64(time.Since(start).Milliseconds())
+		observability.RecordHTTPRequest(ctx, req.Method, route, recorder.statusCode, durationMS)
+		span.SetAttributes(attribute.Int(observability.AttrHTTPStatusCode, recorder.statusCode))
+		if recorder.statusCode >= 500 {
+			span.SetStatus(codes.Error, "server_error")
+		}
+	}
 }

@@ -1,0 +1,15 @@
+services:
+  grafana:
+    image: grafana/otel-lgtm:latest
+    container_name: hyperterse-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./provisioning/dashboards/dashboards.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/hyperterse-dashboards.yaml:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000" # Grafana UI
+      - "4317:4317" # OTLP gRPC ingest
+      - "4318:4318" # OTLP HTTP ingest

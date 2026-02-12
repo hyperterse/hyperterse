@@ -153,7 +153,7 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 	}
 	log.Infof("Validation successful")
 
-	rt, err := runtime.NewRuntime(model, resolvedPort)
+	rt, err := runtime.NewRuntime(model, resolvedPort, GetVersion())
 	if err != nil {
 		return nil, err
 	}

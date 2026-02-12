@@ -68,6 +68,11 @@ const schema = {
       pattern: queryNamePattern,
       minLength: 1,
     },
+    version: {
+      type: "string" as const,
+      description: "Optional service version for observability",
+      minLength: 1,
+    },
     export: {
       type: "object" as const,
       description: "Optional export configuration",

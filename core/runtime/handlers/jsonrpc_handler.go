@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/runtime"
 )
 
@@ -73,11 +74,11 @@ func parseDefaultValueForMCP(valueStr, typ string) any {
 // HandleJSONRPC handles JSON-RPC 2.0 requests for MCP protocol
 func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBody []byte) ([]byte, error) {
 	log := logger.New("mcp")
-	log.Debugf("Received JSON-RPC request, size: %d bytes", len(requestBody))
+	log.DebugfCtx(ctx, nil, "Received JSON-RPC request, size: %d bytes", len(requestBody))
 
 	var req JSONRPCRequest
 	if err := json.Unmarshal(requestBody, &req); err != nil {
-		log.Warnf("JSON-RPC parse error: %v", err)
+		log.WarnfCtx(ctx, nil, "JSON-RPC parse error: %v", err)
 		// Parse error
 		errorResp := JSONRPCResponse{
 			JSONRPC: "2.0",
@@ -90,16 +91,18 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		return json.Marshal(errorResp)
 	}
 
-	log.Debugf("JSON-RPC method: %s", req.Method)
+	log.DebugfCtx(ctx, map[string]any{
+		"jsonrpc.method": req.Method,
+	}, "JSON-RPC method: %s", req.Method)
 	if req.ID != nil {
-		log.Debugf("Request ID: %v", req.ID)
+		log.DebugfCtx(ctx, nil, "Request ID: %v", req.ID)
 	} else {
-		log.Debugf("Notification (no ID)")
+		log.DebugCtx(ctx, "Notification (no ID)", nil)
 	}
 
 	// Validate JSON-RPC version
 	if req.JSONRPC != "2.0" {
-		log.Warnf("Invalid JSON-RPC version: %s", req.JSONRPC)
+		log.WarnfCtx(ctx, nil, "Invalid JSON-RPC version: %s", req.JSONRPC)
 		errorResp := JSONRPCResponse{
 			JSONRPC: "2.0",
 			Error: &JSONRPCError{
@@ -117,7 +120,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 
 	switch req.Method {
 	case "initialize":
-		log.Infof("MCP session initialization")
+		log.InfofCtx(ctx, nil, "MCP session initialization")
 		// Parse params for initialize
 		// According to MCP spec, protocolVersion, capabilities, and clientInfo are required
 		var params struct {
@@ -135,10 +138,10 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 			// Default to Streamable HTTP version (2025-03-26)
 			params.ProtocolVersion = "2025-03-26"
 			params.Capabilities = make(map[string]any)
-			log.Debugf("No params provided, using defaults")
+			log.DebugCtx(ctx, "No params provided, using defaults", nil)
 		} else {
 			if err := json.Unmarshal(req.Params, &params); err != nil {
-				log.Debugf("Failed to parse initialize params: %v", err)
+				log.DebugfCtx(ctx, nil, "Failed to parse initialize params: %v", err)
 				jsonrpcErr = &JSONRPCError{
 					Code:    JSONRPCInvalidParams,
 					Message: "Invalid params",
@@ -147,8 +150,8 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 				break
 			}
 
-			log.Debugf("Client info: %s %s", params.ClientInfo.Name, params.ClientInfo.Version)
-			log.Debugf("Requested protocol version: %s", params.ProtocolVersion)
+			log.DebugfCtx(ctx, nil, "Client info: %s %s", params.ClientInfo.Name, params.ClientInfo.Version)
+			log.DebugfCtx(ctx, nil, "Requested protocol version: %s", params.ProtocolVersion)
 			// Validate protocolVersion if provided
 			// Support both 2025-03-26 (Streamable HTTP) and 2024-11-05 (legacy)
 			// According to MCP spec, if client requests unsupported version,
@@ -161,11 +164,11 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 			// Client didn't specify version or requested unsupported version
 			// Respond with latest supported version (per MCP spec)
 			if protocolVersion != "" {
-				log.Warnf("Unsupported protocol version requested: %s, using 2025-03-26", protocolVersion)
+				log.WarnfCtx(ctx, nil, "Unsupported protocol version requested: %s, using 2025-03-26", protocolVersion)
 			}
 			protocolVersion = "2025-03-26" // Default to Streamable HTTP version
 		}
-		log.Debugf("Using protocol version: %s", protocolVersion)
+		log.DebugfCtx(ctx, nil, "Using protocol version: %s", protocolVersion)
 
 		// Return server capabilities
 		result = map[string]any{
@@ -178,15 +181,15 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 				"version": "1.0.0",
 			},
 		}
-		log.Infof("MCP session initialized")
+		log.InfofCtx(ctx, nil, "MCP session initialized")
 
 	case "tools/list":
-		log.Infof("Listing MCP tools")
+		log.InfofCtx(ctx, nil, "Listing MCP tools")
 		// Parse params (should be empty or null for tools/list)
 		var params struct{}
 		if len(req.Params) > 0 && string(req.Params) != "null" {
 			if err := json.Unmarshal(req.Params, &params); err != nil {
-				log.Debugf("Failed to parse tools/list params: %v", err)
+				log.DebugfCtx(ctx, nil, "Failed to parse tools/list params: %v", err)
 				jsonrpcErr = &JSONRPCError{
 					Code:    JSONRPCInvalidParams,
 					Message: "Invalid params",
@@ -198,7 +201,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		// Call ListTools handler
 		resp, err := mcpHandler.ListTools(ctx, &runtime.ListToolsRequest{})
 		if err != nil {
-			log.Warnf("ListTools failed: %v", err)
+			log.WarnfCtx(ctx, nil, "ListTools failed: %v", err)
 			jsonrpcErr = &JSONRPCError{
 				Code:    JSONRPCInternalError,
 				Message: "Internal error",
@@ -263,7 +266,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 			Arguments map[string]any `json:"arguments"`
 		}
 		if err := json.Unmarshal(req.Params, &params); err != nil {
-			log.Debugf("Failed to parse tools/call params: %v", err)
+			log.DebugfCtx(ctx, nil, "Failed to parse tools/call params: %v", err)
 			jsonrpcErr = &JSONRPCError{
 				Code:    JSONRPCInvalidParams,
 				Message: "Invalid params",
@@ -272,11 +275,15 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 			break
 		}
 
-		log.Infof("Calling MCP tool: %s", params.Name)
-		log.Debugf("Argument count: %d", len(params.Arguments))
+		log.InfofCtx(ctx, map[string]any{
+			observability.AttrQueryName: params.Name,
+		}, "Calling MCP tool: %s", params.Name)
+		log.DebugfCtx(ctx, map[string]any{
+			observability.AttrQueryName: params.Name,
+		}, "Argument count: %d", len(params.Arguments))
 
 		if params.Name == "" {
-			log.Debugf("Tool name is empty")
+			log.DebugCtx(ctx, "Tool name is empty", nil)
 			jsonrpcErr = &JSONRPCError{
 				Code:    JSONRPCInvalidParams,
 				Message: "Invalid params: 'name' is required",
@@ -315,7 +322,9 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		}
 		resp, err := mcpHandler.CallTool(ctx, callReq)
 		if err != nil {
-			log.Warnf("CallTool failed: %v", err)
+			log.WarnfCtx(ctx, map[string]any{
+				observability.AttrQueryName: params.Name,
+			}, "CallTool failed: %v", err)
 			jsonrpcErr = &JSONRPCError{
 				Code:    JSONRPCInternalError,
 				Message: "Internal error",
@@ -347,7 +356,7 @@ func HandleJSONRPC(ctx context.Context, mcpHandler *MCPServiceHandler, requestBo
 		// If no ID, it's a true notification - don't set result, response builder will handle it
 
 	default:
-		log.Warnf("Method not found: %s", req.Method)
+		log.WarnfCtx(ctx, nil, "Method not found: %s", req.Method)
 		jsonrpcErr = &JSONRPCError{
 			Code:    JSONRPCMethodNotFound,
 			Message: fmt.Sprintf("Method not found: %s", req.Method),

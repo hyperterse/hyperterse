@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/proto/runtime"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
@@ -28,8 +29,12 @@ func NewQueryServiceHandler(exec *executor.Executor) *QueryServiceHandler {
 // ExecuteQuery executes a query with context propagation for cancellation support
 func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.ExecuteQueryRequest) (*runtime.ExecuteQueryResponse, error) {
 	log := logger.New("handler")
-	log.Infof("Executing query via handler: %s", req.QueryName)
-	log.Debugf("Input count: %d", len(req.Inputs))
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.QueryName,
+	}, "Executing query via handler: %s", req.QueryName)
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.QueryName,
+	}, "Input count: %d", len(req.Inputs))
 
 	// Parse inputs from JSON strings
 	inputs := make(map[string]any)
@@ -37,7 +42,9 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 		var value any
 		if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
 			// If unmarshaling fails, treat as string
-			log.Debugf("Failed to unmarshal input '%s', treating as string", key)
+			log.DebugfCtx(ctx, map[string]any{
+				observability.AttrQueryName: req.QueryName,
+			}, "Failed to unmarshal input '%s', treating as string", key)
 			value = valueJSON
 		}
 		inputs[key] = value
@@ -46,7 +53,9 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 	// Execute the query with context for cancellation support
 	results, err := h.executor.ExecuteQuery(ctx, req.QueryName, inputs)
 	if err != nil {
-		log.Warnf("Query execution failed: %v", err)
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrQueryName: req.QueryName,
+		}, "Query execution failed: %v", err)
 		return &runtime.ExecuteQueryResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -54,7 +63,9 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 		}, nil
 	}
 
-	log.Debugf("Query executed successfully, converting %d result(s) to proto format", len(results))
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.QueryName,
+	}, "Query executed successfully, converting %d result(s) to proto format", len(results))
 
 	// Convert results to proto format
 	protoResults := make([]*runtime.ResultRow, len(results))
@@ -73,7 +84,9 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 		}
 	}
 
-	log.Infof("Query execution completed successfully")
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.QueryName,
+	}, "Query execution completed successfully")
 	return &runtime.ExecuteQueryResponse{
 		Success: true,
 		Error:   "",
@@ -98,8 +111,8 @@ func NewMCPServiceHandler(exec *executor.Executor, model *hyperterse.Model) *MCP
 // ListTools returns all available queries as MCP tools
 func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListToolsRequest) (*runtime.ListToolsResponse, error) {
 	log := logger.New("mcp")
-	log.Infof("Listing MCP tools")
-	log.Debugf("Query count: %d", len(h.model.Queries))
+	log.InfofCtx(ctx, nil, "Listing MCP tools")
+	log.DebugfCtx(ctx, nil, "Query count: %d", len(h.model.Queries))
 
 	tools := make([]*runtime.Tool, 0, len(h.model.Queries))
 
@@ -120,10 +133,12 @@ func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListTool
 			Description: query.Description,
 			Inputs:      toolInputs,
 		})
-		log.Debugf("Added tool: %s", query.Name)
+		log.DebugfCtx(ctx, map[string]any{
+			observability.AttrQueryName: query.Name,
+		}, "Added tool: %s", query.Name)
 	}
 
-	log.Infof("Listed %d MCP tool(s)", len(tools))
+	log.InfofCtx(ctx, nil, "Listed %d MCP tool(s)", len(tools))
 	return &runtime.ListToolsResponse{
 		Tools: tools,
 	}, nil
@@ -132,8 +147,12 @@ func (h *MCPServiceHandler) ListTools(ctx context.Context, req *runtime.ListTool
 // CallTool executes a tool (query) by name with context propagation
 func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolRequest) (*runtime.CallToolResponse, error) {
 	log := logger.New("mcp")
-	log.Infof("Calling MCP tool: %s", req.Name)
-	log.Debugf("Argument count: %d", len(req.Arguments))
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.Name,
+	}, "Calling MCP tool: %s", req.Name)
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.Name,
+	}, "Argument count: %d", len(req.Arguments))
 
 	// Parse arguments from JSON strings
 	// Arguments are stored as JSON-encoded strings (e.g., "\"pending\"" for string "pending")
@@ -160,13 +179,17 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 			}
 		}
 		inputs[key] = value
-		log.Debugf("Parsed argument: %s", key)
+		log.DebugfCtx(ctx, map[string]any{
+			observability.AttrQueryName: req.Name,
+		}, "Parsed argument: %s", key)
 	}
 
 	// Execute the query with context for cancellation support
 	results, err := h.executor.ExecuteQuery(ctx, req.Name, inputs)
 	if err != nil {
-		log.Warnf("Tool execution failed: %v", err)
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrQueryName: req.Name,
+		}, "Tool execution failed: %v", err)
 		errorJSON, _ := json.Marshal(map[string]string{"error": err.Error()})
 		return &runtime.CallToolResponse{
 			Content: string(errorJSON),
@@ -174,12 +197,16 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 		}, nil
 	}
 
-	log.Debugf("Tool executed successfully, marshaling %d result(s)", len(results))
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.Name,
+	}, "Tool executed successfully, marshaling %d result(s)", len(results))
 
 	// Convert results to JSON
 	resultsJSON, err := json.Marshal(results)
 	if err != nil {
-		log.Warnf("Failed to marshal results: %v", err)
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrQueryName: req.Name,
+		}, "Failed to marshal results: %v", err)
 		errorJSON, _ := json.Marshal(map[string]string{"error": "failed to serialize results"})
 		return &runtime.CallToolResponse{
 			Content: string(errorJSON),
@@ -187,8 +214,12 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 		}, nil
 	}
 
-	log.Debugf("Response size: %d bytes", len(resultsJSON))
-	log.Infof("MCP tool call completed successfully")
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.Name,
+	}, "Response size: %d bytes", len(resultsJSON))
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrQueryName: req.Name,
+	}, "MCP tool call completed successfully")
 	return &runtime.CallToolResponse{
 		Content: string(resultsJSON),
 		IsError: false,

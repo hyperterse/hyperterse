@@ -5,10 +5,14 @@ import (
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor/utils"
 	runtimeutils "github.com/hyperterse/hyperterse/core/runtime/utils"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const defaultCacheTTLSeconds = int32(120)
@@ -33,6 +37,11 @@ func NewExecutor(model *hyperterse.Model, manager *connectors.ConnectorManager) 
 // The context allows for request cancellation and timeout propagation.
 func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInputs map[string]any) ([]map[string]any, error) {
 	log := logger.New("executor")
+	start := time.Now()
+	tracer := otel.Tracer("runtime/executor")
+	ctx, span := tracer.Start(ctx, "executor.execute_query")
+	span.SetAttributes(attribute.String(observability.AttrQueryName, queryName))
+	defer span.End()
 
 	// Find the query definition
 	var query *hyperterse.Query
@@ -44,15 +53,21 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	}
 
 	if query == nil {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "query_not_found")
 		return nil, log.Errorf("query '%s' not found", queryName)
 	}
 
-	log.Infof("Executing query: %s", queryName)
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrQueryName: queryName,
+	}, "Executing query: %s", queryName)
 
 	// Validate inputs
 	log.Debugf("Validating inputs")
 	validatedInputs, err := utils.ValidateInputs(query, userInputs)
 	if err != nil {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "input_validation_failed")
 		return nil, log.Errorf("input validation failed: %w", err)
 	}
 	log.Debugf("Input validation successful, %d input(s)", len(validatedInputs))
@@ -67,6 +82,8 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	log.Debugf("Substituting environment variables")
 	statementWithEnvVars, err := runtimeutils.SubstituteEnvVars(query.Statement)
 	if err != nil {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "env_substitution_failed")
 		return nil, log.Errorf("query '%s': failed to substitute environment variables in statement: %w", queryName, err)
 	}
 
@@ -74,6 +91,8 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	log.Debugf("Substituting inputs")
 	finalStatement, err := utils.SubstituteInputs(statementWithEnvVars, validatedInputs, inputTypeMap)
 	if err != nil {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "template_substitution_failed")
 		return nil, log.Errorf("template substitution failed: %w", err)
 	}
 	log.Debugf("Final statement: %s", finalStatement)
@@ -91,6 +110,8 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 
 	// Get the connector(s) for this query
 	if len(query.Use) == 0 {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "adapter_missing")
 		return nil, log.Errorf("query '%s' has no adapter specified", queryName)
 	}
 
@@ -98,6 +119,8 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	adapterName := query.Use[0]
 	conn, exists := e.connectorManager.Get(adapterName)
 	if !exists {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "adapter_not_found")
 		return nil, log.Errorf("adapter '%s' not found", adapterName)
 	}
 
@@ -119,6 +142,8 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	// Execute the query with context for cancellation support
 	results, err := conn.Execute(ctx, finalStatement, validatedInputs)
 	if err != nil {
+		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "query_execution_failed")
 		return nil, log.Errorf("query execution failed: %w", err)
 	}
 
@@ -129,6 +154,7 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 
 	log.Debugf("Query executed successfully, %d result(s)", len(results))
 	log.Infof("Query execution completed")
+	observability.RecordQueryExecution(ctx, queryName, true, float64(time.Since(start).Milliseconds()))
 	return results, nil
 }
 

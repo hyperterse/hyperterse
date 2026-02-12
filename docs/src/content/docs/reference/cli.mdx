@@ -228,18 +228,15 @@ The archive contains everything needed to register Hyperterse queries as AI agen
 
 ## Environment variables
 
-| Variable       | Description                           |
-| -------------- | ------------------------------------- |
-| `PORT`         | Default server port (lowest priority) |
-| `DATABASE_URL` | Common pattern for connection strings |
+| Variable | Description                           |
+| -------- | ------------------------------------- |
+| `PORT`   | Default server port (lowest priority) |
 
 Use environment variables in configuration files:
 
 ```yaml
-adapters:
-  production_db:
-    connector: postgres
-    connection_string: '{{ env.DATABASE_URL }}'
+server:
+  port: '{{ env.PORT }}'
 ```
 
 ---

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Hyperterse
+    orgId: 1
+    folder: Hyperterse
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

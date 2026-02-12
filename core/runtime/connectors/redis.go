@@ -4,10 +4,15 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // RedisConnector implements the Connector interface for Redis
@@ -46,9 +51,17 @@ func NewRedisConnector(def *protoconnectors.ConnectorDef) (*RedisConnector, erro
 // Execute executes a Redis command with context support
 // The statement should be a Redis command like "GET key" or "SET key value"
 func (r *RedisConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
+	start := time.Now()
+	tracer := otel.Tracer("runtime/connectors/redis")
+	ctx, span := tracer.Start(ctx, "connector.redis.execute")
+	defer span.End()
+	span.SetAttributes(attribute.String(observability.AttrConnectorType, "redis"))
+
 	// Split statement into command and args
 	parts := strings.Fields(statement)
 	if len(parts) == 0 {
+		span.SetStatus(codes.Error, "empty_command")
+		observability.RecordConnectorOperation(ctx, "", "redis", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("empty redis command")
 	}
 
@@ -74,6 +87,8 @@ func (r *RedisConnector) Execute(ctx context.Context, statement string, params m
 	// Execute command with provided context
 	cmd := r.client.Do(ctx, append([]any{command}, cmdArgs...)...)
 	if cmd.Err() != nil {
+		span.SetStatus(codes.Error, "command_failed")
+		observability.RecordConnectorOperation(ctx, "", "redis", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("redis command failed: %w", cmd.Err())
 	}
 
@@ -81,6 +96,8 @@ func (r *RedisConnector) Execute(ctx context.Context, statement string, params m
 	result := make(map[string]any)
 	val, err := cmd.Result()
 	if err != nil {
+		span.SetStatus(codes.Error, "result_failed")
+		observability.RecordConnectorOperation(ctx, "", "redis", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("failed to get result: %w", err)
 	}
 
@@ -101,6 +118,7 @@ func (r *RedisConnector) Execute(ctx context.Context, statement string, params m
 		result["value"] = v
 	}
 
+	observability.RecordConnectorOperation(ctx, "", "redis", "execute", true, float64(time.Since(start).Milliseconds()))
 	return []map[string]any{result}, nil
 }
 

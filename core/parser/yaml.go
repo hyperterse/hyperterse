@@ -28,6 +28,10 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 	if nameRaw, ok := raw["name"].(string); ok {
 		model.Name = nameRaw
 	}
+	// Parse optional version
+	if versionRaw, ok := raw["version"].(string); ok {
+		model.Version = versionRaw
+	}
 
 	// Parse export configuration
 	if exportRaw, ok := raw["export"].(map[string]any); ok {

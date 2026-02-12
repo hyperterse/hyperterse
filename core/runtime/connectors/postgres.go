@@ -6,10 +6,15 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	protoconnectors "github.com/hyperterse/hyperterse/core/proto/connectors"
 	_ "github.com/lib/pq"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // PostgresConnector implements the Connector interface for PostgreSQL
@@ -85,12 +90,22 @@ func NewPostgresConnector(def *protoconnectors.ConnectorDef) (*PostgresConnector
 
 // Execute executes a SQL statement against PostgreSQL with context support
 func (p *PostgresConnector) Execute(ctx context.Context, statement string, params map[string]any) ([]map[string]any, error) {
+	start := time.Now()
+	tracer := otel.Tracer("hyperterse/runtime/connectors/postgres")
+	ctx, span := tracer.Start(ctx, "connector.postgres.execute")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String(observability.AttrConnectorType, "postgres"),
+	)
+
 	// Convert params map to ordered slice for parameterized queries
 	// For now, we'll use direct substitution since the statement already has {{ inputs.x }} format
 	// In production, this should be converted to parameterized queries
 
 	rows, err := p.db.QueryContext(ctx, statement)
 	if err != nil {
+		span.SetStatus(codes.Error, "query_failed")
+		observability.RecordConnectorOperation(ctx, "", "postgres", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 	defer rows.Close()
@@ -98,6 +113,8 @@ func (p *PostgresConnector) Execute(ctx context.Context, statement string, param
 	// Get column names
 	columns, err := rows.Columns()
 	if err != nil {
+		span.SetStatus(codes.Error, "columns_failed")
+		observability.RecordConnectorOperation(ctx, "", "postgres", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("failed to get columns: %w", err)
 	}
 
@@ -113,6 +130,8 @@ func (p *PostgresConnector) Execute(ctx context.Context, statement string, param
 
 		// Scan row into values
 		if err := rows.Scan(valuePtrs...); err != nil {
+			span.SetStatus(codes.Error, "scan_failed")
+			observability.RecordConnectorOperation(ctx, "", "postgres", "execute", false, float64(time.Since(start).Milliseconds()))
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
@@ -132,9 +151,12 @@ func (p *PostgresConnector) Execute(ctx context.Context, statement string, param
 	}
 
 	if err := rows.Err(); err != nil {
+		span.SetStatus(codes.Error, "rows_iteration_failed")
+		observability.RecordConnectorOperation(ctx, "", "postgres", "execute", false, float64(time.Since(start).Milliseconds()))
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
 
+	observability.RecordConnectorOperation(ctx, "", "postgres", "execute", true, float64(time.Since(start).Milliseconds()))
 	return results, nil
 }
 
