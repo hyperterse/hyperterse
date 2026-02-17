@@ -1,4 +1,2 @@
 connector: redis
 connection_string: "redis://localhost:6379/0"
-options:
-  db: "0"

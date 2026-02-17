@@ -15,12 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
-	"github.com/hyperterse/hyperterse/core/proto/runtime"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
 	"github.com/hyperterse/hyperterse/core/runtime/handlers"
@@ -40,7 +38,6 @@ type Runtime struct {
 	server           *http.Server
 	port             string
 	mux              *http.ServeMux
-	queryHandler     *handlers.QueryServiceHandler
 	mcpHandler       *handlers.MCPServiceHandler
 	project          *framework.Project
 	shutdownCtx      context.Context
@@ -122,7 +119,6 @@ func (r *Runtime) StartAsync() error {
 	log.Infof("Starting engine")
 	log.Debugf("Creating HTTP server on port %s", r.port)
 
-	r.queryHandler = handlers.NewQueryServiceHandler(r.executor, r.engine)
 	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model, r.engine)
 	log.Debugf("Handlers created")
 	r.registerRoutes()
@@ -158,12 +154,8 @@ func (r *Runtime) registerRoutes() {
 
 	log.Infof("Registering routes")
 
-	// Create ConnectRPC service implementations
-	queryService := &queryServiceServer{handler: r.queryHandler}
-
 	// Track routes for logging
 	var utilityRoutes []string
-	var queryRoutes []string
 
 	// Register MCP endpoint - Streamable HTTP transport (replaces deprecated SSE transport)
 	// MCP Streamable HTTP: POST for client messages, GET for server-initiated messages
@@ -358,14 +350,6 @@ func (r *Runtime) registerRoutes() {
 	utilityRoutes = append(utilityRoutes, "GET /mcp (Streamable HTTP - server-initiated messages)")
 	utilityRoutes = append(utilityRoutes, "DELETE /mcp (Streamable HTTP - session termination)")
 
-	// LLM documentation endpoint
-	r.mux.HandleFunc("/llms.txt", handlers.LLMTxtHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
-	utilityRoutes = append(utilityRoutes, "GET /llms.txt")
-
-	// OpenAPI/Swagger docs endpoint
-	r.mux.HandleFunc("/docs", handlers.GenerateOpenAPISpecHandler(r.model, fmt.Sprintf("http://localhost:%s", r.port)))
-	utilityRoutes = append(utilityRoutes, "GET /docs")
-
 	// Heartbeat endpoint for health checks
 	r.mux.HandleFunc("/heartbeat", r.instrumentEndpoint("/heartbeat", func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -378,131 +362,11 @@ func (r *Runtime) registerRoutes() {
 	}))
 	utilityRoutes = append(utilityRoutes, "GET /heartbeat")
 
-	// Register individual endpoints for each query
-	for _, query := range r.model.Queries {
-		queryName := query.Name
-		endpointPath := "/query/" + queryName
-		if r.engine != nil {
-			if route := r.engine.GetRoute(queryName); route != nil {
-				endpointPath = "/" + route.RoutePath
-			}
-		}
-
-		r.mux.HandleFunc(endpointPath, r.instrumentEndpoint(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
-			return func(w http.ResponseWriter, req *http.Request) {
-				handlerLog := logger.New("handler")
-				handlerLog.InfofCtx(req.Context(), map[string]any{
-					observability.AttrHTTPMethod: req.Method,
-					observability.AttrHTTPRoute:  req.URL.Path,
-					observability.AttrQueryName:  q.Name,
-				}, "Request: %s %s", req.Method, req.URL.Path)
-				handlerLog.DebugfCtx(req.Context(), map[string]any{
-					observability.AttrQueryName: q.Name,
-				}, "Query: %s", q.Name)
-
-				// Helper function to return error in documented format
-				writeErrorResponse := func(w http.ResponseWriter, statusCode int, errorMsg string) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(statusCode)
-					responseJSON := map[string]any{
-						"success": false,
-						"error":   errorMsg,
-						"results": []any{},
-					}
-					json.NewEncoder(w).Encode(responseJSON)
-				}
-
-				if req.Method != http.MethodPost {
-					handlerLog.Warnf("Method not allowed: %s", req.Method)
-					writeErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
-					return
-				}
-
-				// Parse JSON body
-				var requestBody map[string]any
-				if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
-					handlerLog.Warnf("Failed to parse JSON body: %v", err)
-					writeErrorResponse(w, http.StatusBadRequest, "Invalid JSON")
-					return
-				}
-				handlerLog.Debugf("Request body parsed, %d input(s)", len(requestBody))
-
-				// Convert inputs to map[string]string (JSON-encoded)
-				inputs := make(map[string]string)
-				for k, v := range requestBody {
-					jsonBytes, _ := json.Marshal(v)
-					inputs[k] = string(jsonBytes)
-				}
-
-				// Execute query
-				reqProto := &runtime.ExecuteQueryRequest{
-					QueryName: q.Name,
-					Inputs:    inputs,
-				}
-				requestCtx := framework.WithRequestHeaders(req.Context(), req.Header)
-				resp, err := queryService.ExecuteQuery(requestCtx, connect.NewRequest(reqProto))
-				if err != nil {
-					handlerLog.Warnf("Query execution failed: %v", err)
-					writeErrorResponse(w, http.StatusInternalServerError, err.Error())
-					return
-				}
-
-				// Return response
-				w.Header().Set("Content-Type", "application/json")
-				statusCode := http.StatusOK
-				if !resp.Msg.Success {
-					statusCode = http.StatusBadRequest
-					handlerLog.Warnf("Query returned error: %s", resp.Msg.Error)
-				} else {
-					handlerLog.Debugf("Query executed successfully, %d result(s)", len(resp.Msg.Results))
-				}
-				handlerLog.Infof("Response: %d", statusCode)
-				w.WriteHeader(statusCode)
-
-				// Manually construct response to ensure 'results' is always included
-				// (protobuf's omitempty tag would omit empty slices)
-				responseJSON := map[string]any{
-					"success": resp.Msg.Success,
-					"error":   resp.Msg.Error,
-					"results": make([]any, 0),
-				}
-
-				// Convert results from proto format to regular JSON
-				if len(resp.Msg.Results) > 0 {
-					results := make([]map[string]any, len(resp.Msg.Results))
-					for i, row := range resp.Msg.Results {
-						rowMap := make(map[string]any)
-						for key, valueJSON := range row.Fields {
-							var value any
-							if err := json.Unmarshal([]byte(valueJSON), &value); err != nil {
-								// If unmarshaling fails, treat as string
-								value = valueJSON
-							}
-							rowMap[key] = value
-						}
-						results[i] = rowMap
-					}
-					responseJSON["results"] = results
-				}
-
-				json.NewEncoder(w).Encode(responseJSON)
-			}
-		}(query)))
-
-		queryRoutes = append(queryRoutes, fmt.Sprintf("POST %s", endpointPath))
-	}
-
 	// Log all registered routes
-	log.Infof("Routes registered: %d utility, %d query", len(utilityRoutes), len(queryRoutes))
+	log.Infof("Routes registered: %d utility", len(utilityRoutes))
 	log.Debugf("Utility routes:")
 	for _, route := range utilityRoutes {
 		log.Debugf("  %s", route)
-	}
-	if len(queryRoutes) > 0 {
-		log.Debugf("Query routes:")
-		for _, route := range queryRoutes {
-			log.Debugf("  %s", route)
-		}
 	}
 }
 
@@ -534,7 +398,6 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 
 	// Update handlers
 	r.engine = framework.NewEngine(model, r.executor, r.project)
-	r.queryHandler = handlers.NewQueryServiceHandler(r.executor, r.engine)
 	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model, r.engine)
 	log.Debugf("Handlers recreated")
 
@@ -605,19 +468,6 @@ func (r *Runtime) Stop() error {
 	}
 
 	return nil
-}
-
-// Wrapper types for ConnectRPC compatibility
-type queryServiceServer struct {
-	handler *handlers.QueryServiceHandler
-}
-
-func (s *queryServiceServer) ExecuteQuery(ctx context.Context, req *connect.Request[runtime.ExecuteQueryRequest]) (*connect.Response[runtime.ExecuteQueryResponse], error) {
-	resp, err := s.handler.ExecuteQuery(ctx, req.Msg)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(resp), nil
 }
 
 // generateSessionID generates a secure session ID for MCP sessions

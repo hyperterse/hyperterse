@@ -134,9 +134,9 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 	}
 
 	if adapter != nil {
-		log.Infof("Using adapter: %s (%s)", adapterName, adapter.Connector.String())
+		log.Debugf("Using adapter: %s (%s)", adapterName, adapter.Connector.String())
 	} else {
-		log.Infof("Using adapter: %s", adapterName)
+		log.Debugf("Using adapter: %s", adapterName)
 	}
 
 	// Execute the query with context for cancellation support
