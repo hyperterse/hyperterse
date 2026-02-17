@@ -204,7 +204,7 @@ fi
 chmod +x "$TMPDIR/hyperterse"
 
 # Run hyperterse with the embedded config
-"$TMPDIR/hyperterse" run --file "$TMPDIR/config.terse" "$@"
+"$TMPDIR/hyperterse" start --file "$TMPDIR/config.terse" "$@"
 `
 
 	return script

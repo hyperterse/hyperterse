@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -34,12 +35,14 @@ import (
 type Runtime struct {
 	model            *hyperterse.Model
 	executor         *executor.Executor
+	engine           *framework.Engine
 	connectorManager *connectors.ConnectorManager
 	server           *http.Server
 	port             string
 	mux              *http.ServeMux
 	queryHandler     *handlers.QueryServiceHandler
 	mcpHandler       *handlers.MCPServiceHandler
+	project          *framework.Project
 	shutdownCtx      context.Context
 	shutdownCancel   context.CancelFunc
 	observability    *observability.Providers
@@ -47,7 +50,7 @@ type Runtime struct {
 }
 
 // NewRuntime creates a new runtime instance
-func NewRuntime(model *hyperterse.Model, port string, serviceVersion string) (*Runtime, error) {
+func NewRuntime(model *hyperterse.Model, port string, serviceVersion string, opts ...RuntimeOption) (*Runtime, error) {
 	if port == "" {
 		port = "8080"
 	}
@@ -78,8 +81,7 @@ func NewRuntime(model *hyperterse.Model, port string, serviceVersion string) (*R
 
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
-	log.Infof("Runtime initialized successfully")
-	return &Runtime{
+	runtimeInstance := &Runtime{
 		model:            model,
 		executor:         exec,
 		connectorManager: manager,
@@ -88,7 +90,14 @@ func NewRuntime(model *hyperterse.Model, port string, serviceVersion string) (*R
 		shutdownCancel:   shutdownCancel,
 		observability:    obsProviders,
 		tracer:           otel.Tracer("runtime"),
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(runtimeInstance)
+	}
+	runtimeInstance.engine = framework.NewEngine(model, exec, runtimeInstance.project)
+
+	log.Infof("Runtime initialized successfully")
+	return runtimeInstance, nil
 }
 
 // Start starts the runtime server and blocks until SIGTERM/SIGINT
@@ -113,8 +122,8 @@ func (r *Runtime) StartAsync() error {
 	log.Infof("Starting engine")
 	log.Debugf("Creating HTTP server on port %s", r.port)
 
-	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
-	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
+	r.queryHandler = handlers.NewQueryServiceHandler(r.executor, r.engine)
+	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model, r.engine)
 	log.Debugf("Handlers created")
 	r.registerRoutes()
 
@@ -240,7 +249,8 @@ func (r *Runtime) registerRoutes() {
 			}
 
 			// Handle JSON-RPC request
-			responseBody, err := handlers.HandleJSONRPC(req.Context(), r.mcpHandler, body)
+			requestCtx := framework.WithRequestHeaders(req.Context(), req.Header)
+			responseBody, err := handlers.HandleJSONRPC(requestCtx, r.mcpHandler, body)
 			if err != nil {
 				// Return valid JSON-RPC error response
 				errorResponse := map[string]any{
@@ -372,6 +382,11 @@ func (r *Runtime) registerRoutes() {
 	for _, query := range r.model.Queries {
 		queryName := query.Name
 		endpointPath := "/query/" + queryName
+		if r.engine != nil {
+			if route := r.engine.GetRoute(queryName); route != nil {
+				endpointPath = "/" + route.RoutePath
+			}
+		}
 
 		r.mux.HandleFunc(endpointPath, r.instrumentEndpoint(endpointPath, func(q *hyperterse.Query) http.HandlerFunc {
 			return func(w http.ResponseWriter, req *http.Request) {
@@ -424,7 +439,8 @@ func (r *Runtime) registerRoutes() {
 					QueryName: q.Name,
 					Inputs:    inputs,
 				}
-				resp, err := queryService.ExecuteQuery(req.Context(), connect.NewRequest(reqProto))
+				requestCtx := framework.WithRequestHeaders(req.Context(), req.Header)
+				resp, err := queryService.ExecuteQuery(requestCtx, connect.NewRequest(reqProto))
 				if err != nil {
 					handlerLog.Warnf("Query execution failed: %v", err)
 					writeErrorResponse(w, http.StatusInternalServerError, err.Error())
@@ -517,8 +533,9 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	r.connectorManager = newManager
 
 	// Update handlers
-	r.queryHandler = handlers.NewQueryServiceHandler(r.executor)
-	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model)
+	r.engine = framework.NewEngine(model, r.executor, r.project)
+	r.queryHandler = handlers.NewQueryServiceHandler(r.executor, r.engine)
+	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model, r.engine)
 	log.Debugf("Handlers recreated")
 
 	// Re-register routes (this will update the handlers)

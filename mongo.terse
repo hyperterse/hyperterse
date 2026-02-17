@@ -1,0 +1,116 @@
+name: query-mongodb
+
+server:
+  port: 1337
+  log_level: 4
+
+adapters:
+  mongodb:
+    connector: mongodb
+    connection_string: "mongodb://demo:demo@localhost:27017/"
+
+queries:
+  get-shipment-by-id:
+    use: mongodb
+    description: "Get a shipment by id"
+    statement: |
+      {
+        "database": "demo",
+        "command": {
+          "find": "shipping",
+          "filter": { "_id": "{{ inputs.shipmentId }}" },
+          "limit": 1,
+          "singleBatch": true
+        }
+      }
+    inputs:
+      shipmentId:
+        type: int
+        description: "The ID of the shipment to retrieve"
+        optional: false
+
+  get-shipments-by-handler:
+    use: mongodb
+    description: "Get shipments by handler"
+    statement: |
+      {
+        "database": "demo",
+        "command": {
+          "find": "shipping",
+          "filter": { "handler": { "$regex": "{{ inputs.handler }}", "$options": "i" } }
+        }
+      }
+    inputs:
+      handler:
+        type: string
+        description: "The handler of the shipment to retrieve"
+        optional: false
+        default: ""
+
+  get-all-shipments:
+    use: mongodb
+    description: "Get first 100 shipments"
+    statement: |
+      {
+        "database": "demo",
+        "command": {
+          "find": "shipping",
+          "limit": 100
+        }
+      }
+
+  get-shipment-by-handler:
+    use: mongodb
+    description: "Get a shipment by handler"
+    statement: |
+      {
+        "database": "demo",
+        "command": {
+          "find": "shipping",
+          "filter": { "handler": { "$regex": "{{ inputs.handler }}", "$options": "i" } }
+        }
+      }
+    inputs:
+      handler:
+        type: string
+        description: "The handler of the shipment to retrieve"
+        optional: false
+        default: ""
+
+  get-shipment-by-status:
+    use: mongodb
+    description: "Get shipments by status"
+    statement: |
+      {
+        "database": "demo",
+        "command": {
+          "find": "shipping",
+          "filter": { "status": "{{ inputs.status }}" }
+        }
+      }
+    inputs:
+      status:
+        type: string
+        description: "The status of the shipment to retrieve"
+        optional: true
+        default: "delivered"
+
+  count-shipments-by-handler:
+    use: mongodb
+    description: "Get stats on the number of shipments by handler"
+    statement: |
+      {
+        "database": "demo",
+        "command": {
+          "aggregate": "shipping",
+          "pipeline": [
+            {
+              "$group": {
+                "_id": "$handler",
+                "count": { "$sum": 1 }
+              }
+            }
+          ],
+          "cursor": {}
+        }
+      }

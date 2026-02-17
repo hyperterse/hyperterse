@@ -5,50 +5,60 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-  cmd = "make build"
-  delay = 1000
-  entrypoint = ["./tmp/main", "-f", "myconfig.terse"]
-  exclude_dir = ["assets", "tmp", "vendor", "testdata", "core/proto", "core/types"]
-  exclude_file = []
-  exclude_regex = ["_test.go", "\\.pb\\.go$"]
-  exclude_unchanged = false
-  follow_symlink = false
-  full_bin = ""
-  include_dir = []
-  include_ext = ["go", "tpl", "tmpl", "html", "proto", "terse"]
-  include_file = ["myconfig.terse"]
-  kill_delay = "0s"
-  log = "build-errors.log"
-  poll = false
-  poll_interval = 0
-  post_cmd = []
-  pre_cmd = ["make generate"]
-  rerun = false
-  rerun_delay = 500
-  send_interrupt = true
-  stop_on_error = false
+cmd = "make build"
+delay = 1000
+entrypoint = ["./dist/hyperterse", "start", "./demo", "--verbose"]
+exclude_dir = [
+  "docs",
+  "assets",
+  "tmp",
+  "vendor",
+  "testdata",
+  "scripts",
+  "node_modules",
+  "demo/node_modules",
+  "core/proto",
+  "core/types",
+]
+exclude_file = []
+exclude_regex = ["_test.go", "\\.pb\\.go$"]
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+include_dir = []
+include_ext = ["go", "tpl", "tmpl", "html", "proto", "terse", "ts", "js"]
+kill_delay = "0s"
+log = "build-errors.log"
+poll = false
+poll_interval = 0
+post_cmd = []
+pre_cmd = ["make generate"]
+rerun = false
+rerun_delay = 500
+send_interrupt = true
+stop_on_error = false
 
 [color]
-  app = ""
-  build = "yellow"
-  main = "magenta"
-  runner = "green"
-  watcher = "cyan"
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
 
 [log]
-  main_only = false
-  silent = false
-  time = false
+main_only = false
+silent = false
+time = false
 
 [misc]
-  clean_on_exit = false
+clean_on_exit = false
 
 [proxy]
-  app_port = 0
-  app_start_timeout = 0
-  enabled = false
-  proxy_port = 0
+app_port = 0
+app_start_timeout = 0
+enabled = false
+proxy_port = 0
 
 [screen]
-  clear_on_rebuild = true
-  keep_scroll = true
+clear_on_rebuild = true
+keep_scroll = true

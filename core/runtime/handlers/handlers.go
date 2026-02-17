@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -17,12 +18,14 @@ import (
 // QueryServiceHandler implements the QueryService
 type QueryServiceHandler struct {
 	executor *executor.Executor
+	engine   *framework.Engine
 }
 
 // NewQueryServiceHandler creates a new QueryService handler
-func NewQueryServiceHandler(exec *executor.Executor) *QueryServiceHandler {
+func NewQueryServiceHandler(exec *executor.Executor, eng *framework.Engine) *QueryServiceHandler {
 	return &QueryServiceHandler{
 		executor: exec,
+		engine:   eng,
 	}
 }
 
@@ -50,8 +53,14 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 		inputs[key] = value
 	}
 
-	// Execute the query with context for cancellation support
-	results, err := h.executor.ExecuteQuery(ctx, req.QueryName, inputs)
+	// Execute via framework engine (supports route auth/transforms/custom handlers)
+	var results []map[string]any
+	var err error
+	if h.engine != nil {
+		results, err = h.engine.Execute(ctx, req.QueryName, inputs)
+	} else {
+		results, err = h.executor.ExecuteQuery(ctx, req.QueryName, inputs)
+	}
 	if err != nil {
 		log.WarnfCtx(ctx, map[string]any{
 			observability.AttrQueryName: req.QueryName,
@@ -98,13 +107,15 @@ func (h *QueryServiceHandler) ExecuteQuery(ctx context.Context, req *runtime.Exe
 type MCPServiceHandler struct {
 	executor *executor.Executor
 	model    *hyperterse.Model
+	engine   *framework.Engine
 }
 
 // NewMCPServiceHandler creates a new MCPService handler
-func NewMCPServiceHandler(exec *executor.Executor, model *hyperterse.Model) *MCPServiceHandler {
+func NewMCPServiceHandler(exec *executor.Executor, model *hyperterse.Model, eng *framework.Engine) *MCPServiceHandler {
 	return &MCPServiceHandler{
 		executor: exec,
 		model:    model,
+		engine:   eng,
 	}
 }
 
@@ -184,8 +195,14 @@ func (h *MCPServiceHandler) CallTool(ctx context.Context, req *runtime.CallToolR
 		}, "Parsed argument: %s", key)
 	}
 
-	// Execute the query with context for cancellation support
-	results, err := h.executor.ExecuteQuery(ctx, req.Name, inputs)
+	// Execute via framework engine (supports route auth/transforms/custom handlers)
+	var results []map[string]any
+	var err error
+	if h.engine != nil {
+		results, err = h.engine.Execute(ctx, req.Name, inputs)
+	} else {
+		results, err = h.executor.ExecuteQuery(ctx, req.Name, inputs)
+	}
 	if err != nil {
 		log.WarnfCtx(ctx, map[string]any{
 			observability.AttrQueryName: req.Name,

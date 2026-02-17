@@ -1,0 +1,4 @@
+connector: postgres
+connection_string: "postgresql://demo:demo@localhost:5432/demo"
+options:
+  sslmode: disable

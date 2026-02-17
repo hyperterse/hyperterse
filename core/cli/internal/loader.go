@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/parser"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -11,6 +12,12 @@ import (
 
 // LoadConfig loads and parses a configuration file, returning the model (which includes server config)
 func LoadConfig(filePath string) (*hyperterse.Model, error) {
+	model, _, err := LoadConfigWithProject(filePath)
+	return model, err
+}
+
+// LoadConfigWithProject loads and parses a configuration file and compiles v2 app routes if present.
+func LoadConfigWithProject(filePath string) (*hyperterse.Model, *framework.Project, error) {
 	log := logger.New("parser")
 
 	log.Debugf("Loading configuration file")
@@ -18,7 +25,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, log.Errorf("error reading file: %w", err)
+		return nil, nil, log.Errorf("error reading file: %w", err)
 	}
 
 	log.Debugf("File size: %d bytes", len(content))
@@ -32,7 +39,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 		log.Debugf("Parsing configuration with YAML parser")
 		model, err = parser.ParseYAMLWithConfig(content)
 		if err != nil {
-			return nil, log.Errorf("config error: %w", err)
+			return nil, nil, log.Errorf("config error: %w", err)
 		}
 	} else {
 		parserType = "DSL"
@@ -40,14 +47,19 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 		p := parser.NewParser(string(content))
 		model, err = p.Parse()
 		if err != nil {
-			return nil, log.Errorf("parsing error: %w", err)
+			return nil, nil, log.Errorf("parsing error: %w", err)
 		}
 	}
 
 	log.Debugf("Parser type: %s", parserType)
 	log.Debugf("Configuration parsed successfully")
 
-	return model, nil
+	project, err := framework.CompileProjectIfPresent(filePath, model)
+	if err != nil {
+		return nil, nil, log.Errorf("v2 project compile error: %w", err)
+	}
+
+	return model, project, nil
 }
 
 // LoadConfigFromString loads and parses a configuration from a YAML string, returning the model

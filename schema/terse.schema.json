@@ -66,7 +66,9 @@
                   "minimum": 1
                 }
               },
-              "required": ["enabled"],
+              "required": [
+                "enabled"
+              ],
               "additionalProperties": false
             }
           },
@@ -86,7 +88,12 @@
             "connector": {
               "type": "string",
               "description": "Connector type (required)",
-              "enum": ["postgres", "redis", "mysql", "mongodb"]
+              "enum": [
+                "postgres",
+                "redis",
+                "mysql",
+                "mongodb"
+              ]
             },
             "connection_string": {
               "type": "string",
@@ -111,7 +118,10 @@
               }
             }
           },
-          "required": ["connector", "connection_string"],
+          "required": [
+            "connector",
+            "connection_string"
+          ],
           "additionalProperties": false
         }
       },
@@ -166,7 +176,9 @@
                   "minimum": 1
                 }
               },
-              "required": ["enabled"],
+              "required": [
+                "enabled"
+              ],
               "additionalProperties": false
             },
             "inputs": {
@@ -179,7 +191,13 @@
                     "type": {
                       "type": "string",
                       "description": "Input type (required)",
-                      "enum": ["string", "int", "float", "boolean", "datetime"]
+                      "enum": [
+                        "string",
+                        "int",
+                        "float",
+                        "boolean",
+                        "datetime"
+                      ]
                     },
                     "description": {
                       "type": "string",
@@ -193,7 +211,9 @@
                       "description": "Default value (required if optional=true, type depends on input type)"
                     }
                   },
-                  "required": ["type"],
+                  "required": [
+                    "type"
+                  ],
                   "allOf": [
                     {
                       "if": {
@@ -204,17 +224,24 @@
                         }
                       },
                       "then": {
-                        "required": ["default"]
+                        "required": [
+                          "default"
+                        ]
                       }
                     },
                     {
                       "if": {
                         "properties": {
                           "type": {
-                            "enum": ["string", "datetime"]
+                            "enum": [
+                              "string",
+                              "datetime"
+                            ]
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -232,7 +259,9 @@
                             "const": "int"
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -250,7 +279,9 @@
                             "const": "float"
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -268,7 +299,9 @@
                             "const": "boolean"
                           }
                         },
-                        "required": ["type"]
+                        "required": [
+                          "type"
+                        ]
                       },
                       "then": {
                         "properties": {
@@ -286,14 +319,22 @@
               "additionalProperties": false
             }
           },
-          "required": ["use", "description", "statement"],
+          "required": [
+            "use",
+            "description",
+            "statement"
+          ],
           "additionalProperties": false
         }
       },
       "additionalProperties": false
     }
   },
-  "required": ["name", "adapters", "queries"],
+  "required": [
+    "name",
+    "adapters",
+    "queries"
+  ],
   "additionalProperties": false,
   "$comment": "Cross-reference validations: (1) The 'use' field in queries must reference valid adapter names defined in 'adapters'. (2) Statement input references ({{ inputs.x }}) must match defined inputs. These validations are performed by core/parser/validator.go. Standard JSON Schema Draft 07 doesn't support dynamic cross-references, but some validators (e.g., AJV with $data) can validate this."
 }

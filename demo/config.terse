@@ -1,0 +1,10 @@
+name: demo-framework
+version: 2.0.0-beta-1
+
+server:
+  port: 8080
+  log_level: 3
+
+framework:
+  app_dir: "app"
+  bundler: "rolldown"

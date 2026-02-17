@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/hyperterse/hyperterse/core/cli/internal"
+	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/parser"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -28,6 +29,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 
 	var (
 		model    *hyperterse.Model
+		project  *framework.Project
 		err      error
 		loadFrom string
 	)
@@ -42,15 +44,21 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 		if configFile == "" {
 			return log.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
 		}
-		model, err = internal.LoadConfig(configFile)
+		model, project, err = internal.LoadConfigWithProject(configFile)
 		loadFrom = configFile
 	}
 	if err != nil {
 		return err
 	}
 
-	if err := parser.Validate(model); err != nil {
-		return log.Errorf("validation failed: %w", err)
+	if project != nil {
+		if err := framework.ValidateModel(model, project); err != nil {
+			return log.Errorf("validation failed: %w", err)
+		}
+	} else {
+		if err := parser.Validate(model); err != nil {
+			return log.Errorf("validation failed: %w", err)
+		}
 	}
 
 	log.Successf("Configuration is valid: %s", loadFrom)

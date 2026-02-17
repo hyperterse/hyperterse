@@ -47,9 +47,53 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
+	baseDir := filepath.Dir(initOutputFile)
+	appAdaptersDir := filepath.Join(baseDir, "app", "adapters")
+	appRouteDir := filepath.Join(baseDir, "app", "routes", "health")
+	if err := os.MkdirAll(appAdaptersDir, 0755); err != nil {
+		return fmt.Errorf("failed to create app adapters directory: %w", err)
+	}
+	if err := os.MkdirAll(appRouteDir, 0755); err != nil {
+		return fmt.Errorf("failed to create app route directory: %w", err)
+	}
+
+	adapterConfig := `connector: postgres
+connection_string: "postgresql://user:password@localhost:5432/dbname?sslmode=disable"
+options:
+  max_connections: "10"
+`
+	if err := os.WriteFile(filepath.Join(appAdaptersDir, "my-database.terse"), []byte(adapterConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write adapter .terse: %w", err)
+	}
+
+	routeConfig := `description: "Health route tool"
+scripts:
+  handler: "handler.ts"
+`
+	if err := os.WriteFile(filepath.Join(appRouteDir, "config.terse"), []byte(routeConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write route config.terse: %w", err)
+	}
+
+	handlerTS := `export async function handler(payload: { inputs?: Record<string, unknown> }) {
+  return [
+    {
+      success: true,
+      service: "hyperterse",
+      now: new Date().toISOString(),
+      inputs: payload?.inputs ?? {}
+    }
+  ];
+}
+`
+	if err := os.WriteFile(filepath.Join(appRouteDir, "handler.ts"), []byte(handlerTS), 0644); err != nil {
+		return fmt.Errorf("failed to write route handler.ts: %w", err)
+	}
+
 	fmt.Printf("✓ Created configuration file: %s\n", initOutputFile)
+	fmt.Printf("✓ Created adapter config: %s\n", filepath.Join("app", "adapters", "my-database.terse"))
+	fmt.Printf("✓ Created route config: %s\n", filepath.Join("app", "routes", "health", "config.terse"))
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  1. Edit %s to configure your adapters and queries\n", initOutputFile)
+	fmt.Printf("  1. Edit %s and files under app/adapters + app/routes\n", initOutputFile)
 	fmt.Printf("  2. Run: hyperterse -f %s\n", initOutputFile)
 
 	return nil
@@ -61,25 +105,5 @@ func generateConfigTemplate() string {
 server:
   port: 8080
   log_level: 3
-
-adapters:
-  my_database:
-    connector: postgres
-    connection_string: "postgresql://user:password@localhost:5432/dbname?sslmode=disable"
-    options:
-      max_connections: "10"
-
-queries:
-  get_user_by_id:
-    use: my_database
-    description: "Get a user by their ID"
-    statement: |
-      SELECT id, name, email, created_at
-      FROM users
-      WHERE id = {{ inputs.user_id }}
-    inputs:
-      user_id:
-        type: int
-        description: "The ID of the user to retrieve"
 `
 }

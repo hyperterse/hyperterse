@@ -77,12 +77,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.terse)")
 	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
 
-	// Add flags that run command uses (for backward compatibility when using root command)
+	// Add flags that start command uses (for backward compatibility when using root command)
 	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
 	rootCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
 	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging (sets log level to DEBUG)")
 	rootCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
 	rootCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
+	rootCmd.Flags().BoolVar(&watch, "watch", false, "Watch .terse/.ts files and hot-reload on changes")
 
 	// Add version flag
 	rootCmd.Flags().BoolP("version", "v", false, "Print version information")
@@ -90,8 +91,7 @@ func init() {
 	// Add hidden completion command for install.sh
 	rootCmd.AddCommand(completionCmd)
 
-	// Make root command run the server (backward compatibility)
-	// Only require config flags when actually running the server, not for help/version
+	// Make root command start the server (backward compatibility)
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
 		// Check for --version flag first (before checking for config)
 		if versionFlag, _ := cmd.Flags().GetBool("version"); versionFlag {
@@ -99,12 +99,7 @@ func init() {
 			return nil
 		}
 
-		// Only require config when actually running the server
-		if configFile == "" && source == "" {
-			// If no subcommand and no flags, show help instead of error
-			return cmd.Help()
-		}
-		return runServer(cmd, args)
+		return startServer(cmd, args)
 	}
 }
 

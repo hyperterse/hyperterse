@@ -11,3 +11,9 @@ type Runtime = server.Runtime
 // NewRuntime creates a new runtime instance
 // This is the main constructor function for the runtime package
 var NewRuntime = server.NewRuntime
+
+// RuntimeOption configures runtime initialization.
+type RuntimeOption = server.RuntimeOption
+
+// WithProject attaches compiled v2 framework project metadata to the runtime.
+var WithProject = server.WithProject

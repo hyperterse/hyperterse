@@ -3,10 +3,15 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/hyperterse/hyperterse/core/cli/internal"
+	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/parser"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -15,33 +20,194 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// runCmd represents the run command
-var runCmd = &cobra.Command{
-	Use:           "run",
+var watch bool
+
+// startCmd represents the start command
+var startCmd = &cobra.Command{
+	Use:           "start [path]",
 	Short:         "Run the Hyperterse server",
-	RunE:          runServer,
+	RunE:          startServer,
+	Args:          cobra.MaximumNArgs(1),
 	SilenceUsage:  true,
 	SilenceErrors: true, // Errors are already logged, suppress Cobra's error output
 }
 
 func init() {
-	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(startCmd)
 
 	// Use the same flags as root command (they're defined in root.go)
-	runCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
-	runCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
-	runCmd.Flags().BoolVarP(&verbose, "verbose", "", false, "Enable verbose logging (sets log level to DEBUG)")
-	runCmd.Flags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
-	runCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
-	runCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
+	startCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
+	startCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
+	startCmd.Flags().BoolVarP(&verbose, "verbose", "", false, "Enable verbose logging (sets log level to DEBUG)")
+	startCmd.Flags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
+	startCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
+	startCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
+	startCmd.Flags().BoolVar(&watch, "watch", false, "Watch .terse/.ts files and hot-reload on changes")
 }
 
-func runServer(cmd *cobra.Command, args []string) error {
+func startServer(cmd *cobra.Command, args []string) error {
+	if err := resolveStartPathArg(args); err != nil {
+		return err
+	}
+	if watch {
+		return startServerWithWatch()
+	}
 	rt, err := PrepareRuntime()
 	if err != nil {
 		return err
 	}
 	return rt.Start()
+}
+
+func resolveStartPathArg(args []string) error {
+	log := logger.New("start")
+	if len(args) == 0 {
+		return nil
+	}
+	if source != "" {
+		return log.Errorf("cannot combine path argument with --source")
+	}
+	if configFile != "" {
+		return log.Errorf("cannot combine path argument with --file")
+	}
+
+	target := args[0]
+	info, err := os.Stat(target)
+	if err != nil {
+		return log.Errorf("invalid start path %q: %w", target, err)
+	}
+
+	if info.IsDir() {
+		configFile = filepath.Join(target, "config.terse")
+		return nil
+	}
+
+	// Allow directly passing a config file path.
+	configFile = target
+	return nil
+}
+
+func startServerWithWatch() error {
+	log := logger.New("watch")
+
+	if source != "" {
+		return log.Errorf("--watch does not support --source; use a file-based project")
+	}
+
+	configPath := configFile
+	if configPath == "" {
+		configPath = "config.terse"
+		configFile = configPath
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	if err := watcher.Add(configPath); err != nil {
+		return err
+	}
+	if err := addAppWatches(watcher, filepath.Join(filepath.Dir(configPath), "app")); err != nil {
+		return err
+	}
+
+	restart := make(chan struct{}, 1)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		var debounce *time.Timer
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Op&fsnotify.Create == fsnotify.Create {
+					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+						_ = watcher.Add(event.Name)
+						continue
+					}
+				}
+				if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 && shouldTriggerReload(event.Name) {
+					if debounce != nil {
+						debounce.Stop()
+					}
+					debounce = time.AfterFunc(500*time.Millisecond, func() {
+						select {
+						case restart <- struct{}{}:
+						default:
+						}
+					})
+				}
+			case _, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+			}
+		}
+	}()
+
+	log.Infof("Watching %s and app/** for changes", configPath)
+
+	rt, err := PrepareRuntime()
+	if err != nil {
+		return err
+	}
+	if err := rt.StartAsync(); err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case <-sigChan:
+			return rt.Stop()
+		case <-restart:
+			log.Infof("Changes detected, reloading")
+			newRt, err := PrepareRuntime()
+			if err != nil {
+				log.Warnf("Reload failed, keeping current server running: %v", err)
+				continue
+			}
+			if err := rt.Stop(); err != nil {
+				return log.Errorf("failed to stop server for reload: %w", err)
+			}
+			if err := newRt.StartAsync(); err != nil {
+				return log.Errorf("failed to start new server: %w", err)
+			}
+			rt = newRt
+			log.Infof("Server reloaded successfully")
+		}
+	}
+}
+
+func addAppWatches(watcher *fsnotify.Watcher, appDir string) error {
+	info, err := os.Stat(appDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if !info.IsDir() {
+		return nil
+	}
+	return filepath.WalkDir(appDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return watcher.Add(path)
+		}
+		return nil
+	})
+}
+
+func shouldTriggerReload(path string) bool {
+	lower := strings.ToLower(path)
+	return strings.HasSuffix(lower, ".terse") || strings.HasSuffix(lower, ".ts")
 }
 
 // PrepareRuntime loads config, validates, and creates a runtime ready to start
@@ -84,9 +250,14 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		if configDir := filepath.Dir(configFile); configDir != "" && configDir != "." {
 			LoadEnvFiles(configDir)
 		}
+	} else {
+		// Default start behavior: run from current directory using ./config.terse
+		configFile = "config.terse"
+		LoadEnvFiles(".")
 	}
 
 	var model *hyperterse.Model
+	var project *framework.Project
 	var err error
 
 	// Load from source string if provided, otherwise from file
@@ -96,10 +267,7 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		}
 		model, err = internal.LoadConfigFromString(source)
 	} else {
-		if configFile == "" {
-			return nil, log.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
-		}
-		model, err = internal.LoadConfig(configFile)
+		model, project, err = internal.LoadConfigWithProject(configFile)
 	}
 	if err != nil {
 		return nil, err
@@ -148,12 +316,21 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		}
 	}
 
-	if err := parser.Validate(model); err != nil {
-		return nil, err
+	if project != nil {
+		if err := framework.ValidateModel(model, project); err != nil {
+			return nil, err
+		}
+		if err := framework.BundleRoutes(project); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := parser.Validate(model); err != nil {
+			return nil, err
+		}
 	}
 	log.Infof("Validation successful")
 
-	rt, err := runtime.NewRuntime(model, resolvedPort, GetVersion())
+	rt, err := runtime.NewRuntime(model, resolvedPort, GetVersion(), runtime.WithProject(project))
 	if err != nil {
 		return nil, err
 	}

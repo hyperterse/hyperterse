@@ -1,0 +1,13 @@
+description: "Get user by id, with input validation and response mapping."
+use: my-adapter
+statement: |
+  SELECT * FROM users WHERE id = {{ inputs.userId }}
+inputs:
+  userId:
+    type: int
+    description: "User ID to fetch."
+scripts:
+  input_transform: "./user-input-validator.ts"
+  output_transform: "./user-data-mapper.ts"
+auth:
+  plugin: allow_all

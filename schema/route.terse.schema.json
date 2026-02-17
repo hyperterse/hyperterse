@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/route.terse.schema.json",
+  "title": "HyperterseRouteConfig",
+  "description": "Schema for route-level config.terse files under app/routes/* in Hyperterse v2 framework mode.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Optional explicit MCP tool name. If omitted, name is derived from route folder path."
+    },
+    "description": {
+      "type": "string",
+      "description": "Tool description exposed via MCP tools/list."
+    },
+    "use": {
+      "description": "Adapter binding for DB-backed route tools.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      ]
+    },
+    "statement": {
+      "type": "string",
+      "description": "SQL/command statement for DB-backed route tools."
+    },
+    "scripts": {
+      "type": "object",
+      "description": "Optional TS script hooks for custom behavior.",
+      "properties": {
+        "handler": {
+          "type": "string",
+          "description": "Route-local TS handler script. If present, tool execution uses this handler."
+        },
+        "input_transform": {
+          "type": "string",
+          "description": "Optional TS script to transform inputs before execution."
+        },
+        "output_transform": {
+          "type": "string",
+          "description": "Optional TS script to transform outputs after execution."
+        }
+      },
+      "additionalProperties": false
+    },
+    "auth": {
+      "type": "object",
+      "description": "Optional route auth plugin configuration.",
+      "properties": {
+        "plugin": {
+          "type": "string",
+          "description": "Auth plugin name (e.g. allow_all, api_key)."
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "string",
+                "int",
+                "float",
+                "boolean",
+                "datetime"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "optional": {
+              "type": "boolean"
+            },
+            "default": {}
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "data": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "string",
+                "int",
+                "float",
+                "boolean",
+                "datetime"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "map_to": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

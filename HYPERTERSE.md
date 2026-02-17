@@ -32,6 +32,19 @@
 - **Maintains security**: Connection strings and raw SQL never exposed to clients
 - **Hot reloading**: Development mode with automatic reload on configuration changes
 
+### Framework v2 mode
+
+Hyperterse now supports a framework-style app router for MCP tools:
+
+- Route folders under `app/` define MCP tools.
+- Each route has its own route-level `.terse`.
+- Optional TypeScript scripts add:
+  - custom handlers (`scripts.handler`)
+  - input transforms (`scripts.input_transform`)
+  - output transforms (`scripts.output_transform`)
+- MCP route behavior is filesystem-driven under `app/routes/*/config.terse`.
+- TypeScript route scripts are bundled at startup (`rolldown` default, `esbuild` fallback).
+
 ### Use Cases
 
 - **API Gateway for Databases**: Quickly expose database queries as REST APIs without writing boilerplate code
