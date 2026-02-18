@@ -1,6 +1,12 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
 	"github.com/hyperterse/hyperterse/core/cli/internal"
 	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
@@ -11,9 +17,10 @@ import (
 
 // validateCmd represents the validate command
 var validateCmd = &cobra.Command{
-	Use:           "validate",
-	Short:         "Validate a Hyperterse configuration file",
+	Use:           "validate [path]",
+	Short:         "Validate a Hyperterse project or config",
 	RunE:          validateConfig,
+	Args:          cobra.MaximumNArgs(1),
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }
@@ -21,11 +28,15 @@ var validateCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(validateCmd)
 
+	validateCmd.Flags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.hyperterse or .terse)")
 	validateCmd.Flags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
 }
 
 func validateConfig(cmd *cobra.Command, args []string) error {
 	log := logger.New("validate")
+	if err := resolveValidatePathArg(args); err != nil {
+		return err
+	}
 
 	var (
 		model    *hyperterse.Model
@@ -41,9 +52,6 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 		model, err = internal.LoadConfigFromString(source)
 		loadFrom = "source"
 	} else {
-		if configFile == "" {
-			return log.Errorf("please provide a file path using -f or --file, or a source string using -s or --source")
-		}
 		model, project, err = internal.LoadConfigWithProject(configFile)
 		loadFrom = configFile
 	}
@@ -55,12 +63,193 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 		if err := framework.ValidateModel(model, project); err != nil {
 			return log.Errorf("validation failed: %w", err)
 		}
+		// Validate route scripts/dependencies by running bundling in a temp directory.
+		tempBuildRoot, err := os.MkdirTemp("", "hyperterse-validate-*")
+		if err != nil {
+			return log.Errorf("validation failed: unable to create temp build directory: %w", err)
+		}
+		defer os.RemoveAll(tempBuildRoot)
+
+		project.BuildDir = filepath.Join(tempBuildRoot, "build")
+		if err := framework.BundleRoutes(project); err != nil {
+			return log.Errorf("validation failed: %w", err)
+		}
 	} else {
 		if err := parser.Validate(model); err != nil {
 			return log.Errorf("validation failed: %w", err)
 		}
 	}
 
+	printValidationSummary(log, loadFrom, model, project)
 	log.Successf("Configuration is valid: %s", loadFrom)
 	return nil
+}
+
+func resolveValidatePathArg(args []string) error {
+	log := logger.New("validate")
+	if len(args) == 0 {
+		if configFile == "" && source == "" {
+			configFile = ".hyperterse"
+		}
+		return nil
+	}
+
+	if source != "" {
+		return log.Errorf("cannot combine path argument with --source")
+	}
+	if configFile != "" {
+		return log.Errorf("cannot combine path argument with --file")
+	}
+
+	target := args[0]
+	info, err := os.Stat(target)
+	if err != nil {
+		return log.Errorf("invalid validate path %q: %w", target, err)
+	}
+	if info.IsDir() {
+		configFile = filepath.Join(target, ".hyperterse")
+		return nil
+	}
+
+	// Allow directly passing a config file path.
+	configFile = target
+	return nil
+}
+
+func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperterse.Model, project *framework.Project) {
+	log.Info("Validation report:")
+	log.Infof("  root config: %s", loadFrom)
+
+	if project == nil {
+		log.Infof("  adapters: %d", len(model.GetAdapters()))
+		log.Infof("  queries: %d", len(model.GetQueries()))
+		return
+	}
+
+	log.Infof("  app directory: %s", project.AppDir)
+	log.Infof("  adapter directory: %s", project.AdaptersDir)
+	log.Infof("  routes directory: %s", project.RoutesDir)
+
+	adapterFiles := listTerseFiles(project.AdaptersDir)
+	log.Infof("  adapter files (%d):", len(adapterFiles))
+	if len(adapterFiles) == 0 {
+		log.Info("    - none")
+	} else {
+		for _, adapterFile := range adapterFiles {
+			log.Infof("    - %s", displayPath(project.BaseDir, adapterFile))
+		}
+	}
+
+	routeNames := make([]string, 0, len(project.Routes))
+	for routeName := range project.Routes {
+		routeNames = append(routeNames, routeName)
+	}
+	sort.Strings(routeNames)
+
+	log.Infof("  routes (%d):", len(routeNames))
+	if len(routeNames) == 0 {
+		log.Info("    - none")
+	}
+
+	vendorValidated := "no"
+	if project.VendorBundle != "" {
+		if _, err := os.Stat(project.VendorBundle); err == nil {
+			vendorValidated = "yes"
+		}
+	}
+	totalBundles := 0
+
+	for _, routeName := range routeNames {
+		route := project.Routes[routeName]
+		if route == nil {
+			continue
+		}
+
+		log.Infof("    - tool: %s", route.ToolName)
+		log.Infof("      config: %s", displayPath(project.BaseDir, route.TerseFile))
+		if len(route.Query.GetUse()) > 0 {
+			log.Infof("      adapters: %s", strings.Join(route.Query.GetUse(), ", "))
+		} else {
+			log.Info("      adapters: none (script-only route)")
+		}
+
+		for _, scriptKind := range []string{"handler", "input_transform", "output_transform"} {
+			scriptPath := scriptPathForKind(route, scriptKind)
+			if scriptPath == "" {
+				continue
+			}
+			scriptLabel := strings.ReplaceAll(scriptKind, "_", " ")
+			bundlePath := route.BundleOutputs[scriptKind]
+			if bundlePath != "" {
+				totalBundles++
+			}
+			log.Infof(
+				"      %s: %s -> %s",
+				scriptLabel,
+				displayPath(project.BaseDir, scriptPath),
+				describeBundleOutput(bundlePath),
+			)
+		}
+	}
+
+	log.Infof("  vendor bundle validated: %s", vendorValidated)
+	log.Infof("  route bundles validated: %d", totalBundles)
+}
+
+func listTerseFiles(dir string) []string {
+	entries := make([]string, 0)
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return entries
+	}
+
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(path), ".terse") {
+			entries = append(entries, path)
+		}
+		return nil
+	})
+	sort.Strings(entries)
+	return entries
+}
+
+func scriptPathForKind(route *framework.Route, kind string) string {
+	switch kind {
+	case "handler":
+		return route.Scripts.Handler
+	case "input_transform":
+		return route.Scripts.InputTransform
+	case "output_transform":
+		return route.Scripts.OutputTransform
+	default:
+		return ""
+	}
+}
+
+func describeBundleOutput(bundlePath string) string {
+	if bundlePath == "" {
+		return "not bundled"
+	}
+	return fmt.Sprintf("bundled as %s", filepath.Base(bundlePath))
+}
+
+func displayPath(baseDir, target string) string {
+	if target == "" {
+		return ""
+	}
+	cleanTarget := filepath.Clean(target)
+	rel, err := filepath.Rel(baseDir, cleanTarget)
+	if err != nil {
+		return cleanTarget
+	}
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return cleanTarget
+	}
+	return rel
 }
