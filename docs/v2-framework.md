@@ -6,7 +6,7 @@ Hyperterse v2 introduces an app-router style framework for MCP tools.
 
 ```text
 my-project/
-  config.terse
+  .hyperterse
   app/
     adapters/
       my-adapter.terse
@@ -26,9 +26,9 @@ my-project/
 - Route scripts are TypeScript and bundled at runtime startup.
 - MCP route behavior is implicit from filesystem structure (no route type configuration).
 
-## Root config (`config.terse`)
+## Root config (`.hyperterse`)
 
-The root `.terse` file contains shared server/framework settings. Adapter and tool definitions can be omitted because they are discovered from `app/adapters` and `app/routes`.
+The root `.hyperterse` file contains shared server/framework settings. Adapter and tool definitions can be omitted because they are discovered from `app/adapters` and `app/routes`.
 
 ```yaml
 name: my-framework
@@ -90,8 +90,8 @@ Current payload shape:
 ## Bundling behavior
 
 - Backend: native `esbuild` Go API.
-- Shared dependency artifact: `.hyperterse/build/vendor.js`.
-- Route bundles are emitted under `.hyperterse/build/routes/<tool>/`.
+- Shared dependency artifact: `<build.out>/build/vendor.js` (defaults to `dist/build/vendor.js`).
+- Route bundles are emitted under `<build.out>/build/routes/<tool>/` (defaults to `dist/build/routes/<tool>/`).
 - External package imports are rewritten to direct `vendor.js` registry references in each route script.
 
 ## Auth plugins

@@ -431,7 +431,7 @@ main() {
     success "Hyperterse installed successfully!"
     echo ""
     info "Get started by running:"
-    echo -e "  ${GREEN}hyperterse -file config.terse${NC}"
+    echo -e "  ${GREEN}hyperterse start -file .hyperterse${NC}"
     echo ""
 }
 

@@ -17,6 +17,7 @@ type Project struct {
 	AppDir       string
 	AdaptersDir  string
 	RoutesDir    string
+	BuildDir     string
 	Routes       map[string]*Route
 	VendorBundle string
 }

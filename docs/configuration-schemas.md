@@ -25,7 +25,7 @@ make generate
 ## 1) Root Project Schema
 
 **File**: `schema/root.terse.schema.json`  
-**Applies to**: root project configuration files such as `config.terse` (for example `demo/config.terse`) and `.hyperterse` when using the same root-config shape.
+**Applies to**: root project configuration files named `.hyperterse`.
 
 ### Purpose
 
@@ -35,9 +35,10 @@ Defines project-level settings only (not route/adapters file contents).
 
 - `name` (required): project identifier.
 - `version` (optional): project/service version metadata.
-- `export` (optional):
+- `build` (optional):
   - `out`: output directory
-  - `clean_dir`: clean output directory before export
+  - `out_dir`: alias for `out`
+  - `clean_dir`: clean output directory before build
 - `server` (optional):
   - `port`: integer or numeric string
   - `log_level`: `1..4`
@@ -107,7 +108,7 @@ If your project uses custom folder names, update `.vscode/settings.json` `yaml.s
 
 - `schema/route.terse.schema.json` -> `**/routes/**/config.terse`
 - `schema/adapter.terse.schema.json` -> `**/adapters/**/*.terse`
-- `schema/root.terse.schema.json` -> `**/config.terse`, `**/.hyperterse`
+- `schema/root.terse.schema.json` -> `**/.hyperterse`
 
 ## Maintenance rules
 

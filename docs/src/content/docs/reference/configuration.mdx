@@ -11,7 +11,7 @@ Hyperterse supports YAML-like `.terse` configuration file.
 
 ## Configuration name
 
-Every configuration file must have a `name` field. This name is used when exporting bundles and must follow the same naming rules as query names.
+Every configuration file must have a `name` field. This name identifies the service and must follow the same naming rules as query names.
 
 ```yaml
 name: my-api
@@ -204,27 +204,26 @@ statement: |
   LIMIT {{ inputs.limit }}
 ```
 
-## Export configuration
+## Build configuration
 
-Configure export settings for deployment bundles. This is optional and can be overridden by CLI flags.
+Configure build settings for deployment bundles. This is optional and can be overridden by CLI flags.
 
 ```yaml
-export:
+build:
   out: dist
   clean_dir: true
 ```
 
 | Field       | Type    | Default | Description                             |
 | ----------- | ------- | ------- | --------------------------------------- |
-| `out`       | string  | `dist`  | Output directory path                   |
-| `clean_dir` | boolean | `false` | Clean output directory before exporting |
+| `out`       | string  | `dist`  | Output directory path                 |
+| `clean_dir` | boolean | `false` | Clean output directory before building |
 
 **Rules:**
 
-- The script filename is always derived from the config `name` field
 - CLI flags (`--out/-o`, `--clean-dir`) take precedence over config settings
 - Default is `dist` directory if `out` is not specified
-- When `clean_dir` is `true`, all contents of the output directory are removed before exporting
+- When `clean_dir` is `true`, all contents of the output directory are removed before building
 
 ### Rules
 
@@ -238,7 +237,7 @@ export:
 
 - Use `lower-kebab-case` or `lower_snake_case`
 - Must start with a lowercase letter
-- Used for export bundle script filename
+- Used as service identifier and build artifact naming context
 - Valid: `my-api`, `user_service`, `analytics_v1`
 - Invalid: `MyAPI`, `123service`, `my api`
 
@@ -272,7 +271,7 @@ Hyperterse validates configuration on startup:
 | Defined inputs          | All `{{ inputs.x }}` in statements must be defined                           |
 | Optional defaults       | Optional inputs must have default values                                     |
 | Valid types             | All types must be valid primitives                                           |
-| Export configuration    | `export.out` specifies output directory (script filename uses config `name`) |
+| Build configuration     | `build.out` specifies output directory                                        |
 
 ## Complete example
 
@@ -287,7 +286,7 @@ server:
       enabled: true
       ttl: 60
 
-export:
+build:
   out: dist
 
 adapters:

@@ -18,7 +18,7 @@ console.log("✅ Setup complete!");
 console.log("");
 console.log("Next steps:");
 console.log("  1. Build the project:  make build");
-console.log("  2. Run the server:     ./hyperterse -file config.terse");
+console.log("  2. Run the server:     ./hyperterse start -file .hyperterse");
 console.log("");
 console.log("Available Make commands:");
 console.log("  make build   - Build the project");

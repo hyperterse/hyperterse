@@ -36,7 +36,7 @@ Hyperterse is designed for AI-first applications. It serves multiple use cases, 
 
 Define your queries once in a simple configuration file:
 
-```yaml title="config.terse"
+```yaml title=".hyperterse"
 name: my-api
 
 adapters:
@@ -61,7 +61,7 @@ queries:
 Run the server:
 
 ```bash
-hyperterse run -f config.terse
+hyperterse start -f .hyperterse
 ```
 
 Call your query via REST or MCP:

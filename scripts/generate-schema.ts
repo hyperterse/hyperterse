@@ -120,7 +120,7 @@ const rootSchema = {
   $id: `${schemaBaseURL}/root.terse.schema.json`,
   title: "HyperterseRootConfig",
   description:
-    "Schema for root project configuration files (`config.terse` or `.hyperterse`) that define project-level settings.",
+    "Schema for root project configuration files (`.hyperterse`) that define project-level settings.",
   type: "object" as const,
   properties: {
     name: {
@@ -134,18 +134,23 @@ const rootSchema = {
       description: "Optional project version for observability metadata.",
       minLength: 1,
     },
-    export: {
+    build: {
       type: "object" as const,
-      description: "Optional export configuration.",
+      description: "Optional build configuration.",
       properties: {
         out: {
           type: "string" as const,
-          description: "Export output directory.",
+          description: "Build output directory.",
+          minLength: 1,
+        },
+        out_dir: {
+          type: "string" as const,
+          description: "Alias for build.out.",
           minLength: 1,
         },
         clean_dir: {
           type: "boolean" as const,
-          description: "Clean output directory before export.",
+          description: "Clean output directory before build.",
         },
       },
       additionalProperties: false,

@@ -131,7 +131,7 @@ queries:
 Start the server:
 
 ```bash
-hyperterse run -f config.terse
+hyperterse start -f .hyperterse
 ```
 
 Call the endpoint:
@@ -249,26 +249,26 @@ queries:
 Run:
 
 ```bash
-hyperterse run -f config.terse
+hyperterse start -f .hyperterse
 ```
 
 Development mode (hot reload):
 
 ```bash
-hyperterse dev -f config.terse
+hyperterse start --watch -f .hyperterse
 ```
 
 Validate configuration:
 
 ```bash
-hyperterse validate -f config.terse
+hyperterse validate -f .hyperterse
 ```
 
 Generate artifacts:
 
 ```bash
-hyperterse generate llms -f config.terse
-hyperterse generate skills -f config.terse
+hyperterse generate llms -f .hyperterse
+hyperterse generate skills -f .hyperterse
 ```
 
 Initialize:
@@ -283,15 +283,15 @@ Upgrade:
 hyperterse upgrade
 ```
 
-Export:
+Build:
 
 ```bash
-hyperterse export -f config.terse -o dist
+hyperterse build -f .hyperterse -o dist
 ```
 
 ## Configuration
 
-Hyperterse uses a simple YAML-like configuration format (`.terse` files) to define your database adapters and queries.
+Hyperterse uses YAML configuration files (`.hyperterse` for root config, `.terse` for route/adapter files) to define your database adapters and queries.
 
 **Supported input types:** `string`, `int`, `float`, `boolean`, `uuid`, `datetime`
 

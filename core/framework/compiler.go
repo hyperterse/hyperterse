@@ -25,6 +25,14 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 	appDir := filepath.Join(baseDir, "app")
 	adaptersDir := filepath.Join(appDir, "adapters")
 	routesDir := filepath.Join(appDir, "routes")
+	buildOutDir := "dist"
+	if model != nil && model.Export != nil && model.Export.Out != "" {
+		buildOutDir = model.Export.Out
+	}
+	buildDir := filepath.Join(baseDir, buildOutDir, "build")
+	if filepath.IsAbs(buildOutDir) {
+		buildDir = filepath.Join(buildOutDir, "build")
+	}
 
 	stat, err := os.Stat(appDir)
 	if err != nil {
@@ -45,6 +53,7 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 		AppDir:      appDir,
 		AdaptersDir: adaptersDir,
 		RoutesDir:   routesDir,
+		BuildDir:    buildDir,
 		Routes:      map[string]*Route{},
 	}
 

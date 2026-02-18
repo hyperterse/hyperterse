@@ -4,7 +4,7 @@ This demo follows the v2 framework layout:
 
 ```text
 demo/
-  config.terse
+  .hyperterse
   app/
     adapters/
       my-adapter.terse
@@ -33,11 +33,11 @@ demo/
 From repository root:
 
 ```bash
-hyperterse run -f demo/config.terse
+hyperterse start -f demo/.hyperterse
 ```
 
 Or in dev mode:
 
 ```bash
-hyperterse dev -f demo/config.terse
+hyperterse start --watch -f demo/.hyperterse
 ```

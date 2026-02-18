@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/root.terse.schema.json",
   "title": "HyperterseRootConfig",
-  "description": "Schema for root project configuration files (`config.terse` or `.hyperterse`) that define project-level settings.",
+  "description": "Schema for root project configuration files (`.hyperterse`) that define project-level settings.",
   "type": "object",
   "properties": {
     "name": {
@@ -16,18 +16,23 @@
       "description": "Optional project version for observability metadata.",
       "minLength": 1
     },
-    "export": {
+    "build": {
       "type": "object",
-      "description": "Optional export configuration.",
+      "description": "Optional build configuration.",
       "properties": {
         "out": {
           "type": "string",
-          "description": "Export output directory.",
+          "description": "Build output directory.",
+          "minLength": 1
+        },
+        "out_dir": {
+          "type": "string",
+          "description": "Alias for build.out.",
           "minLength": 1
         },
         "clean_dir": {
           "type": "boolean",
-          "description": "Clean output directory before export."
+          "description": "Clean output directory before build."
         }
       },
       "additionalProperties": false

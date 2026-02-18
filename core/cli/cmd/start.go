@@ -35,7 +35,8 @@ var startCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(startCmd)
 
-	// Use the same flags as root command (they're defined in root.go)
+	// Start command runtime flags
+	startCmd.Flags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.hyperterse or .terse)")
 	startCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
 	startCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
 	startCmd.Flags().BoolVarP(&verbose, "verbose", "", false, "Enable verbose logging (sets log level to DEBUG)")
@@ -78,7 +79,7 @@ func resolveStartPathArg(args []string) error {
 	}
 
 	if info.IsDir() {
-		configFile = filepath.Join(target, "config.terse")
+		configFile = filepath.Join(target, ".hyperterse")
 		return nil
 	}
 
@@ -96,7 +97,7 @@ func startServerWithWatch() error {
 
 	configPath := configFile
 	if configPath == "" {
-		configPath = "config.terse"
+		configPath = ".hyperterse"
 		configFile = configPath
 	}
 
@@ -251,8 +252,8 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 			LoadEnvFiles(configDir)
 		}
 	} else {
-		// Default start behavior: run from current directory using ./config.terse
-		configFile = "config.terse"
+		// Default start behavior: run from current directory using ./.hyperterse
+		configFile = ".hyperterse"
 		LoadEnvFiles(".")
 	}
 

@@ -4,16 +4,16 @@ This release is a breaking framework shift from query-only configs to route-driv
 
 ## What changed
 
-- Legacy `.hyperterse` DSL is no longer supported.
+- Legacy DSL format is no longer supported; `.hyperterse` is now YAML root config.
 - Adapter configs now live under `app/adapters/*.terse`.
 - Route tools now come from `app/routes/*/config.terse`.
-- Root `.terse` is now for shared config (server/framework options).
+- Root `.hyperterse` is now for shared config (server/framework options).
 - TypeScript route scripts are bundled automatically.
 - MCP route behavior is implicit from filesystem structure.
 
 ## Migration steps
 
-1. Keep your current root `.terse` and remove inline `queries` over time.
+1. Keep your current root `.hyperterse` and remove inline `queries` over time.
 2. Create `app/adapters` and `app/routes` folders.
 3. Move adapter definitions from root config into `app/adapters/*.terse`.
 4. For each existing query, create one route `config.terse`:
@@ -45,7 +45,7 @@ queries:
 
 ## After (v2)
 
-Root `config.terse`:
+Root `.hyperterse`:
 
 ```yaml
 name: my-api
@@ -73,8 +73,8 @@ inputs:
 
 ## Validation and runtime commands
 
-- Validate: `hyperterse validate -f config.terse`
-- Run: `hyperterse run -f config.terse`
-- Dev/hot reload: `hyperterse dev -f config.terse`
+- Validate: `hyperterse validate -f .hyperterse`
+- Run: `hyperterse start -f .hyperterse`
+- Dev/hot reload: `hyperterse start --watch -f .hyperterse`
 
 The dev watcher now tracks `.terse` and `.ts` changes under `app/`.

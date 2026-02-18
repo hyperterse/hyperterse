@@ -33,23 +33,29 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 		model.Version = versionRaw
 	}
 
-	// Parse export configuration
-	if exportRaw, ok := raw["export"].(map[string]any); ok {
-		exportConfig := &hyperterse.ExportConfig{}
+	// Parse build configuration
+	if buildRaw, ok := raw["build"].(map[string]any); ok {
+		buildConfig := &hyperterse.ExportConfig{}
 
 		// Check for out (directory)
-		if outRaw, ok := exportRaw["out"].(string); ok && outRaw != "" {
-			exportConfig.Out = outRaw
+		if outRaw, ok := buildRaw["out"].(string); ok && outRaw != "" {
+			buildConfig.Out = outRaw
+		}
+		// Alias for out (directory)
+		if buildConfig.Out == "" {
+			if outDirRaw, ok := buildRaw["out_dir"].(string); ok && outDirRaw != "" {
+				buildConfig.Out = outDirRaw
+			}
 		}
 
 		// Check for clean_dir
-		if cleanDirRaw, ok := exportRaw["clean_dir"].(bool); ok {
-			exportConfig.CleanDir = cleanDirRaw
+		if cleanDirRaw, ok := buildRaw["clean_dir"].(bool); ok {
+			buildConfig.CleanDir = cleanDirRaw
 		}
 
-		// Set export config if at least one field is set
-		if exportConfig.Out != "" || exportConfig.CleanDir {
-			model.Export = exportConfig
+		// Reuse existing model field until proto naming is migrated.
+		if buildConfig.Out != "" || buildConfig.CleanDir {
+			model.Export = buildConfig
 		}
 	}
 

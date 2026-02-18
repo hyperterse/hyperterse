@@ -22,7 +22,7 @@ var initCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().StringVarP(&initOutputFile, "output", "o", "config.terse", "Output file path for the configuration")
+	initCmd.Flags().StringVarP(&initOutputFile, "output", "o", ".hyperterse", "Output file path for the configuration")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
@@ -94,7 +94,7 @@ scripts:
 	fmt.Printf("✓ Created route config: %s\n", filepath.Join("app", "routes", "health", "config.terse"))
 	fmt.Println("\nNext steps:")
 	fmt.Printf("  1. Edit %s and files under app/adapters + app/routes\n", initOutputFile)
-	fmt.Printf("  2. Run: hyperterse -f %s\n", initOutputFile)
+	fmt.Printf("  2. Run: hyperterse start -f %s\n", initOutputFile)
 
 	return nil
 }

@@ -25,9 +25,9 @@ These flags are available for all commands:
 Run the Hyperterse server in production mode.
 
 ```bash
-hyperterse run -f config.terse
+hyperterse start -f .hyperterse
 # Or simply
-hyperterse -f config.terse
+hyperterse start -f .hyperterse
 ```
 
 **Flags:**
@@ -42,13 +42,13 @@ hyperterse -f config.terse
 
 ```bash
 # Run on custom port
-hyperterse run -f config.terse -p 3000
+hyperterse start -f .hyperterse -p 3000
 
 # Run with verbose logging
-hyperterse run -f config.terse -v
+hyperterse start -f .hyperterse -v
 
 # Run with specific log level
-hyperterse run -f config.terse --log-level 4
+hyperterse start -f .hyperterse --log-level 4
 ```
 
 **Priority Order:**
@@ -67,7 +67,7 @@ Server settings are applied in this order (highest to lowest):
 Run the server in development mode with hot reload.
 
 ```bash
-hyperterse dev -f config.terse
+hyperterse start --watch -f .hyperterse
 ```
 
 The server watches your configuration file and automatically reloads when changes are detected. This is ideal for local development.
@@ -95,7 +95,7 @@ Same as `run` command.
 Validate a configuration file without starting the server.
 
 ```bash
-hyperterse validate -f config.terse
+hyperterse validate -f .hyperterse
 ```
 
 Useful in CI pipelines or pre-deploy checks to ensure your configuration is valid.
@@ -110,7 +110,7 @@ Initialize a new Hyperterse configuration file.
 hyperterse init
 ```
 
-Creates a `config.terse` file in the current directory with a basic template.
+Creates a `.hyperterse` file in the current directory with a basic template.
 
 ---
 
@@ -126,57 +126,57 @@ Downloads and installs the latest version of Hyperterse.
 
 ---
 
-### `hyperterse export`
+### `hyperterse build`
 
-Export a self-contained deployment bundle.
+Build a self-contained deployment directory.
 
 ```bash
-hyperterse export -f config.terse -o dist
+hyperterse build -f .hyperterse -o dist
 ```
 
-Creates a self-contained bash script in the specified directory. The script filename is always derived from the config `name` field. This is the **recommended first step for any deployment**.
+Creates a self-contained runtime directory in the specified output path. The directory contains the Hyperterse binary, `.hyperterse` root config, and `app/` files (if present). This is the **recommended first step for any deployment**.
 
 **Flags:**
 
 | Flag          | Short | Default | Description                             |
 | ------------- | ----- | ------- | --------------------------------------- |
 | `--out`       | `-o`  | `dist`  | Output directory                        |
-| `--clean-dir` |       | `false` | Clean output directory before exporting |
+| `--clean-dir` |       | `false` | Clean output directory before building |
 
 **Priority Order:**
 
-Export settings are applied in this order (highest to lowest):
+Build settings are applied in this order (highest to lowest):
 
 1. CLI flags (`--out/-o`, `--clean-dir`)
-2. Config file (`export.out`, `export.clean_dir`)
+2. Config file (`build.out`, `build.clean_dir`)
 3. Default (`dist` directory, `clean_dir: false`)
 
 **Output:**
 
-- Self-contained bash script at `{output_dir}/{config_name}`
-- Script filename always matches the config `name` field
-- Embedded configuration and binary
+- Self-contained runtime directory at `{output_dir}`
+- Contains `hyperterse` binary (or `hyperterse.exe`), `.hyperterse`, and `app/` (if present)
+- Ready to run from the output directory
 
 **Examples:**
 
 ```bash
-# Export to default directory (dist/)
-hyperterse export -f config.terse
+# Build to default directory (dist/)
+hyperterse build -f .hyperterse
 
-# Export to custom directory
-hyperterse export -f config.terse -o build
+# Build to custom directory
+hyperterse build -f .hyperterse -o build
 
-# Clean directory before exporting
-hyperterse export -f config.terse -o build --clean-dir
+# Clean directory before building
+hyperterse build -f .hyperterse -o build --clean-dir
 
-# With config export.out set to "build", CLI flag overrides it
-hyperterse export -f config.terse -o release
+# With config build.out set to "build", CLI flag overrides it
+hyperterse build -f .hyperterse -o release
 ```
 
 <Aside type="caution">
-  Always use `hyperterse export` before deploying. The exported bundle is
-  optimized for production and doesn't require the Hyperterse CLI to be
-  installed.
+  Always use `hyperterse build` before deploying. The output is
+  optimized for production and doesn't require Hyperterse to be
+  installed globally.
 </Aside>
 
 ---
@@ -186,8 +186,8 @@ hyperterse export -f config.terse -o release
 Generate an `llms.txt` documentation file for AI/LLM consumption.
 
 ```bash
-hyperterse generate llms -f config.terse
-hyperterse generate llms -f config.terse -o docs/llms.txt --base-url https://api.example.com
+hyperterse generate llms -f .hyperterse
+hyperterse generate llms -f .hyperterse -o docs/llms.txt --base-url https://api.example.com
 ```
 
 **Flags:**
@@ -211,8 +211,8 @@ The generated file contains markdown documentation optimized for AI consumption,
 Generate an Agent Skills archive (`.zip`) for AI platforms.
 
 ```bash
-hyperterse generate skills -f config.terse
-hyperterse generate skills -f config.terse -o my-skill.zip --name my-data-api
+hyperterse generate skills -f .hyperterse
+hyperterse generate skills -f .hyperterse -o my-skill.zip --name my-data-api
 ```
 
 **Flags:**
@@ -263,8 +263,8 @@ Control logging verbosity with `--log-level` or `-v`:
 
 ```bash
 # Set specific level
-hyperterse run -f config.terse --log-level 4
+hyperterse start -f .hyperterse --log-level 4
 
 # Shortcut for DEBUG level
-hyperterse run -f config.terse -v
+hyperterse start -f .hyperterse -v
 ```
