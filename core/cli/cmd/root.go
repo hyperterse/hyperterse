@@ -72,10 +72,6 @@ func Execute() error {
 }
 
 func init() {
-	// Persistent flags are optional - not required for help, version, upgrade, or init commands
-	rootCmd.PersistentFlags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.terse)")
-	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
-
 	// Add hidden completion command for install.sh
 	rootCmd.AddCommand(completionCmd)
 
