@@ -32,8 +32,8 @@ console.log("🔨 Generating types...");
 await $`mkdir -p core/types`;
 await $`bun run ${resolve(scriptDir, "generate-types.ts")} proto/connectors/connectors.proto proto/primitives/primitives.proto`;
 
-// Generate JSON schema for .terse files
-console.log("🔨 Generating JSON schema...");
+// Generate JSON schemas for .terse role types
+console.log("🔨 Generating JSON schemas...");
 await $`bun run ${resolve(scriptDir, "generate-schema.ts")} proto/connectors/connectors.proto proto/primitives/primitives.proto`;
 
 console.log("✓ Protobuf generation complete");

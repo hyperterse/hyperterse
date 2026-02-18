@@ -2,16 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/route.terse.schema.json",
   "title": "HyperterseRouteConfig",
-  "description": "Schema for route-level config.terse files under app/routes/* in Hyperterse v2 framework mode.",
+  "description": "Schema for route-level `.terse` files. This schema validates route configuration regardless of folder naming convention.",
   "type": "object",
   "properties": {
     "name": {
       "type": "string",
-      "description": "Optional explicit MCP tool name. If omitted, name is derived from route folder path."
+      "description": "Optional explicit MCP tool name.",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "minLength": 1
     },
     "description": {
       "type": "string",
-      "description": "Tool description exposed via MCP tools/list."
+      "description": "Tool description exposed through MCP tools/list.",
+      "minLength": 1
     },
     "use": {
       "description": "Adapter binding for DB-backed route tools.",
@@ -32,23 +35,27 @@
     },
     "statement": {
       "type": "string",
-      "description": "SQL/command statement for DB-backed route tools."
+      "description": "Statement for DB-backed route tools.",
+      "minLength": 1
     },
     "scripts": {
       "type": "object",
-      "description": "Optional TS script hooks for custom behavior.",
+      "description": "Optional script hooks for route behavior.",
       "properties": {
         "handler": {
           "type": "string",
-          "description": "Route-local TS handler script. If present, tool execution uses this handler."
+          "description": "Custom route handler script path.",
+          "minLength": 1
         },
         "input_transform": {
           "type": "string",
-          "description": "Optional TS script to transform inputs before execution."
+          "description": "Input transform script path.",
+          "minLength": 1
         },
         "output_transform": {
           "type": "string",
-          "description": "Optional TS script to transform outputs after execution."
+          "description": "Output transform script path.",
+          "minLength": 1
         }
       },
       "additionalProperties": false
@@ -59,7 +66,7 @@
       "properties": {
         "plugin": {
           "type": "string",
-          "description": "Auth plugin name (e.g. allow_all, api_key)."
+          "minLength": 1
         },
         "policy": {
           "type": "object",
@@ -84,18 +91,104 @@
                 "float",
                 "boolean",
                 "datetime"
-              ]
+              ],
+              "description": "Input type"
             },
             "description": {
-              "type": "string"
+              "type": "string",
+              "description": "Input description"
             },
             "optional": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Whether the input is optional"
             },
-            "default": {}
+            "default": {
+              "description": "Default value. Must match the configured input type if provided."
+            }
           },
           "required": [
             "type"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "string",
+                      "datetime"
+                    ]
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "default": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "const": "int"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "default": {
+                    "type": "integer"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "const": "float"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "default": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "type": {
+                    "const": "boolean"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "default": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
           ],
           "additionalProperties": false
         }
@@ -134,5 +227,29 @@
       "additionalProperties": false
     }
   },
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "required": [
+            "use"
+          ]
+        },
+        {
+          "required": [
+            "scripts"
+          ],
+          "properties": {
+            "scripts": {
+              "type": "object",
+              "required": [
+                "handler"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
   "additionalProperties": false
 }

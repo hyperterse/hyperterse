@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -77,49 +76,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "file", "f", "", "Path to the configuration file (.terse)")
 	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "Configuration as a string (alternative to --file)")
 
-	// Add flags that start command uses (for backward compatibility when using root command)
-	rootCmd.Flags().StringVarP(&port, "port", "p", "", "Server port (overrides config file and PORT env var)")
-	rootCmd.Flags().IntVar(&logLevel, "log-level", 0, "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file)")
-	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose logging (sets log level to DEBUG)")
-	rootCmd.Flags().StringVar(&logTags, "log-tags", "", "Filter logs by tags (comma-separated, use -tag to exclude). Overrides HYPERTERSE_LOG_TAGS env var")
-	rootCmd.Flags().BoolVar(&logFile, "log-file", false, "Stream logs to file in /tmp/.hyperterse/logs/")
-	rootCmd.Flags().BoolVar(&watch, "watch", false, "Watch .terse/.ts files and hot-reload on changes")
-
-	// Add version flag
-	rootCmd.Flags().BoolP("version", "v", false, "Print version information")
-
 	// Add hidden completion command for install.sh
 	rootCmd.AddCommand(completionCmd)
 
-	// Make root command start the server (backward compatibility)
+	// Root command should only print help.
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
-		// Check for --version flag first (before checking for config)
-		if versionFlag, _ := cmd.Flags().GetBool("version"); versionFlag {
-			printVersion()
-			return nil
-		}
-
-		return startServer(cmd, args)
+		return cmd.Help()
 	}
-}
-
-func printVersion() {
-	v := GetVersion()
-	if v == "dev" {
-		// Try to get version from build info
-		if info, ok := debug.ReadBuildInfo(); ok {
-			// Check for vcs.revision or other version info
-			for _, setting := range info.Settings {
-				if setting.Key == "vcs.revision" && len(setting.Value) >= 7 {
-					v = setting.Value[:7]
-				}
-			}
-			if v == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
-				v = info.Main.Version
-			}
-		}
-	}
-	fmt.Println(v)
 }
 
 // LoadEnvFiles attempts to load .env files from multiple locations.

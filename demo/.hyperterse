@@ -6,5 +6,4 @@ server:
   log_level: 3
 
 framework:
-  app_dir: "app"
-  bundler: "rolldown"
+  app_dir: app

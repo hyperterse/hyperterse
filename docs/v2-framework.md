@@ -37,7 +37,6 @@ server:
   log_level: 3
 framework:
   app_dir: "app"
-  bundler: "rolldown"
 ```
 
 ## Route config (`app/routes/*/config.terse`)
@@ -90,8 +89,7 @@ Current payload shape:
 
 ## Bundling behavior
 
-- Default backend: `rolldown` binary.
-- Fallback backend: `esbuild` Go API.
+- Backend: native `esbuild` Go API.
 - Shared dependency artifact: `.hyperterse/build/vendor.js`.
 - Route bundles are emitted under `.hyperterse/build/routes/<tool>/`.
 - External package imports are rewritten to direct `vendor.js` registry references in each route script.

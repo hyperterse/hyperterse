@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/root.terse.schema.json",
+  "title": "HyperterseRootConfig",
+  "description": "Schema for root project configuration files (`config.terse` or `.hyperterse`) that define project-level settings.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name.",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "description": "Optional project version for observability metadata.",
+      "minLength": 1
+    },
+    "export": {
+      "type": "object",
+      "description": "Optional export configuration.",
+      "properties": {
+        "out": {
+          "type": "string",
+          "description": "Export output directory.",
+          "minLength": 1
+        },
+        "clean_dir": {
+          "type": "boolean",
+          "description": "Clean output directory before export."
+        }
+      },
+      "additionalProperties": false
+    },
+    "server": {
+      "type": "object",
+      "description": "Runtime server configuration.",
+      "properties": {
+        "port": {
+          "description": "Server port (default: 8080).",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{1,5}$"
+            }
+          ]
+        },
+        "log_level": {
+          "type": "integer",
+          "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG.",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "queries": {
+          "type": "object",
+          "description": "Global/default query execution settings.",
+          "properties": {
+            "cache": {
+              "type": "object",
+              "description": "Global/default query cache configuration.",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "ttl": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "enabled"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "framework": {
+      "type": "object",
+      "description": "Framework mode options.",
+      "properties": {
+        "app_dir": {
+          "type": "string",
+          "description": "Base application directory used for route/adapters discovery.",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "additionalProperties": false
+}

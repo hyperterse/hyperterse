@@ -43,7 +43,7 @@ Hyperterse now supports a framework-style app router for MCP tools:
   - input transforms (`scripts.input_transform`)
   - output transforms (`scripts.output_transform`)
 - MCP route behavior is filesystem-driven under `app/routes/*/config.terse`.
-- TypeScript route scripts are bundled at startup (`rolldown` default, `esbuild` fallback).
+- TypeScript route scripts are bundled at startup using native `esbuild` Go API.
 
 ### Use Cases
 

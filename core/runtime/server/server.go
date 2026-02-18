@@ -1,17 +1,13 @@
 package server
 
 import (
+	"bufio"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -21,7 +17,8 @@ import (
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
-	"github.com/hyperterse/hyperterse/core/runtime/handlers"
+	runtimeMCP "github.com/hyperterse/hyperterse/core/runtime/mcp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -38,7 +35,7 @@ type Runtime struct {
 	server           *http.Server
 	port             string
 	mux              *http.ServeMux
-	mcpHandler       *handlers.MCPServiceHandler
+	mcpAdapter       *runtimeMCP.Adapter
 	project          *framework.Project
 	shutdownCtx      context.Context
 	shutdownCancel   context.CancelFunc
@@ -92,6 +89,11 @@ func NewRuntime(model *hyperterse.Model, port string, serviceVersion string, opt
 		opt(runtimeInstance)
 	}
 	runtimeInstance.engine = framework.NewEngine(model, exec, runtimeInstance.project)
+	runtimeInstance.mcpAdapter, err = runtimeMCP.New(runtimeInstance.model, runtimeInstance.executor, runtimeInstance.engine)
+	if err != nil {
+		_ = manager.CloseAll()
+		return nil, log.Errorf("failed to initialize mcp server adapter: %w", err)
+	}
 
 	log.Infof("Runtime initialized successfully")
 	return runtimeInstance, nil
@@ -119,8 +121,6 @@ func (r *Runtime) StartAsync() error {
 	log.Infof("Starting engine")
 	log.Debugf("Creating HTTP server on port %s", r.port)
 
-	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model, r.engine)
-	log.Debugf("Handlers created")
 	r.registerRoutes()
 
 	r.server = &http.Server{
@@ -157,209 +157,26 @@ func (r *Runtime) registerRoutes() {
 	// Track routes for logging
 	var utilityRoutes []string
 
-	// Register MCP endpoint - Streamable HTTP transport (replaces deprecated SSE transport)
-	// MCP Streamable HTTP: POST for client messages, GET for server-initiated messages
-	r.mux.HandleFunc("/mcp", r.instrumentEndpoint("/mcp", func(w http.ResponseWriter, req *http.Request) {
-		// Set CORS headers for cross-origin requests
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID")
-
-		// Handle preflight OPTIONS request
-		if req.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
+	mcpHTTPHandler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
+		if r.mcpAdapter == nil {
+			return nil
 		}
+		return r.mcpAdapter.Server()
+	}, &mcpsdk.StreamableHTTPOptions{})
 
-		switch req.Method {
-		case http.MethodPost:
-			// Streamable HTTP: Client sends JSON-RPC messages via POST
-			// Server responds with either JSON or SSE stream depending on operation
-
-			// Validate protocol version header (optional but recommended)
-			protocolVersion := req.Header.Get("MCP-Protocol-Version")
-			if protocolVersion == "" {
-				protocolVersion = "2025-03-26" // Default version
-			}
-			// Accept both Streamable HTTP and legacy versions
-			if protocolVersion != "2025-03-26" && protocolVersion != "2024-11-05" {
-				// Log warning but don't reject - some clients might not send this header
-				mcpLog := logger.New("mcp")
-				mcpLog.Warnf("Unsupported protocol version: %s, defaulting to 2025-03-26", protocolVersion)
-				protocolVersion = "2025-03-26"
-			}
-
-			// Read request body
-			body, err := io.ReadAll(req.Body)
-			if err != nil {
-				http.Error(w, "Failed to read request body", http.StatusBadRequest)
-				return
-			}
-
-			if len(body) == 0 {
-				http.Error(w, "Empty request body", http.StatusBadRequest)
-				return
-			}
-
-			// Parse request to check if it's a notification (no ID) and method type
-			var jsonReq map[string]any
-			isNotification := false
-			var requestID any
-			var methodName string
-			if err := json.Unmarshal(body, &jsonReq); err != nil {
-				// Invalid JSON - return parse error
-				errorResponse := map[string]any{
-					"jsonrpc": "2.0",
-					"error": map[string]any{
-						"code":    -32700,
-						"message": "Parse error",
-					},
-					"id": nil,
-				}
-				errorJSON, _ := json.Marshal(errorResponse)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write(errorJSON)
-				return
-			}
-
-			// Extract request details
-			id, hasID := jsonReq["id"]
-			isNotification = !hasID || id == nil
-			if hasID {
-				requestID = id
-			}
-			if method, ok := jsonReq["method"].(string); ok {
-				methodName = method
-			}
-
-			// Handle initialize - generate and set session ID BEFORE processing
-			if methodName == "initialize" {
-				// Generate session ID for initialize
-				sessionID := generateSessionID()
-				w.Header().Set("Mcp-Session-Id", sessionID)
-			}
-
-			// Handle JSON-RPC request
-			requestCtx := framework.WithRequestHeaders(req.Context(), req.Header)
-			responseBody, err := handlers.HandleJSONRPC(requestCtx, r.mcpHandler, body)
-			if err != nil {
-				// Return valid JSON-RPC error response
-				errorResponse := map[string]any{
-					"jsonrpc": "2.0",
-					"error": map[string]any{
-						"code":    -32603,
-						"message": "Internal error",
-						"data":    err.Error(),
-					},
-					"id": requestID,
-				}
-				errorJSON, _ := json.Marshal(errorResponse)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write(errorJSON)
-				return
-			}
-
-			// For notifications (no ID), respond with 202 Accepted (no body)
-			if isNotification {
-				w.WriteHeader(http.StatusAccepted)
-				return
-			}
-
-			// For requests (with ID), respond with JSON
-			// Note: Can be extended to support SSE streaming for long-running operations
-			// by checking Accept header for "text/event-stream" and responding accordingly
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			if len(responseBody) > 0 {
-				w.Write(responseBody)
-			} else {
-				// Empty response - send minimal JSON-RPC response
-				emptyResponse := map[string]any{
-					"jsonrpc": "2.0",
-					"id":      requestID,
-				}
-				emptyJSON, _ := json.Marshal(emptyResponse)
-				w.Write(emptyJSON)
-			}
-
-		case http.MethodGet:
-			// Streamable HTTP: GET for receiving server-initiated messages (notifications/requests)
-			// Check if client accepts SSE (header may contain multiple values)
-			acceptHeader := req.Header.Get("Accept")
-			if !strings.Contains(acceptHeader, "text/event-stream") {
-				http.Error(w, "Accept header must include 'text/event-stream'", http.StatusBadRequest)
-				return
-			}
-
-			// Set SSE headers
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-			w.Header().Set("X-Accel-Buffering", "no") // Disable buffering for nginx
-
-			// Flush headers immediately
-			if flusher, ok := w.(http.Flusher); ok {
-				flusher.Flush()
-			}
-
-			// Keep the connection alive and send periodic keep-alive messages
-			// Server can send JSON-RPC notifications/requests over this stream
-			// Use 10 second interval to stay well within the 15 second write timeout
-			ticker := time.NewTicker(10 * time.Second)
-			defer ticker.Stop()
-
-			// No endpoint event needed for Streamable HTTP (that was SSE-specific)
-			// Server can send notifications/requests as needed
-
-			// Keep connection alive with periodic keep-alive messages
-			// Also listen for server shutdown to close connections gracefully
-			for {
-				select {
-				case <-req.Context().Done():
-					// Client disconnected
-					return
-				case <-r.shutdownCtx.Done():
-					// Server is shutting down, close connection gracefully
-					return
-				case <-ticker.C:
-					// Send keep-alive comment
-					fmt.Fprintf(w, ": keep-alive\n\n")
-					if flusher, ok := w.(http.Flusher); ok {
-						flusher.Flush()
-					}
-				}
-			}
-
-		case http.MethodDelete:
-			// Streamable HTTP: DELETE for session termination
-			sessionID := req.Header.Get("Mcp-Session-Id")
-			if sessionID == "" {
-				http.Error(w, "Missing Mcp-Session-Id header", http.StatusBadRequest)
-				return
-			}
-			// Session termination (can be extended to actually manage sessions)
-			w.WriteHeader(http.StatusOK)
-
-		default:
-			http.Error(w, "Method not allowed. Only GET, POST, and DELETE requests are supported.", http.StatusMethodNotAllowed)
-		}
-	}))
-	utilityRoutes = append(utilityRoutes, "POST /mcp (Streamable HTTP - JSON-RPC requests)")
-	utilityRoutes = append(utilityRoutes, "GET /mcp (Streamable HTTP - server-initiated messages)")
-	utilityRoutes = append(utilityRoutes, "DELETE /mcp (Streamable HTTP - session termination)")
+	r.mux.Handle("/mcp", r.instrumentHandler("/mcp", r.withCORS(mcpHTTPHandler)))
+	utilityRoutes = append(utilityRoutes, "GET/POST/DELETE /mcp (MCP SDK Streamable HTTP)")
 
 	// Heartbeat endpoint for health checks
-	r.mux.HandleFunc("/heartbeat", r.instrumentEndpoint("/heartbeat", func(w http.ResponseWriter, req *http.Request) {
+	r.mux.Handle("/heartbeat", r.instrumentHandler("/heartbeat", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]bool{"success": true})
-	}))
+		fmt.Fprint(w, `{"success":true}`)
+	})))
 	utilityRoutes = append(utilityRoutes, "GET /heartbeat")
 
 	// Log all registered routes
@@ -398,8 +215,12 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 
 	// Update handlers
 	r.engine = framework.NewEngine(model, r.executor, r.project)
-	r.mcpHandler = handlers.NewMCPServiceHandler(r.executor, r.model, r.engine)
-	log.Debugf("Handlers recreated")
+	mcpAdapter, err := runtimeMCP.New(r.model, r.executor, r.engine)
+	if err != nil {
+		return log.Errorf("failed to rebuild mcp adapter: %w", err)
+	}
+	r.mcpAdapter = mcpAdapter
+	log.Debugf("MCP server adapter recreated")
 
 	// Re-register routes (this will update the handlers)
 	r.mux = http.NewServeMux()
@@ -407,7 +228,7 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 
 	// Update server handler
 	if r.server != nil {
-		r.server.Handler = r.mux
+		r.server.Handler = otelhttp.NewHandler(r.mux, "hyperterse_http_server")
 		log.Debugf("Server handler updated")
 	}
 
@@ -446,7 +267,7 @@ func (r *Runtime) Stop() error {
 
 	// Shutdown HTTP server
 	if r.server != nil {
-		log.Debugf("Shutting down engine")
+		log.Debugf("Shutting down HTTP server")
 		if err := r.server.Shutdown(ctx); err != nil {
 			// If graceful shutdown fails, force close
 			if closeErr := r.server.Close(); closeErr != nil {
@@ -470,13 +291,6 @@ func (r *Runtime) Stop() error {
 	return nil
 }
 
-// generateSessionID generates a secure session ID for MCP sessions
-func generateSessionID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return base64.URLEncoding.EncodeToString(b)
-}
-
 type statusRecorder struct {
 	http.ResponseWriter
 	statusCode int
@@ -487,8 +301,48 @@ func (r *statusRecorder) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (rt *Runtime) instrumentEndpoint(route string, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
+func (r *statusRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response writer does not support hijacking")
+	}
+	return hijacker.Hijack()
+}
+
+func (r *statusRecorder) Push(target string, opts *http.PushOptions) error {
+	if pusher, ok := r.ResponseWriter.(http.Pusher); ok {
+		return pusher.Push(target, opts)
+	}
+	return http.ErrNotSupported
+}
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
+func (rt *Runtime) withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID")
+
+		if req.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, req)
+	})
+}
+
+func (rt *Runtime) instrumentHandler(route string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		start := time.Now()
 		ctx, span := rt.tracer.Start(req.Context(), "http."+route)
 		span.SetAttributes(
@@ -498,7 +352,7 @@ func (rt *Runtime) instrumentEndpoint(route string, next http.HandlerFunc) http.
 		defer span.End()
 
 		recorder := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
-		next(recorder, req.WithContext(ctx))
+		next.ServeHTTP(recorder, req.WithContext(ctx))
 
 		durationMS := float64(time.Since(start).Milliseconds())
 		observability.RecordHTTPRequest(ctx, req.Method, route, recorder.statusCode, durationMS)
@@ -506,5 +360,5 @@ func (rt *Runtime) instrumentEndpoint(route string, next http.HandlerFunc) http.
 		if recorder.statusCode >= 500 {
 			span.SetStatus(codes.Error, "server_error")
 		}
-	}
+	})
 }

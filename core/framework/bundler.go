@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -21,7 +20,7 @@ var sideEffectImportPattern = regexp.MustCompile(`^\s*import\s+['"]([^'"]+)['"]`
 var namedBindingsPattern = regexp.MustCompile(`^\s*import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]`)
 
 // BundleRoutes bundles TS scripts for each route and builds a shared vendor.js.
-// Default backend is rolldown; fallback backend uses esbuild's Go API.
+// Bundling is performed with native esbuild Go API.
 func BundleRoutes(project *Project) error {
 	if project == nil {
 		return nil
@@ -317,22 +316,6 @@ func runBundlerFromSource(bundleType, source, sourcePath, outFile string) error 
 }
 
 func runBundler(bundleType, entryPath, outFile string, externalDeps []string) error {
-	// Default: rolldown native binary if available in PATH.
-	if _, err := exec.LookPath("rolldown"); err == nil {
-		// Keep invocation minimal to avoid requiring a user-maintained config.
-		// If rolldown invocation fails, we fallback to esbuild Go API.
-		args := []string{"build", entryPath, "--format", "iife", "--platform", "neutral", "--name", "HyperterseBundle", "--file", outFile}
-		for _, dep := range externalDeps {
-			args = append(args, "--external", dep)
-		}
-		cmd := exec.Command("rolldown", args...)
-		output, err := cmd.CombinedOutput()
-		if err == nil {
-			return nil
-		}
-		logger.New("bundler").Warnf("rolldown failed for %s bundle, falling back to esbuild: %v (%s)", bundleType, err, strings.TrimSpace(string(output)))
-	}
-
 	result := api.Build(api.BuildOptions{
 		EntryPoints: []string{entryPath},
 		Outfile:     outFile,
