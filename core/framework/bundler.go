@@ -2,6 +2,7 @@ package framework
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,37 +28,49 @@ func BundleRoutes(project *Project) error {
 	}
 	log := logger.New("bundler")
 
-	buildDir := filepath.Join(project.BaseDir, ".hyperterse", "build")
+	buildDir := project.BuildDir
+	if buildDir == "" {
+		buildDir = filepath.Join(project.BaseDir, "dist", "build")
+	}
 	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create build dir: %w", err)
 	}
 
-	routeEntries := collectRouteTSEntries(project)
+	routeEntries := collectRouteScriptEntries(project)
 	if len(routeEntries) == 0 {
-		log.Debugf("No TypeScript route entries found; skipping bundling")
+		log.Debugf("No route script entries found; skipping bundling")
 		return nil
 	}
 
-	deps, err := collectExternalDeps(routeEntries)
-	if err != nil {
-		return err
-	}
-	sort.Strings(deps)
-
 	project.VendorBundle = filepath.Join(buildDir, "vendor.js")
-	if err := buildVendorBundle(project.VendorBundle, project.BaseDir, deps); err != nil {
-		return err
+	existingTSEntries := filterExistingTSEntries(routeEntries)
+	if len(existingTSEntries) > 0 {
+		deps, err := collectExternalDeps(existingTSEntries)
+		if err != nil {
+			return err
+		}
+		sort.Strings(deps)
+		if err := buildVendorBundle(project.VendorBundle, project.BaseDir, deps); err != nil {
+			return err
+		}
+	} else {
+		// Keep a prebuilt vendor bundle when shipping JS-only artifacts.
+		if _, err := os.Stat(project.VendorBundle); errors.Is(err, os.ErrNotExist) {
+			if err := buildVendorBundle(project.VendorBundle, project.BaseDir, nil); err != nil {
+				return err
+			}
+		}
 	}
 
 	if err := bundleRouteEntries(project, routeEntries, buildDir); err != nil {
 		return err
 	}
 
-	log.Infof("Bundled %d route script(s)", len(routeEntries))
+	log.Infof("Prepared %d route script(s)", len(routeEntries))
 	return nil
 }
 
-func collectRouteTSEntries(project *Project) map[string]string {
+func collectRouteScriptEntries(project *Project) map[string]string {
 	entries := map[string]string{}
 	for _, route := range project.Routes {
 		addScriptEntry(route, entries, "handler", route.Scripts.Handler)
@@ -71,9 +84,24 @@ func addScriptEntry(route *Route, entries map[string]string, kind string, script
 	if scriptPath == "" {
 		return
 	}
-	if strings.HasSuffix(strings.ToLower(scriptPath), ".ts") {
+	lower := strings.ToLower(scriptPath)
+	if strings.HasSuffix(lower, ".ts") || strings.HasSuffix(lower, ".js") {
 		entries[route.ToolName+"::"+kind] = scriptPath
 	}
+}
+
+func filterExistingTSEntries(entries map[string]string) map[string]string {
+	out := map[string]string{}
+	for key, filePath := range entries {
+		if !strings.HasSuffix(strings.ToLower(filePath), ".ts") {
+			continue
+		}
+		if _, err := os.Stat(filePath); err != nil {
+			continue
+		}
+		out[key] = filePath
+	}
+	return out
 }
 
 func collectExternalDeps(entries map[string]string) ([]string, error) {
@@ -177,6 +205,16 @@ func bundleRouteEntries(project *Project, entries map[string]string, buildDir st
 		if !ok {
 			continue
 		}
+
+		extension := strings.ToLower(filepath.Ext(entryPath))
+		if extension == ".js" {
+			route.BundleOutputs[kind] = entryPath
+			continue
+		}
+		if extension != ".ts" {
+			continue
+		}
+
 		routeBuildDir := filepath.Join(buildDir, "routes", toolName)
 		if err := os.MkdirAll(routeBuildDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create route build dir: %w", err)
@@ -185,6 +223,13 @@ func bundleRouteEntries(project *Project, entries map[string]string, buildDir st
 
 		source, err := os.ReadFile(entryPath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				// Build artifacts may intentionally ship without TS sources.
+				if _, statErr := os.Stat(outFile); statErr == nil {
+					route.BundleOutputs[kind] = outFile
+					continue
+				}
+			}
 			return fmt.Errorf("failed to read route entry %s: %w", entryPath, err)
 		}
 		rewritten, usesVendor, err := rewriteRouteSourceForVendor(string(source))
