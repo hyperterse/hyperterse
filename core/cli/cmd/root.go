@@ -23,13 +23,14 @@ func GetVersion() string {
 }
 
 var (
-	configFile string
-	source     string
-	port       string
-	logLevel   int
-	verbose    bool
-	logTags    string
-	logFile    bool
+	configFile  string
+	source      string
+	port        string
+	logLevel    int
+	verbose     bool
+	logTags     string
+	logFile     bool
+	showVersion bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -74,9 +75,14 @@ func Execute() error {
 func init() {
 	// Add hidden completion command for install.sh
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Print the installed version and exit")
 
 	// Root command should only print help.
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if showVersion {
+			fmt.Fprintln(cmd.OutOrStdout(), version)
+			return nil
+		}
 		return cmd.Help()
 	}
 }
