@@ -1,17 +1,13 @@
 ---
-title: Root Configuration
+title: Root configuration
 description: Complete field reference for the .hyperterse root configuration file.
 ---
 
-## Overview
-
-The root configuration file (`.hyperterse` or any `.terse` file) provides service-level settings. It does not contain adapter or route definitions — those are discovered from the `app/` directory.
-
----
+The root configuration file (`.hyperterse`) defines service-level settings. It does not contain adapter or route definitions — those are discovered from the `app/` directory.
 
 ## Full schema
 
-```yaml
+```yaml .hyperterse
 name: my-service
 version: 1.0.0
 
@@ -31,153 +27,127 @@ framework:
   app_dir: app
 ```
 
----
 
 ## Field reference
 
-### `name`
+<ParamField body="name" type="string" required>
+  Service identifier. Used in logging, tracing, and manifest metadata. Must match `^[a-z][a-z0-9_-]*$`.
+</ParamField>
 
-| | |
-|---|---|
-| **Type** | string |
-| **Required** | Yes |
-| **Pattern** | `^[a-z][a-z0-9_-]*$` |
-| **Description** | Service identifier. Used in logging, tracing, and manifest metadata. Must start with a lowercase letter. May contain lowercase letters, digits, hyphens, and underscores. |
+<ParamField body="version" type="string">
+  Service version. Informational. Included in manifest metadata and startup logs.
+</ParamField>
 
-### `version`
+<ParamField body="server" type="object">
+  Server runtime settings.
 
-| | |
-|---|---|
-| **Type** | string |
-| **Required** | No |
-| **Description** | Service version. Informational. Included in manifest metadata and startup logs. |
+  <Expandable title="properties">
+    <ParamField body="port" type="integer | string" default="8080">
+      TCP port for the HTTP/MCP server.
 
----
+      **Resolution order:** `--port` flag → `server.port` config → `PORT` env → `8080`
+    </ParamField>
 
-### `server`
+    <ParamField body="log_level" type="integer" default="3">
+      Log verbosity. `1` = error, `2` = warn, `3` = info, `4` = debug.
 
-Server runtime configuration.
+      **Resolution order:** `--verbose` (4) → `--log-level` flag → `server.log_level` config → `3`
+    </ParamField>
 
-#### `server.port`
+    <ParamField body="queries" type="object">
+      Query execution settings.
 
-| | |
-|---|---|
-| **Type** | integer or string |
-| **Default** | `8080` |
-| **Resolution** | CLI `--port` → config → env `PORT` → `8080` |
-| **Description** | TCP port for the HTTP/MCP server. |
+      <Expandable title="properties">
+        <ParamField body="cache" type="object">
+          Global cache settings.
 
-#### `server.log_level`
+          <Expandable title="properties">
+            <ParamField body="enabled" type="boolean" default="false">
+              Enable in-memory query result caching globally. Individual routes can override this.
+            </ParamField>
 
-| | |
-|---|---|
-| **Type** | integer |
-| **Range** | 1–4 |
-| **Default** | `3` |
-| **Resolution** | `--verbose` (sets 4) → `--log-level` → config → `3` |
-| **Description** | Log verbosity. 1 = error, 2 = warn, 3 = info, 4 = debug. |
+            <ParamField body="ttl" type="integer" default="120">
+              Default TTL in seconds for cached query results. Individual routes can override this.
+            </ParamField>
+          </Expandable>
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
 
-#### `server.queries.cache.enabled`
+<ParamField body="build" type="object">
+  Build output settings.
 
-| | |
-|---|---|
-| **Type** | boolean |
-| **Default** | `false` |
-| **Description** | Enable in-memory query result caching globally. Routes can override this per-route. |
+  <Expandable title="properties">
+    <ParamField body="out" type="string" default="dist">
+      Output directory for build artifacts. Also accepts `out_dir` as an alias.
 
-#### `server.queries.cache.ttl`
+      **Resolution order:** `--out` flag → `build.out` config → `dist`
+    </ParamField>
 
-| | |
-|---|---|
-| **Type** | integer |
-| **Default** | `120` |
-| **Unit** | Seconds |
-| **Description** | Default time-to-live for cached query results. Routes can override this per-route. |
+    <ParamField body="clean_dir" type="boolean" default="false">
+      Remove output directory before building.
+    </ParamField>
+  </Expandable>
+</ParamField>
 
----
+<ParamField body="framework" type="object">
+  Framework discovery settings.
 
-### `build`
+  <Expandable title="properties">
+    <ParamField body="app_dir" type="string" default="app">
+      Base directory for adapter and route discovery. Relative to the root config path.
+    </ParamField>
+  </Expandable>
+</ParamField>
 
-Build output configuration. Used by `hyperterse build`.
-
-#### `build.out`
-
-| | |
-|---|---|
-| **Type** | string |
-| **Aliases** | `out_dir` |
-| **Default** | `dist` |
-| **Resolution** | CLI `--out` → config → `dist` |
-| **Description** | Output directory for build artifacts (binary, manifest, bundles). |
-
-#### `build.clean_dir`
-
-| | |
-|---|---|
-| **Type** | boolean |
-| **Default** | `false` |
-| **Description** | Whether to remove the output directory before building. |
-
----
-
-### `framework`
-
-Framework-level directives.
-
-#### `framework.app_dir`
-
-| | |
-|---|---|
-| **Type** | string |
-| **Default** | `app` |
-| **Description** | Base directory for adapter and route discovery. Exposed in the JSON schema for forward compatibility. The current runtime discovers from `app/` relative to the root config path regardless of this setting. |
-
----
 
 ## Environment variable substitution
 
-String values in the root config and in adapter/route configs support `{{ env.VAR_NAME }}` placeholders. These are resolved at runtime:
+String values support `{{ env.VAR_NAME }}` placeholders, resolved at runtime:
 
 ```yaml
 server:
   port: "{{ env.PORT }}"
 ```
 
-If the referenced environment variable is not set, the runtime fails at startup with an error identifying the missing variable.
+<Warning>
+Missing variables cause a startup failure. Verify all referenced variables are set before deploying.
+</Warning>
 
----
 
 ## JSON Schema
 
-Editor validation is available through `schema/root.terse.schema.json`. Configure your editor to associate this schema with `.hyperterse` files. See [Configuration Schemas](/reference/configuration-schemas).
+Editor validation: `schema/root.terse.schema.json`. See [Configuration schemas](/reference/configuration-schemas).
 
----
 
-## Minimal example
+## Examples
 
-```yaml
-name: my-service
-```
+<Tabs>
+  <Tab title="Minimal">
+    ```yaml .hyperterse
+    name: my-service
+    ```
 
-This is a valid root config. All other fields use defaults: port 8080, log level 3, caching disabled.
+    All other fields use defaults: port `8080`, log level `3`, caching disabled.
+  </Tab>
+  <Tab title="Production">
+    ```yaml .hyperterse
+    name: production-service
+    version: 2.1.0
 
----
+    server:
+      port: "{{ env.PORT }}"
+      log_level: 2
+      queries:
+        cache:
+          enabled: true
+          ttl: 300
 
-## Full example
-
-```yaml
-name: production-service
-version: 2.1.0
-
-server:
-  port: "{{ env.PORT }}"
-  log_level: 2
-  queries:
-    cache:
-      enabled: true
-      ttl: 300
-
-build:
-  out: release
-  clean_dir: true
-```
+    build:
+      out: release
+      clean_dir: true
+    ```
+  </Tab>
+</Tabs>

@@ -1,19 +1,17 @@
 ---
-title: Production Hardening
-description: Security considerations, deployment configuration, and hardening measures for running Hyperterse in production environments.
+title: Production hardening
+description: Security measures, deployment configuration, and hardening for production environments.
 ---
 
-## Overview
-
-This page covers security measures beyond input validation. It addresses network security, authentication enforcement, logging hygiene, and deployment architecture decisions that affect the security posture of a Hyperterse deployment.
-
----
+This page covers security beyond input validation: network security, authentication enforcement, logging hygiene, container security, and deployment architecture.
 
 ## Authentication
 
+Auth is per-route — there is no global middleware that applies automatically. You must opt in for every route that handles sensitive data.
+
 ### Enforce auth on every sensitive route
 
-Auth is per-route, not global. There is no server-wide authentication middleware. Every route that accesses sensitive data or performs mutations must declare an `auth` block:
+Auth is per-route. There is no global middleware. Every route accessing sensitive data must have an `auth` block:
 
 ```yaml
 auth:
@@ -24,79 +22,72 @@ auth:
 
 **Audit checklist:**
 - Review all `config.terse` files for missing `auth` blocks.
-- `allow_all` should only be used for health checks and intentionally public tools.
-- Use `hyperterse validate` to confirm all routes are well-formed, then manually verify auth presence.
+- `allow_all` should only appear on health checks and intentionally public tools.
+- `hyperterse validate` confirms structural correctness; manually verify auth presence.
 
 ### Rotate credentials
 
-API keys and tokens referenced via `{{ env.VAR }}` are resolved at startup. Rotation requires a runtime restart. For zero-downtime rotation:
+API keys and tokens are resolved at startup. Rotation requires a restart. For zero-downtime rotation:
 
 1. Update the secret in your secrets manager.
-2. Trigger a rolling restart of runtime instances.
-3. Verify the old key is rejected after all instances have restarted.
+2. Trigger a rolling restart.
+3. Verify the old key is rejected after all instances restart.
 
----
 
 ## Network security
 
+Hyperterse listens on plain HTTP. Encryption and access control belong to the infrastructure layer in front of it.
+
 ### TLS termination
 
-Hyperterse does not perform TLS termination natively. Deploy behind a reverse proxy or load balancer that handles TLS:
+Hyperterse does not terminate TLS natively. Deploy behind a reverse proxy:
 
 - **Nginx** — `proxy_pass` to `http://localhost:8080`.
 - **Caddy** — Automatic HTTPS with Let's Encrypt.
-- **AWS ALB / GCP LB** — Managed TLS with certificate manager.
-- **Kubernetes Ingress** — TLS via cert-manager or cloud provider integration.
+- **AWS ALB / GCP LB** — Managed TLS.
+- **Kubernetes Ingress** — cert-manager or cloud provider integration.
 
-All client-facing traffic should use HTTPS. The Hyperterse runtime can listen on a private network interface or loopback address.
+### CORS
 
-### CORS configuration
-
-The runtime applies permissive CORS headers by default (all origins, standard methods and headers). For production:
+The runtime applies permissive CORS by default. For production:
 
 1. Deploy behind a reverse proxy.
-2. Configure restrictive CORS at the proxy level.
-3. Restrict the runtime's CORS to your application domain or disable it entirely when the proxy handles CORS.
+2. Configure restrictive CORS at the proxy.
+3. Restrict the runtime's built-in CORS to your domain.
 
 ### Network segmentation
 
 - Place the runtime in a private network segment.
-- Restrict inbound traffic to the reverse proxy or load balancer only.
-- Restrict outbound traffic from the runtime to database hosts and any external APIs used by handler scripts.
+- Restrict inbound traffic to the reverse proxy only.
+- Restrict outbound to database hosts and external APIs used by handlers.
 - Block direct internet access to the runtime port.
 
----
 
 ## Logging hygiene
 
+Logs are the first place an attacker looks after a breach. Keep them clean.
+
 ### Log level
 
-Set the production log level to `2` (warn) or `3` (info):
+Set production to `2` (warn) or `3` (info):
 
 ```yaml
 server:
   log_level: 2
 ```
 
-Debug-level logging (`4`) may include substituted statement text, input values, and internal execution details. This is acceptable in development but poses a data exposure risk in production.
+Debug-level logging may include substituted statements, input values, and execution details.
 
 ### Log routing
 
-Use `--log-file` to write logs to a file for collection by a log aggregation system (Fluentd, Vector, CloudWatch agent, etc.). Avoid logging to stdout in containerized environments where stdout is captured to a shared log store with broad read access.
+Use `--log-file` for file-based collection by aggregation systems. Review handler scripts for accidental credential logging via `console.log`.
 
-### Sensitive data in logs
-
-- Connection strings are redacted in trace attributes.
-- Input values may appear in debug-level logs.
-- Handler script `console.log` output is written to the log stream at the script's discretion — review scripts for accidental credential logging.
-
----
 
 ## Container security
 
-### Minimal base image
+A smaller container means fewer CVEs and a faster patch cycle.
 
-Use a minimal base image for the runtime binary:
+### Minimal base image
 
 ```dockerfile
 FROM scratch
@@ -106,19 +97,20 @@ COPY dist/build/ /build/
 ENTRYPOINT ["/hyperterse", "serve"]
 ```
 
-Or use `alpine` if you need shell access for debugging:
+Or `alpine` for shell access:
 
 ```dockerfile
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates
+RUN adduser -D -u 1001 hyperterse
 COPY dist/ /app/
 WORKDIR /app
+USER hyperterse
+EXPOSE 8080
 ENTRYPOINT ["./hyperterse", "serve"]
 ```
 
 ### Non-root execution
-
-Run the container as a non-root user:
 
 ```dockerfile
 RUN adduser -D -u 1001 hyperterse
@@ -127,28 +119,27 @@ USER hyperterse
 
 ### Read-only filesystem
 
-Mount the container filesystem as read-only. Hyperterse does not write to disk at runtime (cache is in-memory):
+Hyperterse does not write to disk at runtime (cache is in-memory):
 
 ```yaml
 securityContext:
   readOnlyRootFilesystem: true
 ```
 
----
 
 ## Secrets management
 
-### Do not embed secrets in config
+Credentials must never appear in configuration files, logs, or version control.
 
-All credentials (database passwords, API keys, tokens) should be supplied via environment variables:
+### Environment variables
+
+All credentials must come from environment variables:
 
 ```yaml
 connection_string: "{{ env.DATABASE_URL }}"
 ```
 
-### Secrets in Kubernetes
-
-Use Kubernetes secrets mounted as environment variables:
+### Kubernetes secrets
 
 ```yaml
 env:
@@ -161,41 +152,35 @@ env:
 
 ### External secrets managers
 
-For environments using AWS Secrets Manager, HashiCorp Vault, or similar:
+Use a sidecar or init container to fetch from AWS Secrets Manager, Vault, etc. Signal restarts on rotation. Do not mount secrets as files — Hyperterse reads environment variables.
 
-1. Use a sidecar or init container to fetch secrets and inject them as environment variables.
-2. Signal the runtime to restart when secrets rotate.
-3. Do not mount secrets as files — Hyperterse reads from environment variables, not the filesystem.
-
----
 
 ## Rate limiting
 
-Hyperterse does not include built-in rate limiting. Implement rate limiting at the infrastructure layer:
+No built-in rate limiting. Implement at the infrastructure layer:
 
 - **Reverse proxy** — Nginx `limit_req`, Caddy `rate_limit`, Envoy rate limit filter.
-- **API gateway** — AWS API Gateway throttling, Kong rate limiting, Traefik middleware.
-- **Cloud provider** — Cloud Armor, AWS WAF, Azure Front Door rate rules.
+- **API gateway** — AWS API Gateway, Kong, Traefik.
+- **Cloud provider** — Cloud Armor, AWS WAF, Azure Front Door.
 
-Rate limiting should be applied to the `/mcp` endpoint, which handles all tool invocations.
+Apply to `/mcp`, which handles all tool invocations.
 
----
 
-## Health checks and monitoring
+## Health checks
 
-### Liveness probe
+Expose lightweight probes so your orchestrator can detect and restart unhealthy instances.
 
-The `/heartbeat` endpoint confirms the HTTP server is accepting connections:
+### Liveness
 
 ```bash
 curl http://localhost:8080/heartbeat
 ```
 
-Use this as a liveness probe in container orchestrators. It does not verify connector health.
+Confirms the HTTP server is accepting connections. Does not check connector health.
 
-### Readiness probe
+### Readiness
 
-For readiness checks that verify full system health (including connector connectivity), implement a custom tool that queries each adapter and reports status:
+For full-system readiness, create a tool that queries each adapter:
 
 ```yaml
 # app/routes/readiness/config.terse
@@ -206,28 +191,18 @@ auth:
   plugin: allow_all
 ```
 
-### Metrics
-
-When observability is enabled, expose the metrics endpoint to your monitoring system (Prometheus, Datadog, etc.). Monitor:
-
-- Tool invocation rate and latency.
-- Error rates by tool and error type.
-- Cache hit ratio.
-- Connector execution time.
-
----
 
 ## Deployment checklist
 
 - [ ] All sensitive routes have `auth` blocks.
-- [ ] No `allow_all` on routes that access sensitive data.
-- [ ] Credentials supplied via environment variables, not plaintext config.
-- [ ] `.env` file excluded from version control (`.gitignore`).
-- [ ] TLS termination configured at reverse proxy or load balancer.
+- [ ] No `allow_all` on routes accessing sensitive data.
+- [ ] Credentials via environment variables, not plaintext.
+- [ ] `.env` excluded from version control.
+- [ ] TLS at reverse proxy or load balancer.
 - [ ] CORS restricted to application domain.
-- [ ] Log level set to `2` or `3`.
-- [ ] Container runs as non-root user.
+- [ ] Log level at 2 or 3.
+- [ ] Container runs as non-root.
 - [ ] Runtime port not exposed to public internet.
-- [ ] Rate limiting configured at infrastructure layer.
-- [ ] Health check and readiness probes configured.
-- [ ] Observability enabled for tracing and metrics.
+- [ ] Rate limiting at infrastructure layer.
+- [ ] Health and readiness probes configured.
+- [ ] Observability enabled.

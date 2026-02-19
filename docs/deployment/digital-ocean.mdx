@@ -1,0 +1,117 @@
+---
+title: DigitalOcean
+description: Deploy Hyperterse on DigitalOcean using App Platform or Droplets.
+---
+
+DigitalOcean offers two deployment paths for Hyperterse: **App Platform** for managed container hosting, and **Droplets** for full server control. App Platform is recommended for most teams.
+
+## App Platform
+
+App Platform is DigitalOcean's managed platform-as-a-service. It builds, deploys, and manages your container with automatic scaling, SSL, and monitoring.
+
+<Steps>
+  <Step title="Build the artifact">
+    ```bash
+    hyperterse build -o dist
+    ```
+  </Step>
+  <Step title="Push to a container registry">
+    Push your Docker image to DigitalOcean Container Registry or Docker Hub:
+
+    ```bash
+    doctl registry create hyperterse
+    doctl registry login
+    docker build -t registry.digitalocean.com/hyperterse/server:latest .
+    docker push registry.digitalocean.com/hyperterse/server:latest
+    ```
+  </Step>
+  <Step title="Create the app">
+    Create an app spec file:
+
+    ```yaml
+    name: hyperterse
+    services:
+      - name: server
+        image:
+          registry_type: DOCR
+          repository: hyperterse/server
+          tag: latest
+        http_port: 8080
+        instance_count: 2
+        instance_size_slug: basic-xxs
+        health_check:
+          http_path: /heartbeat
+        envs:
+          - key: DATABASE_URL
+            value: "${db.DATABASE_URL}"
+            type: SECRET
+    databases:
+      - name: db
+        engine: PG
+        production: true
+    ```
+
+    Deploy it:
+
+    ```bash
+    doctl apps create --spec app-spec.yaml
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  App Platform can provision a managed PostgreSQL database as part of the app spec. The connection string is automatically injected as an environment variable.
+</Tip>
+
+## Droplet deployment
+
+For full server control, deploy to a Droplet and manage the process directly. This follows the same pattern as the [bare metal deployment guide](/deployment/bare-metal).
+
+<Steps>
+  <Step title="Create a Droplet">
+    ```bash
+    doctl compute droplet create hyperterse \
+      --image ubuntu-22-04-x64 \
+      --size s-1vcpu-1gb \
+      --region nyc3 \
+      --ssh-keys <key-fingerprint>
+    ```
+  </Step>
+  <Step title="Transfer the artifact">
+    ```bash
+    hyperterse build -o dist
+    scp -r dist/ root@<droplet-ip>:/opt/hyperterse/
+    ```
+  </Step>
+  <Step title="Configure and start">
+    SSH into the Droplet and set up a systemd service as described in the [bare metal guide](/deployment/bare-metal). Set environment variables in the service file:
+
+    ```ini
+    [Service]
+    Environment=DATABASE_URL=postgresql://user:pass@host:5432/db
+    ExecStart=/opt/hyperterse/hyperterse serve
+    ```
+  </Step>
+</Steps>
+
+## Managed databases
+
+DigitalOcean Managed Databases provide PostgreSQL, MySQL, MongoDB, and Redis clusters. Create one from the dashboard or CLI:
+
+```bash
+doctl databases create hyperterse-db --engine pg --region nyc3 --size db-s-1vcpu-1gb
+```
+
+Retrieve the connection string and use it in your `.terse` configuration or as an environment variable.
+
+## Load balancer
+
+For multi-instance App Platform deployments, traffic is load-balanced automatically. For Droplet deployments, create a DigitalOcean Load Balancer:
+
+```bash
+doctl compute load-balancer create \
+  --name hyperterse-lb \
+  --region nyc3 \
+  --forwarding-rules "entry_protocol:https,entry_port:443,target_protocol:http,target_port:8080" \
+  --health-check "protocol:http,port:8080,path:/heartbeat"
+```

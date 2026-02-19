@@ -1,0 +1,56 @@
+---
+title: Caching
+description: Query result caching behavior and configuration.
+---
+
+Hyperterse includes executor-level in-memory caching (Ristretto).
+
+## How cache keys are built
+
+Cache key is derived from:
+
+- query name
+- final substituted statement hash
+
+So the same query with different substituted statements creates separate cache entries.
+
+## Global cache config
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+      ttl: 60
+```
+
+## Per-query override
+
+```yaml
+queries:
+  list-users:
+    cache:
+      enabled: true
+      ttl: 30
+```
+
+Or disable for one route/query:
+
+```yaml
+cache:
+  enabled: false
+```
+
+## Policy precedence
+
+1. Query/route-level cache config
+2. Server-level cache config
+3. Defaults
+
+Default TTL is `120` seconds when enabled and no TTL override is supplied.
+
+## Current characteristics
+
+- In-process cache (not distributed)
+- Memory bounded by Ristretto settings
+- Results are cloned before store/return to avoid mutation side effects

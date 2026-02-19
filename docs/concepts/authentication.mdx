@@ -1,17 +1,15 @@
 ---
 title: Authentication
-description: Route-level authentication plugins, built-in auth strategies, MCP transport integration, and custom plugin registration.
+description: Route-level authentication with built-in and custom plugins.
 ---
 
-## Overview
+Authentication in Hyperterse is route-scoped and plugin-based. Each route declares which plugin to use and supplies policy parameters. The auth check runs as the second stage of the execution pipeline — after route resolution, before input transforms or execution.
 
-Authentication in Hyperterse is route-scoped and plugin-based. Each route declares which auth plugin to use and supplies a policy configuration. The auth check runs as the first step of the execution pipeline — before input transforms, handlers, or database execution.
-
----
+Routes without an `auth` block are unauthenticated. There is no global auth middleware.
 
 ## Configuration
 
-Auth is declared in the `auth` block of a route's `config.terse`:
+Add an `auth` block to any route config:
 
 ```yaml
 auth:
@@ -20,105 +18,39 @@ auth:
     value: "{{ env.API_KEY }}"
 ```
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `plugin` | string | Yes | Name of the registered auth plugin. |
-| `policy` | map[string, string] | No | Plugin-specific policy parameters. |
-
-If no `auth` block is present on a route, the route has no authentication enforcement. It is open to any caller.
-
----
+The `plugin` field selects the auth strategy. The `policy` map passes plugin-specific parameters — typically credentials or validation rules.
 
 ## Built-in plugins
 
-### `allow_all`
+Hyperterse ships with two plugins that cover the most common access patterns:
 
-Unconditionally allows every request. Use for health checks, public tools, or development environments.
+**`allow_all`** — Unconditionally allows every request. Use for health checks, public tools, or development.
 
 ```yaml
 auth:
   plugin: allow_all
 ```
 
-No `policy` configuration is needed.
-
-### `api_key`
-
-Validates the request against a static API key. The plugin checks the `X-API-Key` HTTP header.
+**`api_key`** — Validates the `X-API-Key` HTTP header against a configured value. The expected key is resolved from `policy.value` (supports `{{ env.VAR }}` substitution) or falls back to the `HYPERTERSE_API_KEY` environment variable.
 
 ```yaml
 auth:
   plugin: api_key
   policy:
-    value: "my-secret-key"
+    value: "{{ env.MY_SECRET_KEY }}"
 ```
 
-**Resolution order for the expected key:**
+## Auth flow
 
-1. `policy.value` in the route config (supports `{{ env.VAR }}` substitution).
-2. `HYPERTERSE_API_KEY` environment variable (fallback).
+<Frame caption="Authentication decision flow for each tool invocation">
+  <img src="/assets/diagrams/auth-flow.svg" alt="Authentication decision flow: check for auth block, resolve plugin, execute authorization, continue or reject" />
+</Frame>
 
-**Validation logic:**
-
-1. Extract the `X-API-Key` header from the request.
-2. Compare against the resolved expected key.
-3. If the header is missing or does not match, the request is rejected with an authentication error before any execution occurs.
-
----
-
-## MCP Transport Integration
-
-When tools are invoked through the MCP Streamable HTTP endpoint (`/mcp`), the underlying HTTP request headers are forwarded into the auth context. This means:
-
-- `X-API-Key` headers on MCP POST requests are available to the `api_key` plugin.
-- Custom plugins receive the same header map regardless of whether the tool was called via direct HTTP or MCP JSON-RPC.
-
-The auth pipeline does not differentiate between transport mechanisms. The same policy applies uniformly.
-
----
-
-## Execution order
-
-```
-Tool invocation
-    │
-    ▼
-1. Auth plugin check ◄── If auth fails, execution stops here
-    │
-    ▼
-2. Input transform (if configured)
-    │
-    ▼
-3. Handler or DB execution
-    │
-    ▼
-4. Output transform (if configured)
-    │
-    ▼
-Response
-```
-
-Auth failure returns an error response immediately. No further pipeline stages are executed. The error is surfaced in the MCP response content without exposing internal details.
-
----
+When a tool is invoked, the runtime checks whether the matched route has an `auth` block. If present, the configured plugin is resolved and executed with the request context and policy map. A successful check allows the pipeline to continue. An error halts the pipeline immediately and returns an authentication error.
 
 ## Custom plugins
 
-Custom auth plugins can be registered programmatically through the auth registry. A plugin implements the auth interface and is registered before runtime startup:
-
-```go
-framework.RegisterAuthPlugin("jwt_bearer", func(ctx context.Context, policy map[string]string) error {
-    token := framework.RequestHeadersFromContext(ctx)["Authorization"]
-    if token == "" {
-        return errors.New("missing Authorization header")
-    }
-    // Validate JWT token against policy parameters
-    // ...
-    return nil
-})
-```
-
-Once registered, the plugin name can be used in route configs:
+You can register custom auth plugins to implement strategies like JWT validation, OAuth bearer tokens, or IP allowlisting. Once registered, use the plugin name in route configs just like the built-in ones:
 
 ```yaml
 auth:
@@ -128,20 +60,11 @@ auth:
     audience: "my-service"
 ```
 
-### Plugin interface
+A plugin receives the request headers (extracted from the HTTP transport) and the policy map from the route config. Return success to authorize, or an error to reject.
 
-An auth plugin function receives:
+## Key points
 
-- `ctx context.Context` — Contains request headers via `framework.RequestHeadersFromContext(ctx)`.
-- `policy map[string]string` — The key-value pairs from the route's `auth.policy` block.
-
-Return `nil` to allow the request. Return an error to reject it.
-
----
-
-## Security considerations
-
-- **Do not embed secrets directly in config files.** Use `{{ env.VAR }}` placeholders for API keys, tokens, and credentials.
-- **Auth is per-route, not global.** There is no server-wide auth middleware. Every route that requires authentication must declare it explicitly.
-- **Routes without `auth` are unauthenticated.** If you omit the `auth` block, the tool is accessible to anyone who can reach the runtime endpoint.
-- **The `allow_all` plugin is not a security boundary.** It exists for convenience during development and for intentionally public tools. Do not use it for production tools that access sensitive data.
+- **Auth is per-route.** Every route that needs protection must declare it. There is no implicit inheritance.
+- **No `auth` block means no authentication.** The tool is accessible to anyone who can reach the endpoint.
+- **Use environment variables for secrets.** `{{ env.VAR }}` in policy values keeps credentials out of config files.
+- **`allow_all` is not a security boundary.** It exists for convenience — do not use it on production routes that access sensitive data.

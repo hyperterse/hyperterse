@@ -1,27 +1,23 @@
 ---
 title: Scripts
-description: TypeScript handler and transform contracts, runtime API surface, bundling model, and execution semantics.
+description: TypeScript handlers and transforms that extend tool behavior beyond configuration.
 ---
 
-## Overview
-
-Route scripts extend tool behavior beyond what declarative configuration can express. Hyperterse supports three script hooks per route:
-
-| Hook | Export | Invocation point |
-|---|---|---|
-| Handler | `handler(payload)` | Replaces DB execution entirely |
-| Input transform | `inputTransform(payload)` | Runs before DB execution or handler |
-| Output transform | `outputTransform(payload)` | Runs after DB execution or handler |
-
-Scripts are authored in TypeScript, bundled at build time with esbuild, and executed inside an embedded Goja JavaScript VM within the Go process.
-
----
+Scripts extend tool behavior beyond what configuration can express. A handler script replaces database execution entirely. Transform scripts modify inputs before execution and results after. All three are TypeScript, bundled at compile time, and executed inside an embedded sandboxed runtime with no external dependencies.
 
 ## Script hooks
 
-### Handler
+There are three hooks, each corresponding to a stage in the execution pipeline:
 
-A handler script replaces adapter-based execution. When `scripts.handler` is configured, no `use` or `statement` is needed.
+| Hook | Export | Purpose |
+|---|---|---|
+| Handler | `handler(payload)` | Replaces DB execution entirely |
+| Input transform | `inputTransform(payload)` | Pre-process arguments before execution |
+| Output transform | `outputTransform(payload)` | Post-process results before returning |
+
+## Handler
+
+A handler replaces adapter-based execution. When `scripts.handler` is configured, no `use` or `statement` is needed. The return value becomes the tool's result payload.
 
 ```typescript
 export function handler(payload: { inputs: Record<string, any>; route: string }) {
@@ -34,198 +30,55 @@ export function handler(payload: { inputs: Record<string, any>; route: string })
 }
 ```
 
-The return value becomes the tool's result payload.
+## Input transform
 
-### Input transform
-
-An input transform pre-processes the input arguments before they reach the executor or handler. Use it for validation, normalization, enrichment, or rejection.
+An input transform pre-processes arguments before they reach the executor or handler. Use it for validation, normalization, or rejection. The returned object replaces the original inputs for all subsequent pipeline stages. Throwing an error aborts execution.
 
 ```typescript
 export function inputTransform(payload: { inputs: Record<string, any>; route: string }) {
-  const { inputs } = payload;
-
-  if (typeof inputs.user_id !== "number" || inputs.user_id <= 0) {
+  if (typeof payload.inputs.user_id !== "number" || payload.inputs.user_id <= 0) {
     throw new Error("user_id must be a positive integer");
   }
-
-  return { ...inputs, user_id: Math.floor(inputs.user_id) };
+  return { ...payload.inputs, user_id: Math.floor(payload.inputs.user_id) };
 }
 ```
 
-The returned object replaces the original inputs for subsequent pipeline stages.
+## Output transform
 
-Throwing an error from an input transform aborts execution and returns the error to the caller.
-
-### Output transform
-
-An output transform post-processes the execution result before it is returned to the caller. Use it for field mapping, formatting, redaction, or enrichment.
+An output transform post-processes results before they are returned. Use it for field mapping, formatting, or redaction.
 
 ```typescript
-import dayjs from "dayjs";
-import { v4 as uuidv4 } from "uuid";
-
 export function outputTransform(payload: { results: any[]; route: string }) {
   return payload.results.map((row) => ({
-    trace_id: uuidv4(),
     id: row.id,
     name: row.name,
-    email: row.email,
-    created_at_iso: dayjs(row.created_at).toISOString(),
+    created_at_iso: new Date(row.created_at).toISOString(),
   }));
 }
 ```
 
-The returned value replaces the tool's result payload.
+## Runtime APIs
 
----
+Scripts execute in a sandboxed runtime with two injected globals:
 
-## Payload contracts
+- **`fetch(url, options?)`** — HTTP client for outbound requests. Returns `{ status, ok, text(), json() }`.
+- **`console`** — `log`, `error`, `warn`, `info`, `debug` — all wired to the framework's structured logger with the route name as context.
 
-### Handler and input transform payload
+Scripts cannot access the host filesystem, spawn processes, or open network sockets. `setTimeout` and `setInterval` are not available — use `async`/`await` instead.
 
-```typescript
-interface Payload {
-  inputs: Record<string, any>;
-  route: string;
-}
-```
+## npm packages
 
-- `inputs` — The tool's input arguments after type conversion and default application.
-- `route` — The tool/route name.
-
-### Output transform payload
-
-```typescript
-interface OutputPayload {
-  results: any[];
-  route: string;
-}
-```
-
-- `results` — The raw execution result. For DB-backed routes, this is `[]map[string]any` (an array of row objects). For handler routes, this is whatever the handler returned.
-- `route` — The tool/route name.
-
----
-
-## Available runtime APIs
-
-Scripts execute in a sandboxed Goja VM with the following injected globals:
-
-### `fetch(url, options?)`
-
-HTTP client for making outbound requests from scripts.
-
-```typescript
-const response = await fetch("https://api.example.com/data", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ key: "value" }),
-});
-const data = await response.json();
-```
-
-### `console.log(...args)`, `console.error(...args)`, `console.warn(...args)`
-
-Logging functions that write to the Hyperterse structured log output.
-
-### Not available
-
-The following are **not** available in the script runtime:
-
-- Filesystem access (`fs`, `path`)
-- Process access (`process`, `os`)
-- Network sockets (raw TCP/UDP)
-- `setTimeout`, `setInterval` (use `async`/`await` instead)
-- Node.js or Bun built-in modules
-
----
-
-## Script configuration
-
-### Explicit declaration
-
-Specify script paths relative to the route directory in `config.terse`:
-
-```yaml
-scripts:
-  handler: "./my-handler.ts"
-  input_transform: "./validate.ts"
-  output_transform: "./format.ts"
-```
-
-### Convention-based discovery
-
-When script fields are omitted, the compiler scans the route directory for files matching these patterns:
-
-| File pattern | Resolved hook |
-|---|---|
-| `*handler*.ts` | `scripts.handler` |
-| `*input*validator*.ts` | `scripts.input_transform` |
-| `*data*mapper*.ts` | `scripts.output_transform` |
-
-Explicit declarations take precedence. If a `scripts.handler` field is set, convention-based discovery for the handler is skipped.
-
----
-
-## Bundling Model
-
-### Build-time process
-
-1. The bundler scans all route scripts for `import` statements referencing packages outside the route directory.
-2. External dependencies (npm packages) are resolved from `node_modules/` at the project root.
-3. All shared dependencies across routes are compiled into a single `vendor.js` bundle.
-4. Per-route bundles are emitted with import rewrites pointing to `globalThis.__hyperterse_vendor`.
-
-### Runtime loading
-
-When a script is invoked:
-
-1. The Goja VM is initialized with the `vendor.js` bundle (if present), which populates `globalThis.__hyperterse_vendor`.
-2. The route-specific bundle is loaded.
-3. The target export function (`handler`, `inputTransform`, or `outputTransform`) is called with the appropriate payload.
-
-### Dependency management
-
-To use npm packages in route scripts:
-
-1. Add a `package.json` at the project root.
-2. Install dependencies with `bun install` or `npm install`.
-3. Import packages normally in your TypeScript files.
+If your scripts import external packages, add a `package.json` at the project root. The bundler resolves packages from `node_modules/`, compiles shared dependencies into a single `vendor.js`, and rewrites route bundles to reference it. The deployed artifact has no dependency on `node_modules/`.
 
 ```typescript
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 ```
 
-The bundler handles resolution and deduplication.
-
----
-
-## Async support
-
-Scripts can use `async`/`await` patterns. The Go host runs the Goja event loop to completion before collecting the return value:
-
-```typescript
-export async function handler(payload: { inputs: Record<string, any>; route: string }) {
-  const response = await fetch(`https://api.example.com/users/${payload.inputs.user_id}`);
-  const user = await response.json();
-  return user;
-}
-```
-
----
-
 ## Error handling
 
-Errors thrown from scripts propagate as tool execution errors in the MCP response:
+Errors thrown from scripts propagate as MCP error responses. The error message is included in the response; stack traces are logged at debug level but not exposed to callers.
 
-```typescript
-export function inputTransform(payload: { inputs: Record<string, any>; route: string }) {
-  if (!payload.inputs.email?.includes("@")) {
-    throw new Error("Invalid email format");
-  }
-  return payload.inputs;
-}
-```
+## Further reading
 
-The error message is included in the MCP response content. Stack traces are logged at debug level but not exposed to callers.
+See [Execution pipeline](/runtime/execution-pipeline) for how scripts fit into the request lifecycle, and [Route configuration reference](/reference/route-config) for the `scripts` block specification.

@@ -1,31 +1,29 @@
 # Hyperterse
 
-Go-native framework for building MCP tools from declarative data routes.
+Framework for building MCP tools from declarative data routes.
 
 Hyperterse turns route configs in `app/routes/*/config.terse` into callable tools, with:
 
 - filesystem-based tool routing,
 - pluggable adapters (Postgres, MySQL, MongoDB, Redis),
-- optional TypeScript scripts for transforms and handlers,
+- optional scripts for transforms and handlers,
 - MCP runtime exposure over Streamable HTTP.
 
-## What Hyperterse Is
+## What Hyperterse is
 
 - **Tool-first MCP framework**: each route compiles into a tool.
 - **Declarative runtime**: root config + adapter files + route files.
 - **Extensible execution pipeline**: auth -> input transform -> execute -> output transform.
-- **Go core with JS runtime**: script hooks run in embedded Goja; route scripts bundle with esbuild.
+- **Embedded scripting**: script hooks run in a sandboxed runtime; bundled at compile time.
 
-## Runtime Surface (Current)
+## Runtime surface
 
 Current server routes registered by runtime:
 
 - `GET/POST/DELETE /mcp`
 - `GET /heartbeat`
 
-Query HTTP projection routes such as `/query/{query_name}` exist in protobuf contracts but are **not** currently registered in the runtime server.
-
-## Quick Start
+## Quick start
 
 ### Install
 
@@ -74,7 +72,7 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-## Project Structure
+## Project structure
 
 ```text
 my-project/
@@ -92,7 +90,7 @@ my-project/
         handler.ts
 ```
 
-## Route Examples
+## Route examples
 
 ### DB-backed route
 
@@ -116,7 +114,7 @@ scripts:
   handler: "./weather-handler.ts"
 ```
 
-## CLI Commands
+## CLI commands
 
 - `start` - run runtime from config
 - `serve` - run from built manifest (`model.bin`)
@@ -124,9 +122,9 @@ scripts:
 - `validate` - validate config and route scripts
 - `init` - scaffold starter project
 - `upgrade` - upgrade installed binary
-- `completion` - hidden/internal shell completion helper
+- `completion` - shell completion helper
 
-## Build and Deploy
+## Build and deploy
 
 ```bash
 hyperterse validate
@@ -142,7 +140,7 @@ Build output includes:
 - `build/vendor.js`
 - `build/routes/...` bundles
 
-## Configuration Highlights
+## Configuration highlights
 
 - root config: `.hyperterse`
 - adapter files: `app/adapters/*.terse`
@@ -156,20 +154,18 @@ Supported primitive types:
 - `boolean`
 - `datetime`
 
-`uuid` is not a core primitive type in current runtime.
+## Security note
 
-## Security Note
-
-Hyperterse validates typed inputs, but statement placeholder substitution (`{{ inputs.x }}`) is currently raw string replacement in executor utilities. Use strict route input constraints and safe query patterns for production.
+Hyperterse validates typed inputs, but statement placeholder substitution (`{{ inputs.x }}`) is raw string replacement. Use strict route input constraints and safe query patterns for production.
 
 ## Documentation
 
-Docs are now Mintlify-native in `docs/`:
+Docs are Mintlify-native in `docs/`:
 
 - `docs/docs.json` (navigation + site config)
 - `docs/**/*.mdx` (content pages)
 
-Run docs locally with Bun:
+Run docs locally:
 
 ```bash
 cd docs

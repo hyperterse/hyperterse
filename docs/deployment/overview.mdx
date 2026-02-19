@@ -1,0 +1,161 @@
+---
+title: Deployment overview
+description: Build artifacts, serve from pre-compiled output, and deploy to any environment.
+---
+
+Hyperterse separates compilation from execution. You build once in a trusted environment, then deploy the resulting artifact anywhere. The artifact contains everything the server needs to run — no source files, no build tools, no package manager.
+
+This separation gives you deterministic deployments (the validated manifest is the one that runs), faster startup (no filesystem scanning at boot), and a smaller attack surface (source files stay out of the artifact).
+
+## Build
+
+Compile your project into a self-contained output directory:
+
+```bash
+hyperterse build -o dist
+```
+
+This loads `.hyperterse` from the current directory, discovers all adapters and routes, bundles scripts, and writes the deployment artifact.
+
+To build from a different project directory, pass a positional argument:
+
+```bash
+hyperterse build path/to/project -o dist
+```
+
+The output directory contains:
+
+| Artifact | Description |
+|---|---|
+| `hyperterse` | Runtime binary |
+| `model.bin` | Serialized manifest (adapters, routes, config) |
+| `build/vendor.js` | Shared dependency bundle (if routes import npm packages) |
+| `build/routes/<name>/*.js` | Per-route script bundles |
+
+<Tip>
+Always run `hyperterse validate` before building. The build command also validates, but catching errors early keeps your CI pipeline fast.
+</Tip>
+
+## Serve
+
+Boot from a pre-built artifact:
+
+```bash
+hyperterse serve dist/
+```
+
+The serve command deserializes `model.bin`, reconstructs the project, initializes connectors in parallel, registers MCP tools, and starts the HTTP server. There is no re-parsing of source files.
+
+You can also point directly to the manifest:
+
+```bash
+hyperterse serve dist/model.bin
+```
+
+## Deployment workflow
+
+<Frame caption="Validate once, build once, deploy the artifact">
+  <img src="/assets/diagrams/deployment-workflow.svg" alt="Deployment workflow: validate, build, test locally, ship artifact, serve" />
+</Frame>
+
+The principle is: **build once, deploy the artifact.** Do not rebuild in the target environment.
+
+<Steps>
+  <Step title="Validate">
+    Run `hyperterse validate` to catch configuration errors before building.
+  </Step>
+  <Step title="Build">
+    Run `hyperterse build -o dist` to produce the deployment artifact.
+  </Step>
+  <Step title="Test locally">
+    Run `hyperterse serve dist/` to verify the artifact works before shipping.
+  </Step>
+  <Step title="Ship">
+    Package the `dist/` directory into your deployment target — a container image, a tarball, or a direct copy.
+  </Step>
+</Steps>
+
+## Environment configuration
+
+The `dist/` directory contains no secrets. All credentials are supplied at runtime through environment variables:
+
+```bash
+DATABASE_URL="postgresql://..." API_KEY="sk-..." hyperterse serve dist/
+```
+
+Set variables through your platform's secrets management: Docker Compose `env_file`, Kubernetes Secrets, cloud provider environment config, or platform dashboards.
+
+See [Environment variables reference](/reference/environment-variables) for the full list of supported variables.
+
+## Horizontal scaling
+
+Hyperterse is a single-process stateless server. Scale by running multiple instances behind a load balancer:
+
+- Each instance has its own in-memory cache — no inter-instance coordination needed.
+- All instances require the same database endpoints and environment variables.
+- Use sticky sessions if you need MCP session continuity across requests.
+
+## CI/CD integration
+
+Automate the validate-build-deploy cycle in your pipeline:
+
+```yaml
+name: Build and Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: hyperterse validate
+      - run: hyperterse build -o dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hyperterse-dist
+          path: dist/
+```
+
+## Next steps
+
+Choose a deployment method based on your infrastructure:
+
+<CardGroup cols={3}>
+  <Card title="Docker" icon="docker" href="/deployment/docker">
+    Container images for portable deployment
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/deployment/kubernetes">
+    Orchestrated deployment at scale
+  </Card>
+  <Card title="Bare metal" icon="server" href="/deployment/bare-metal">
+    Direct binary deployment on servers
+  </Card>
+</CardGroup>
+
+Or deploy to a specific cloud provider:
+
+<CardGroup cols={4}>
+  <Card title="AWS" icon="aws" href="/deployment/aws">
+    ECS Fargate
+  </Card>
+  <Card title="Google Cloud" icon="google" href="/deployment/gcp">
+    Cloud Run
+  </Card>
+  <Card title="Azure" icon="microsoft" href="/deployment/azure">
+    Container Apps
+  </Card>
+  <Card title="Railway" icon="train" href="/deployment/railway">
+    Managed containers
+  </Card>
+  <Card title="DigitalOcean" icon="droplet" href="/deployment/digital-ocean">
+    App Platform
+  </Card>
+  <Card title="Cloudflare" icon="cloudflare" href="/deployment/cloudflare">
+    Edge security layer
+  </Card>
+  <Card title="Vercel" icon="v" href="/deployment/vercel">
+    Frontend proxy
+  </Card>
+</CardGroup>

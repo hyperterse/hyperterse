@@ -1,0 +1,33 @@
+---
+title: SQL and Input Safety
+description: Security model and current substitution caveats.
+---
+
+## What Hyperterse protects by default
+
+- Connection strings stay server-side.
+- Tool callers do not see adapter credentials.
+- Inputs are validated against declared route/query input types.
+- Route-level auth plugins can enforce access policies.
+
+## Critical caveat: statement substitution
+
+Current executor substitution is raw string replacement for `{{ inputs.x }}` placeholders.
+
+That means:
+
+- values are inserted into statement text,
+- connector execution uses the final statement directly,
+- statement safety depends on your query patterns and transform logic.
+
+## Recommended safety practices
+
+- Prefer strict input typing and custom input transforms.
+- Avoid building unconstrained dynamic SQL fragments.
+- Keep statement templates narrow and deterministic.
+- Use route handlers for complex logic where you need stronger control.
+- Put runtime behind gateway/auth/rate-limit layers in production.
+
+## Environment variable substitution
+
+`{{ env.VAR_NAME }}` is resolved at runtime for connection strings/statements. Missing env vars fail startup or execution early instead of silently defaulting.

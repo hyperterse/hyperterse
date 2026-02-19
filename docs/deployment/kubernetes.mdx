@@ -1,0 +1,121 @@
+---
+title: Kubernetes
+description: Deploy Hyperterse on Kubernetes with health probes, resource limits, and secrets management.
+---
+
+Hyperterse is a stateless, single-binary server — a natural fit for Kubernetes deployments. Each pod runs one instance of `hyperterse serve` from the pre-built artifact image.
+
+## Deployment manifest
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hyperterse
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hyperterse
+  template:
+    metadata:
+      labels:
+        app: hyperterse
+    spec:
+      containers:
+        - name: hyperterse
+          image: registry.example.com/hyperterse:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: url
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: key
+          livenessProbe:
+            httpGet:
+              path: /heartbeat
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /heartbeat
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+```
+
+## Service
+
+Expose the deployment internally or externally:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hyperterse
+spec:
+  selector:
+    app: hyperterse
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+```
+
+For external access, use an Ingress controller or change the type to `LoadBalancer`.
+
+## Health probes
+
+Hyperterse exposes `/heartbeat` on the configured port. Use it for both liveness and readiness probes:
+
+- **Liveness** — Restart the pod if the process is unresponsive. Set a reasonable `initialDelaySeconds` to allow connector initialization.
+- **Readiness** — Remove the pod from the service until all connectors are ready. The heartbeat endpoint only responds after the server is fully initialized.
+
+## Secrets
+
+Store credentials in Kubernetes Secrets and inject them as environment variables. Never include connection strings or API keys in your container image or ConfigMaps.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+type: Opaque
+stringData:
+  url: "postgresql://user:password@db-host:5432/app"
+```
+
+## Scaling
+
+Hyperterse is stateless. Scale horizontally by increasing `replicas`. Each instance maintains its own in-memory cache — no shared state between pods.
+
+If your tools use MCP session management, enable sticky sessions through your ingress controller or service mesh to route subsequent requests from the same session to the same pod.
+
+## Security hardening
+
+The manifest above follows security best practices:
+
+- **Read-only root filesystem** prevents runtime modifications to the binary or manifest.
+- **Non-root user** (UID 1001) limits the blast radius of a container escape.
+- **Resource limits** prevent a single pod from consuming all node resources.
+
+See [Production hardening](/security/production-hardening) for additional recommendations.

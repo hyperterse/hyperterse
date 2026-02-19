@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" fill="none">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .stage { rx: 6; stroke-width: 1.5; }
+    .stage-label { font-size: 13px; font-weight: 600; }
+    .stage-desc { font-size: 11px; fill: #6B7280; }
+    .arrow { stroke: #14B8A6; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .branch { stroke: #0F766E; stroke-width: 1; stroke-dasharray: 4 4; fill: none; }
+    .branch-label { font-size: 10px; fill: #0F766E; font-weight: 600; }
+    .error-arrow { stroke: #EF4444; stroke-width: 1; fill: none; marker-end: url(#errorhead); }
+    .error-label { font-size: 10px; fill: #EF4444; font-style: italic; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#14B8A6"/>
+    </marker>
+    <marker id="errorhead" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+      <polygon points="0 0, 6 2.5, 0 5" fill="#EF4444"/>
+    </marker>
+  </defs>
+
+  <!-- MCP Request -->
+  <rect x="250" y="10" width="220" height="34" rx="17" fill="#0F766E"/>
+  <text x="360" y="32" font-size="13" fill="#FFFFFF" font-weight="600" text-anchor="middle">MCP tools/call request</text>
+
+  <line x1="360" y1="44" x2="360" y2="65" class="arrow"/>
+
+  <!-- Stage 1: Route Resolution -->
+  <rect x="180" y="65" width="360" height="40" class="stage" fill="#F0FDFA" stroke="#0F766E"/>
+  <text x="200" y="90" class="stage-label" fill="#115E59">Route resolution</text>
+  <text x="430" y="90" class="stage-desc">Match tool name &#x2192; compiled route</text>
+
+  <line x1="360" y1="105" x2="360" y2="125" class="arrow"/>
+
+  <!-- Stage 2: Authentication -->
+  <rect x="180" y="125" width="360" height="40" class="stage" fill="#F0FDFA" stroke="#0F766E"/>
+  <text x="200" y="150" class="stage-label" fill="#115E59">Authentication</text>
+  <text x="430" y="150" class="stage-desc">Execute auth plugin if configured</text>
+
+  <line x1="360" y1="165" x2="360" y2="185" class="arrow"/>
+
+  <!-- Stage 3: Input Transform -->
+  <rect x="180" y="185" width="360" height="40" class="stage" fill="#FFF7ED" stroke="#F59E0B"/>
+  <text x="200" y="210" class="stage-label" fill="#92400E">Input transform</text>
+  <text x="430" y="210" class="stage-desc" fill="#A16207">Optional script</text>
+
+  <line x1="360" y1="225" x2="360" y2="245" class="arrow"/>
+
+  <!-- Stage 4: Execution (branching) -->
+  <rect x="180" y="245" width="360" height="40" class="stage" fill="#115E59" stroke="#0F766E"/>
+  <text x="360" y="270" class="stage-label" fill="#CCFBF1" text-anchor="middle">Execution</text>
+
+  <!-- Branch: Handler -->
+  <path d="M 250 285 L 250 310 L 170 310 L 170 335" class="branch"/>
+  <rect x="60" y="335" width="220" height="36" rx="6" fill="#F5F3FF" stroke="#7C3AED" stroke-width="1"/>
+  <text x="170" y="358" font-size="12" fill="#5B21B6" font-weight="500" text-anchor="middle">Handler script</text>
+  <text x="250" y="318" class="branch-label">scripts.handler</text>
+
+  <!-- Branch: Connector -->
+  <path d="M 470 285 L 470 310 L 550 310 L 550 335" class="branch"/>
+  <rect x="440" y="335" width="220" height="36" rx="6" fill="#F0FDF4" stroke="#22C55E" stroke-width="1"/>
+  <text x="550" y="358" font-size="12" fill="#166534" font-weight="500" text-anchor="middle">Connector query (DB)</text>
+  <text x="470" y="318" class="branch-label">use + statement</text>
+
+  <!-- Converge -->
+  <path d="M 170 371 L 170 395 L 360 395" class="arrow"/>
+  <path d="M 550 371 L 550 395 L 365 395" stroke="#14B8A6" stroke-width="1.5" fill="none"/>
+
+  <line x1="360" y1="395" x2="360" y2="410" class="arrow"/>
+
+  <!-- Stage 5: Output Transform -->
+  <rect x="180" y="410" width="360" height="40" class="stage" fill="#FFF7ED" stroke="#F59E0B"/>
+  <text x="200" y="435" class="stage-label" fill="#92400E">Output transform</text>
+  <text x="430" y="435" class="stage-desc" fill="#A16207">Optional script</text>
+
+  <!-- Error sidebar -->
+  <line x1="545" y1="85" x2="640" y2="85" class="error-arrow"/>
+  <text x="650" y="89" class="error-label">Halt on error</text>
+  <line x1="545" y1="145" x2="640" y2="145" class="error-arrow"/>
+  <line x1="545" y1="265" x2="640" y2="265" class="error-arrow"/>
+
+  <!-- MCP Response -->
+  <line x1="360" y1="450" x2="360" y2="468" class="arrow"/>
+  <rect x="250" y="468" width="220" height="34" rx="17" fill="#0F766E"/>
+  <text x="360" y="490" font-size="13" fill="#FFFFFF" font-weight="600" text-anchor="middle">MCP response</text>
+</svg>

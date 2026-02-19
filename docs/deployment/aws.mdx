@@ -1,0 +1,120 @@
+---
+title: AWS
+description: Deploy Hyperterse on Amazon Web Services using ECS Fargate.
+---
+
+ECS Fargate is the recommended way to deploy Hyperterse on AWS. It runs containers without managing servers, provides auto-scaling, and integrates natively with Secrets Manager, CloudWatch, and Application Load Balancers.
+
+## Prerequisites
+
+You need the [AWS CLI](https://aws.amazon.com/cli/) configured with credentials that have permissions for ECR, ECS, and Secrets Manager. You also need Docker installed for building images.
+
+## Deploy to ECS Fargate
+
+<Steps>
+  <Step title="Build the artifact">
+    ```bash
+    hyperterse build -o dist
+    ```
+  </Step>
+  <Step title="Create a container image">
+    Use the [Docker deployment patterns](/deployment/docker) to create your Dockerfile. Then build and tag the image:
+
+    ```bash
+    docker build -t hyperterse .
+    ```
+  </Step>
+  <Step title="Push to ECR">
+    Create a repository and push the image:
+
+    ```bash
+    aws ecr create-repository --repository-name hyperterse --region us-east-1
+
+    aws ecr get-login-password --region us-east-1 | \
+      docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
+
+    docker tag hyperterse:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
+    docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
+    ```
+  </Step>
+  <Step title="Store credentials in Secrets Manager">
+    ```bash
+    aws secretsmanager create-secret \
+      --name prod/hyperterse/db \
+      --secret-string "postgresql://user:pass@rds-host:5432/app" \
+      --region us-east-1
+    ```
+  </Step>
+  <Step title="Create the task definition">
+    ```json
+    {
+      "family": "hyperterse",
+      "networkMode": "awsvpc",
+      "requiresCompatibilities": ["FARGATE"],
+      "cpu": "256",
+      "memory": "512",
+      "executionRoleArn": "arn:aws:iam::<account-id>:role/ecsTaskExecutionRole",
+      "containerDefinitions": [
+        {
+          "name": "hyperterse",
+          "image": "<account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest",
+          "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
+          "secrets": [
+            {
+              "name": "DATABASE_URL",
+              "valueFrom": "arn:aws:secretsmanager:us-east-1:<account-id>:secret:prod/hyperterse/db"
+            }
+          ],
+          "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+              "awslogs-group": "/ecs/hyperterse",
+              "awslogs-region": "us-east-1",
+              "awslogs-stream-prefix": "ecs"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+    Register it:
+
+    ```bash
+    aws ecs register-task-definition --cli-input-json file://task-definition.json
+    ```
+  </Step>
+  <Step title="Create the ECS service">
+    ```bash
+    aws logs create-log-group --log-group-name /ecs/hyperterse --region us-east-1
+
+    aws ecs create-service \
+      --cluster default \
+      --service-name hyperterse \
+      --task-definition hyperterse \
+      --desired-count 2 \
+      --launch-type FARGATE \
+      --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
+    ```
+  </Step>
+</Steps>
+
+## RDS integration
+
+Connect to Amazon RDS for managed PostgreSQL or MySQL. Create the instance in the same VPC as your ECS tasks, and ensure the ECS security group allows inbound traffic to the database port.
+
+Update your Secrets Manager secret with the RDS endpoint:
+
+```bash
+aws secretsmanager update-secret \
+  --secret-id prod/hyperterse/db \
+  --secret-string "postgresql://admin:password@hyperterse-db.xxxxx.us-east-1.rds.amazonaws.com:5432/app"
+```
+
+## Load balancer
+
+For HTTPS and better traffic distribution, create an Application Load Balancer with a target group pointing to your ECS service on port 8080. Use the `/heartbeat` endpoint for health checks.
+
+## EKS alternative
+
+For Kubernetes-based deployments on AWS, create an EKS cluster and follow the [Kubernetes deployment guide](/deployment/kubernetes). Push your image to ECR and reference it in your Kubernetes manifests.

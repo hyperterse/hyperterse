@@ -1,0 +1,81 @@
+---
+title: Railway
+description: Deploy Hyperterse on Railway with zero infrastructure management.
+---
+
+Railway is the fastest path from build artifact to running server. It detects your Dockerfile, provisions infrastructure, and gives you a public URL — all in a single deploy command.
+
+## Deploy to Railway
+
+<Steps>
+  <Step title="Build the artifact">
+    ```bash
+    hyperterse build -o dist
+    ```
+  </Step>
+  <Step title="Create a Dockerfile">
+    Use the [Docker deployment patterns](/deployment/docker) to create your Dockerfile, or use a minimal example:
+
+    ```dockerfile
+    FROM node:20-slim
+    WORKDIR /app
+    COPY dist/ ./dist/
+    COPY node_modules/ ./node_modules/
+    EXPOSE 8080
+    CMD ["npx", "hyperterse", "serve"]
+    ```
+
+    <Note>
+      Adjust the Dockerfile to match your project structure. The key requirement is that the `dist/` directory containing the build artifact is available at runtime.
+    </Note>
+  </Step>
+  <Step title="Install the Railway CLI">
+    ```bash
+    npm install -g @railway/cli
+    railway login
+    ```
+  </Step>
+  <Step title="Initialize and deploy">
+    ```bash
+    railway init
+    railway up
+    ```
+
+    Railway detects the Dockerfile, builds the image, and deploys it.
+  </Step>
+  <Step title="Set environment variables">
+    ```bash
+    railway variables set DATABASE_URL="postgresql://user:pass@host:5432/db"
+    ```
+
+    Or configure variables in the Railway dashboard under your service's settings.
+  </Step>
+  <Step title="Expose the service">
+    In the Railway dashboard, go to your service's **Settings** and generate a public domain. Your Hyperterse MCP endpoint will be available at `https://<your-domain>/mcp`.
+  </Step>
+</Steps>
+
+## Railway-managed databases
+
+Railway provides one-click managed databases. Add a PostgreSQL or MySQL plugin from the dashboard, and Railway automatically injects the connection string as an environment variable.
+
+```bash
+railway add --plugin postgresql
+```
+
+Reference the injected variable in your `.terse` configuration:
+
+```yaml
+adapters:
+  main:
+    connector: postgresql
+    connection_string: "{{ env.DATABASE_URL }}"
+```
+
+## Custom domains
+
+In the Railway dashboard, navigate to **Settings > Domains** and add your custom domain. Railway provisions TLS certificates automatically.
+
+## Scaling
+
+Railway supports horizontal scaling through the dashboard. Increase the number of replicas under your service's **Settings > Scaling** section. Each replica runs an independent instance of `hyperterse serve`.

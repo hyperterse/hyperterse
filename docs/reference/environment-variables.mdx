@@ -1,11 +1,11 @@
 ---
-title: Environment Variables
-description: Environment variables used by the Hyperterse runtime, CLI, and configuration substitution system.
+title: Environment variables
+description: Environment variables used by the runtime, CLI, and configuration substitution system.
 ---
 
 ## Configuration substitution
 
-Hyperterse supports `{{ env.VAR_NAME }}` placeholders in configuration values. These are resolved at runtime during startup.
+You can use `{{ env.VAR_NAME }}` placeholders in any string value across your configuration files. The runtime resolves these at startup.
 
 ### Supported locations
 
@@ -19,60 +19,54 @@ Hyperterse supports `{{ env.VAR_NAME }}` placeholders in configuration values. T
 
 ### Resolution behavior
 
-- Placeholders are resolved at the point of use (connector initialization, statement execution, auth check).
-- If a referenced variable is not set in the process environment, the runtime fails with an error identifying the unresolved variable.
-- Placeholders are not recursive — `{{ env.VAR }}` where `VAR` itself contains `{{ env.OTHER }}` is not expanded.
-- The `.env` file in the working directory is loaded automatically by the CLI before command execution.
+- Placeholders resolve at the point of use: connector initialization, statement execution, or auth check.
+- Missing variables cause a hard failure with an error identifying the unresolved variable.
+- Placeholders are not recursive — a variable whose value contains `{{ env.OTHER }}` is not expanded further.
+- The `.env` file in the working directory is loaded before command execution.
 
----
 
-## Runtime environment variables
+## Runtime variables
 
-These variables influence Hyperterse behavior when set in the process environment.
+<ParamField body="PORT" type="integer" default="8080">
+  Fallback port when not set via CLI flag or config.
 
-### `PORT`
+  **Precedence:** `--port` flag → `server.port` config → `PORT` env → `8080`
+</ParamField>
 
-| | |
-|---|---|
-| **Type** | integer |
-| **Default** | `8080` |
-| **Description** | Fallback port when not specified via CLI flag or `server.port` config. |
-| **Precedence** | CLI `--port` → config `server.port` → env `PORT` → `8080` |
+<ParamField body="HYPERTERSE_API_KEY" type="string">
+  Fallback API key for the `api_key` auth plugin when `auth.policy.value` is not set on a route.
 
-### `HYPERTERSE_API_KEY`
+  **Precedence:** `auth.policy.value` config → `HYPERTERSE_API_KEY` env
+</ParamField>
 
-| | |
-|---|---|
-| **Type** | string |
-| **Default** | (none) |
-| **Description** | Fallback API key for the `api_key` auth plugin. Used when `auth.policy.value` is not set on a route. |
-| **Precedence** | Route `auth.policy.value` → env `HYPERTERSE_API_KEY` |
+<ParamField body="HYPERTERSE_LOG_TAGS" type="string">
+  Comma-separated log tag filter. Limits which subsystem tags appear in output.
 
----
+  **Precedence:** `--log-tags` flag → `HYPERTERSE_LOG_TAGS` env
+</ParamField>
 
-## `.env` File Loading
 
-The CLI automatically loads a `.env` file from the current working directory if one exists. Variables defined in `.env` are injected into the process environment before any command execution.
+## `.env` file
 
-### Format
+The CLI loads `.env` from the current working directory when present. Standard `KEY=VALUE` format. Blank lines and `#`-prefixed lines are ignored.
 
-```
+```bash .env
 DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
 API_KEY=sk-secret-key-value
 PORT=9090
 ```
 
-Standard `KEY=VALUE` format. Blank lines and lines starting with `#` are ignored.
+<Note>
+Shell-set environment variables take precedence over `.env` values. The file provides defaults, not overrides.
+</Note>
 
-### Precedence
-
-Environment variables set in the shell take precedence over `.env` file values. The `.env` file provides defaults, not overrides.
-
----
 
 ## Security guidance
 
-- **Do not commit `.env` files to version control.** Add `.env` to `.gitignore`.
-- **Use `{{ env.VAR }}` for all credentials.** Connection strings, API keys, and tokens should reference environment variables rather than embedding plaintext values.
-- **Rotate secrets without redeploying.** Since env vars are resolved at startup, changing a secret requires a runtime restart. For zero-downtime rotation, use a secrets manager with a sidecar that updates the environment and signals a restart.
-- **Redaction in logs.** Connection strings containing credentials are redacted in trace attributes and log output. However, debug-level logs may include substituted statement text. Set production log level to `2` (warn) or `3` (info) to avoid exposing sensitive values.
+<Warning>
+**Do not commit `.env` to version control.** Add it to `.gitignore`.
+</Warning>
+
+- **Use `{{ env.VAR }}` for all credentials.** Connection strings, API keys, and tokens must reference environment variables — never hardcode secrets in `.terse` files.
+- **Rotation requires restart.** Environment variables resolve at startup. For zero-downtime rotation, use a secrets manager that updates the environment and signals a restart.
+- **Set production log level.** Debug logs may include substituted statement text. Use log level `2` (warn) or `3` (info) in production.

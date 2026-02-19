@@ -1,0 +1,120 @@
+---
+title: Google Cloud
+description: Deploy Hyperterse on Google Cloud Platform using Cloud Run.
+---
+
+Cloud Run is the recommended way to deploy Hyperterse on GCP. It provides serverless containers with automatic scaling, built-in HTTPS, and pay-per-use pricing. Hyperterse runs as a standard container — no special adaptation needed.
+
+## Prerequisites
+
+You need the [gcloud CLI](https://cloud.google.com/sdk/docs/install) configured with a project that has the Cloud Run, Cloud Build, and Secret Manager APIs enabled:
+
+```bash
+gcloud config set project PROJECT_ID
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com
+```
+
+## Deploy to Cloud Run
+
+<Steps>
+  <Step title="Build the artifact">
+    ```bash
+    hyperterse build -o dist
+    ```
+  </Step>
+  <Step title="Build and push the container image">
+    Use the [Docker deployment patterns](/deployment/docker) to create your Dockerfile. Then build and push to Google Container Registry:
+
+    ```bash
+    docker build -t gcr.io/PROJECT_ID/hyperterse:latest .
+    docker push gcr.io/PROJECT_ID/hyperterse:latest
+    ```
+
+    Alternatively, use Cloud Build:
+
+    ```bash
+    gcloud builds submit --tag gcr.io/PROJECT_ID/hyperterse:latest
+    ```
+  </Step>
+  <Step title="Store credentials in Secret Manager">
+    ```bash
+    echo -n "postgresql://user:pass@host:5432/db" | \
+      gcloud secrets create hyperterse-db --data-file=-
+    ```
+
+    Grant your Cloud Run service account access:
+
+    ```bash
+    PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
+
+    gcloud secrets add-iam-policy-binding hyperterse-db \
+      --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+      --role="roles/secretmanager.secretAccessor"
+    ```
+  </Step>
+  <Step title="Deploy">
+    ```bash
+    gcloud run deploy hyperterse \
+      --image gcr.io/PROJECT_ID/hyperterse:latest \
+      --platform managed \
+      --region us-central1 \
+      --port 8080 \
+      --set-secrets DATABASE_URL=hyperterse-db:latest \
+      --allow-unauthenticated \
+      --memory 512Mi \
+      --cpu 1
+    ```
+  </Step>
+  <Step title="Get the service URL">
+    ```bash
+    gcloud run services describe hyperterse \
+      --platform managed \
+      --region us-central1 \
+      --format="value(status.url)"
+    ```
+  </Step>
+</Steps>
+
+## Cloud SQL integration
+
+Connect to Cloud SQL for managed PostgreSQL or MySQL:
+
+```bash
+gcloud sql instances create hyperterse-db \
+  --database-version=POSTGRES_14 \
+  --tier=db-f1-micro \
+  --region=us-central1
+
+gcloud run services update hyperterse \
+  --add-cloudsql-instances PROJECT_ID:us-central1:hyperterse-db \
+  --region us-central1
+```
+
+Use a Unix socket connection string for Cloud SQL:
+
+```
+postgresql://user:password@/dbname?host=/cloudsql/PROJECT_ID:us-central1:hyperterse-db
+```
+
+## Scaling
+
+Cloud Run scales automatically based on incoming requests. Configure minimum and maximum instances:
+
+```bash
+gcloud run services update hyperterse \
+  --min-instances=1 \
+  --max-instances=10 \
+  --region us-central1
+```
+
+Setting `min-instances=1` avoids cold starts at the cost of continuous billing.
+
+## GKE alternative
+
+For Kubernetes-based deployments on GCP, create a GKE cluster and follow the [Kubernetes deployment guide](/deployment/kubernetes):
+
+```bash
+gcloud container clusters create hyperterse-cluster \
+  --num-nodes=3 \
+  --region=us-central1
+```

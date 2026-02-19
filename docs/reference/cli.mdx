@@ -1,54 +1,66 @@
 ---
-title: CLI Reference
+title: CLI reference
 description: Complete command and flag reference for the Hyperterse CLI.
 ---
 
-## Global behavior
-
-The Hyperterse CLI is built with [Cobra](https://github.com/spf13/cobra). All commands load `.env` files from the working directory if present.
+All commands load `.env` files from the working directory when present.
 
 ```bash
 hyperterse [command] [flags]
 ```
 
-### Version
+<ParamField body="--version" type="boolean">
+  Print the installed version and exit.
+</ParamField>
 
-```bash
-hyperterse --version
-```
-
-Prints the binary version and exits.
-
----
 
 ## `hyperterse start`
 
-Start the runtime from a configuration source. Parses the config, compiles the project, bundles scripts, initializes connectors, and starts the HTTP/MCP server.
+Parse config, compile the project, bundle scripts, initialize connectors, and start the HTTP/MCP server.
 
 ```bash
 hyperterse start [path] [flags]
 ```
 
-When run without arguments, the CLI loads `.hyperterse` from the current directory. A positional `path` argument can point to a directory (which must contain `.hyperterse`) or directly to a config file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
+Without arguments, loads `.hyperterse` from the current directory. A positional `path` can point to a directory containing `.hyperterse` or directly to a config file.
 
 ### Flags
 
-| Flag | Short | Type | Default | Description |
-|---|---|---|---|---|
-| `--file` | `-f` | string | `""` | Path to the configuration file (`.hyperterse` or `.terse`). Alternative to positional arg. |
-| `--port` | `-p` | string | `""` | Server port (overrides config file and `PORT` env var). |
-| `--log-level` | | int | `0` | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file). |
-| `--verbose` | | bool | `false` | Enable verbose logging (sets log level to DEBUG). |
-| `--source` | `-s` | string | `""` | Configuration as a string (alternative to `--file`). |
-| `--watch` | | bool | `false` | Watch `.terse`/`.ts` files and hot-reload on changes. |
-| `--log-tags` | | string | `""` | Filter logs by tags (comma-separated, use `-tag` to exclude). Overrides `HYPERTERSE_LOG_TAGS` env var. |
-| `--log-file` | | bool | `false` | Stream logs to file in `/tmp/.hyperterse/logs/`. |
+<ParamField body="--port" type="string" default="">
+  Server port. Overrides config and `PORT` env var.
 
-### Resolution Order
+  **Short:** `-p`
 
-**Port:** CLI `--port` → config `server.port` → env `PORT` → `8080`
+  **Resolution order:** `--port` → `server.port` → `PORT` env → `8080`
+</ParamField>
 
-**Log level:** `--verbose` (sets 4) → `--log-level` → config `server.log_level` → `3`
+<ParamField body="--log-level" type="integer" default="0">
+  Log verbosity. `1` = error, `2` = warn, `3` = info, `4` = debug. Overrides config.
+
+  **Resolution order:** `--verbose` (4) → `--log-level` → `server.log_level` → `3`
+</ParamField>
+
+<ParamField body="--verbose" type="boolean" default="false">
+  Sets log level to `4` (debug). Overrides `--log-level`.
+</ParamField>
+
+<ParamField body="--source" type="string" default="">
+  Configuration as an inline YAML string instead of reading from a file.
+
+  **Short:** `-s`
+</ParamField>
+
+<ParamField body="--watch" type="boolean" default="false">
+  Hot-reload on `.terse` and `.ts` file changes. Recompiles and restarts automatically.
+</ParamField>
+
+<ParamField body="--log-tags" type="string" default="">
+  Comma-separated tag filter. Prefix a tag with `-` to exclude it.
+</ParamField>
+
+<ParamField body="--log-file" type="boolean" default="false">
+  Stream logs to `/tmp/.hyperterse/logs/` in addition to stdout.
+</ParamField>
 
 ### Examples
 
@@ -59,28 +71,40 @@ hyperterse start path/to/project
 hyperterse start -p 9090 --verbose
 ```
 
----
 
 ## `hyperterse serve`
 
-Start the runtime from a pre-built manifest. Loads `model.bin` and reconstructs the project from the serialized manifest without re-parsing source files.
+Boot from a pre-built manifest without re-parsing source files.
 
 ```bash
 hyperterse serve [manifest-or-dir] [flags]
 ```
 
-When run without arguments, the runtime searches for `model.bin` in the current directory. A positional argument can point to a directory (which must contain `model.bin`) or directly to a manifest file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
+Without arguments, searches for `model.bin` in the current directory. A positional argument can point to a directory containing `model.bin` or directly to a manifest file.
 
 ### Flags
 
-| Flag | Short | Type | Default | Description |
-|---|---|---|---|---|
-| `--file` | `-f` | string | `""` | Path to the model manifest file. Alternative to positional arg. Default: `./model.bin`. |
-| `--port` | `-p` | string | `""` | Server port (overrides manifest and `PORT` env var). |
-| `--log-level` | | int | `0` | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides manifest). |
-| `--verbose` | | bool | `false` | Enable verbose logging (sets log level to DEBUG). |
-| `--log-tags` | | string | `""` | Filter logs by tags (comma-separated, use `-tag` to exclude). Overrides `HYPERTERSE_LOG_TAGS` env var. |
-| `--log-file` | | bool | `false` | Stream logs to file in `/tmp/.hyperterse/logs/`. |
+<ParamField body="--port" type="string" default="">
+  Server port. Overrides the value embedded in the manifest and `PORT` env var.
+
+  **Short:** `-p`
+</ParamField>
+
+<ParamField body="--log-level" type="integer" default="0">
+  Log verbosity. Overrides the value embedded in the manifest.
+</ParamField>
+
+<ParamField body="--verbose" type="boolean" default="false">
+  Sets log level to `4` (debug).
+</ParamField>
+
+<ParamField body="--log-tags" type="string" default="">
+  Comma-separated tag filter.
+</ParamField>
+
+<ParamField body="--log-file" type="boolean" default="false">
+  Stream logs to file.
+</ParamField>
 
 ### Examples
 
@@ -89,27 +113,30 @@ hyperterse serve dist/
 hyperterse serve
 ```
 
----
 
 ## `hyperterse build`
 
-Compile the project into a deployable output directory. Parses config, compiles the project, bundles all TypeScript scripts, copies the runtime binary, and writes the serialized manifest.
+Compile the project into a deployable output directory.
 
 ```bash
 hyperterse build [path] [flags]
 ```
 
-When run without arguments, the CLI loads `.hyperterse` from the current directory. A positional `path` argument can point to a directory (which must contain `.hyperterse`) or directly to a config file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
+Without arguments, loads `.hyperterse` from the current directory.
 
 ### Flags
 
-| Flag | Short | Type | Default | Description |
-|---|---|---|---|---|
-| `--file` | `-f` | string | `""` | Path to the configuration file (`.hyperterse` or `.terse`). Alternative to positional arg. |
-| `--out` | `-o` | string | `""` | Output directory for build artifacts. Default: `dist`. |
-| `--clean-dir` | | bool | `false` | Remove existing output directory before building. |
+<ParamField body="--out" type="string" default="dist">
+  Output directory for build artifacts.
 
-### Output Structure
+  **Short:** `-o`
+</ParamField>
+
+<ParamField body="--clean-dir" type="boolean" default="false">
+  Remove the output directory before building.
+</ParamField>
+
+### Output
 
 ```
 dist/
@@ -132,41 +159,39 @@ hyperterse build -o release --clean-dir
 hyperterse build path/to/project -o dist
 ```
 
----
 
 ## `hyperterse validate`
 
-Validate the configuration and project structure without starting the runtime. Checks config schema compliance, adapter definitions, route validity, script resolution, and bundling feasibility.
+Check configuration and project structure without starting the runtime.
 
 ```bash
 hyperterse validate [path] [flags]
 ```
 
-When run without arguments, the CLI loads `.hyperterse` from the current directory. A positional `path` argument can point to a directory (which must contain `.hyperterse`) or directly to a config file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
-
 ### Flags
 
-| Flag | Short | Type | Default | Description |
-|---|---|---|---|---|
-| `--file` | `-f` | string | `""` | Path to the configuration file (`.hyperterse` or `.terse`). Alternative to positional arg. |
-| `--source` | `-s` | string | `""` | Configuration as a string (alternative to `--file`). |
+<ParamField body="--source" type="string" default="">
+  Configuration as an inline YAML string instead of reading from a file.
 
-### Validation Checks
+  **Short:** `-s`
+</ParamField>
 
-- Root config schema compliance (name, version, server, build fields).
-- Adapter completeness (connector and connection_string required).
-- Route validity (each route has `use` or `scripts.handler`).
-- Adapter name uniqueness.
-- Input type correctness (valid primitive types).
-- Script file resolution (referenced files exist).
-- Bundle compilation (scripts compile without errors).
+### Checks
 
-### Exit Codes
+- Root config schema compliance
+- Adapter completeness (`connector` and `connection_string` required)
+- Route validity (`use` or `scripts.handler` present)
+- Adapter name uniqueness
+- Input type correctness
+- Script file resolution
+- Bundle compilation
+
+### Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | Validation passed. |
-| `1` | Validation failed. Errors are printed to stderr. |
+| `0` | Validation passed |
+| `1` | Validation failed — errors printed to stderr |
 
 ### Examples
 
@@ -175,35 +200,32 @@ hyperterse validate
 hyperterse validate path/to/project
 ```
 
----
 
 ## `hyperterse init`
 
-Scaffold a new Hyperterse project with starter files.
+Scaffold a new project with starter files.
 
 ```bash
 hyperterse init
 ```
 
-### Created Files
+### Created files
 
 | Path | Content |
 |---|---|
-| `.hyperterse` | Root config with default name and server settings. |
-| `app/adapters/my-database.terse` | Placeholder adapter definition. |
-| `app/routes/health/config.terse` | Health check route configuration. |
-| `app/routes/health/handler.ts` | Health check handler script. |
+| `.hyperterse` | Root config with defaults |
+| `app/adapters/my-database.terse` | Placeholder adapter |
+| `app/routes/health/config.terse` | Health check route |
+| `app/routes/health/handler.ts` | Health check handler |
 
-### Behavior
+<Note>
+Does not overwrite existing files.
+</Note>
 
-- Creates files in the current working directory.
-- Does not overwrite existing files.
-
----
 
 ## `hyperterse upgrade`
 
-Upgrade the installed Hyperterse binary to a newer version.
+Upgrade the installed binary.
 
 ```bash
 hyperterse upgrade [flags]
@@ -211,10 +233,13 @@ hyperterse upgrade [flags]
 
 ### Flags
 
-| Flag | Type | Default | Description |
-|---|---|---|---|
-| `--prerelease` | bool | `false` | Include pre-release versions in upgrade candidates. |
-| `--major` | string | | Target a specific major version number or `next` for the next major. |
+<ParamField body="--prerelease" type="boolean" default="false">
+  Include pre-release versions in the upgrade check.
+</ParamField>
+
+<ParamField body="--major" type="string">
+  Target a specific major version number, or `next` for the latest major.
+</ParamField>
 
 ### Examples
 
@@ -225,11 +250,10 @@ hyperterse upgrade --major next
 hyperterse upgrade --major 3
 ```
 
----
 
 ## `hyperterse completion`
 
-Generate shell completion scripts. This command is hidden from the default help output and is primarily used by the installer.
+Generate shell completion scripts. Hidden from default help.
 
 ```bash
 hyperterse completion [bash|zsh|fish|powershell]

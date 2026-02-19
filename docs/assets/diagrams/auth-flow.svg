@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 320" fill="none">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .box { rx: 6; stroke-width: 1.5; }
+    .label { font-size: 12px; font-weight: 500; }
+    .arrow { stroke: #14B8A6; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .fail-arrow { stroke: #EF4444; stroke-width: 1.5; fill: none; marker-end: url(#failhead); }
+    .decision { fill: #FFF7ED; stroke: #F59E0B; stroke-width: 1.5; }
+    .decision-text { font-size: 11px; fill: #92400E; font-weight: 600; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#14B8A6"/>
+    </marker>
+    <marker id="failhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#EF4444"/>
+    </marker>
+  </defs>
+
+  <!-- Tool invocation -->
+  <rect x="170" y="10" width="180" height="32" rx="16" fill="#0F766E"/>
+  <text x="260" y="31" font-size="12" fill="#FFFFFF" font-weight="600" text-anchor="middle">Tool invocation</text>
+
+  <line x1="260" y1="42" x2="260" y2="65" class="arrow"/>
+
+  <!-- Decision: auth block? -->
+  <polygon points="260,65 370,100 260,135 150,100" class="decision"/>
+  <text x="260" y="104" class="decision-text" text-anchor="middle">auth block?</text>
+
+  <!-- No auth: skip -->
+  <line x1="370" y1="100" x2="440" y2="100" class="arrow"/>
+  <text x="395" y="92" font-size="10" fill="#6B7280">no</text>
+  <rect x="440" y="84" width="60" height="32" rx="6" fill="#F0FDF4" stroke="#22C55E" stroke-width="1"/>
+  <text x="470" y="105" font-size="11" fill="#166534" font-weight="500" text-anchor="middle">Skip</text>
+  <line x1="470" y1="116" x2="470" y2="260" stroke="#22C55E" stroke-width="1" fill="none"/>
+  <line x1="470" y1="260" x2="355" y2="260" class="arrow"/>
+
+  <!-- Yes: resolve plugin -->
+  <line x1="260" y1="135" x2="260" y2="155" class="arrow"/>
+  <text x="272" y="148" font-size="10" fill="#6B7280">yes</text>
+
+  <rect x="160" y="155" width="200" height="36" class="box" fill="#F0FDFA" stroke="#0F766E"/>
+  <text x="260" y="178" class="label" fill="#115E59" text-anchor="middle">Resolve auth plugin</text>
+
+  <line x1="260" y1="191" x2="260" y2="210" class="arrow"/>
+
+  <!-- Execute plugin -->
+  <rect x="160" y="210" width="200" height="36" class="box" fill="#F0FDFA" stroke="#0F766E"/>
+  <text x="260" y="233" class="label" fill="#115E59" text-anchor="middle">Execute plugin.Authorize()</text>
+
+  <!-- Fail path -->
+  <line x1="360" y1="228" x2="430" y2="228" class="fail-arrow"/>
+  <rect x="430" y="212" width="70" height="32" rx="6" fill="#FEF2F2" stroke="#EF4444" stroke-width="1"/>
+  <text x="465" y="233" font-size="11" fill="#DC2626" font-weight="500" text-anchor="middle">Error</text>
+  <text x="390" y="220" font-size="10" fill="#EF4444">error</text>
+
+  <!-- Success path -->
+  <line x1="260" y1="246" x2="260" y2="270" class="arrow"/>
+  <text x="272" y="260" font-size="10" fill="#6B7280">nil</text>
+
+  <!-- Continue -->
+  <rect x="170" y="270" width="180" height="32" rx="16" fill="#0F766E"/>
+  <text x="260" y="291" font-size="12" fill="#FFFFFF" font-weight="600" text-anchor="middle">Continue pipeline</text>
+</svg>

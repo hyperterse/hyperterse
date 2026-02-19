@@ -1,17 +1,13 @@
 ---
-title: Route Configuration
+title: Route configuration
 description: Complete field reference for app/routes/*/config.terse route definition files.
 ---
 
-## Overview
-
-Each `app/routes/*/config.terse` file defines one MCP tool. The route config specifies what the tool does, which adapter it uses (if any), what inputs it accepts, what output it produces, which scripts participate in execution, and what authentication is required.
-
----
+Each `app/routes/*/config.terse` defines one MCP tool — its execution strategy, inputs, outputs, scripts, authentication, and caching behavior.
 
 ## Full schema
 
-```yaml
+```yaml app/routes/get-user-profile/config.terse
 name: get-user-profile
 description: "Retrieve a user profile by primary key"
 use: primary-db
@@ -44,171 +40,152 @@ cache:
   ttl: 120
 ```
 
----
 
 ## Field reference
 
-### `name`
+<ParamField body="name" type="string">
+  MCP tool name. Must be unique across all routes.
 
-| | |
-|---|---|
-| **Type** | string |
-| **Required** | No |
-| **Default** | Directory name (e.g., `get-user` from `app/routes/get-user/`) |
-| **Description** | MCP tool name. Must be unique across the project. |
+  **Default:** directory name (e.g., `get-user` from `app/routes/get-user/`).
+</ParamField>
 
-### `description`
+<ParamField body="description" type="string">
+  Human-readable tool description. Exposed in the `tools/list` MCP response. Strongly recommended for agent discoverability.
+</ParamField>
 
-| | |
-|---|---|
-| **Type** | string |
-| **Required** | No (recommended) |
-| **Description** | Human-readable tool description. Exposed in MCP `tools/list` responses. |
+<ParamField body="use" type="string | string[]">
+  Adapter name(s) for statement execution. References adapter identifiers defined in `app/adapters/`.
 
-### `use`
+  <Warning>
+  Required if `scripts.handler` is not set. A route must have either `use` or `scripts.handler` (or both).
+  </Warning>
+</ParamField>
 
-| | |
-|---|---|
-| **Type** | string or string[] |
-| **Required** | Conditional — required if `scripts.handler` is not set |
-| **Description** | Adapter name(s) to use for statement execution. References an adapter defined in `app/adapters/`. |
+<ParamField body="statement" type="string">
+  SQL query or database command. Supports `{{ env.VAR }}` and `{{ inputs.field }}` placeholders. Use YAML multiline syntax (`|`) for readability.
 
-### `statement`
+  ```yaml
+  statement: |
+    SELECT id, name, email
+    FROM users
+    WHERE id = {{ inputs.user_id }}
+  ```
+</ParamField>
 
-| | |
-|---|---|
-| **Type** | string (multiline) |
-| **Required** | No (relevant only for DB-backed routes) |
-| **Description** | SQL or command statement to execute through the connector. Supports `{{ env.VAR }}` and `{{ inputs.field }}` placeholders. |
+<ParamField body="inputs" type="object">
+  Map of input parameter definitions. Each key becomes a named parameter in the MCP tool's input schema.
 
----
+  <Expandable title="input field properties">
+    <ParamField body="type" type="string" required>
+      Input data type. Allowed values: `string`, `int`, `float`, `boolean`, `datetime`.
+    </ParamField>
 
-### `inputs`
+    <ParamField body="description" type="string">
+      Human-readable description. Exposed in the MCP input schema for agent consumption.
+    </ParamField>
 
-Map of input parameter definitions. Keys are input names.
+    <ParamField body="optional" type="boolean" default="false">
+      Whether the input can be omitted by the caller.
+    </ParamField>
 
-```yaml
-inputs:
-  user_id:
-    type: int
-    description: "User primary key"
-    optional: false
-  limit:
-    type: int
-    description: "Maximum rows"
-    optional: true
-    default: "10"
-```
+    <ParamField body="default" type="string">
+      Default value when the caller omits this input. Always a string; converted to the declared type at runtime.
+    </ParamField>
+  </Expandable>
+</ParamField>
 
-#### Input fields
+<ParamField body="data" type="object">
+  Map of output field definitions. Metadata only — does not enforce runtime validation.
 
-| Field | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `type` | string | Yes | — | Primitive type: `string`, `int`, `float`, `boolean`, `datetime`. |
-| `description` | string | No | — | Human-readable description. Exposed in MCP tool input schema. |
-| `optional` | boolean | No | `false` | Whether the input can be omitted by the caller. |
-| `default` | string | No | — | Default value applied when the input is omitted. Always a string; converted to the declared type at runtime. |
+  <Expandable title="data field properties">
+    <ParamField body="type" type="string" required>
+      Expected output data type.
+    </ParamField>
 
----
+    <ParamField body="description" type="string">
+      Human-readable field description.
+    </ParamField>
 
-### `data`
+    <ParamField body="optional" type="boolean" default="false">
+      Whether the field may be absent in the response.
+    </ParamField>
 
-Map of output field definitions. Keys are field names.
+    <ParamField body="map_to" type="string">
+      Source column name if different from the key. Use when your database column name does not match the desired output field name.
+    </ParamField>
+  </Expandable>
+</ParamField>
 
-```yaml
-data:
-  id:
-    type: int
-    description: "User identifier"
-  name:
-    type: string
-  email:
-    type: string
-    map_to: "email_address"
-```
+<ParamField body="scripts" type="object">
+  Script paths for custom logic. All paths are relative to the route directory.
 
-#### Data fields
+  <Expandable title="properties">
+    <ParamField body="handler" type="string">
+      Handler script path. When set, replaces database execution entirely. The handler receives inputs and returns results directly.
+    </ParamField>
 
-| Field | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `type` | string | Yes | — | Expected primitive type. |
-| `description` | string | No | — | Human-readable description. |
-| `optional` | boolean | No | `false` | Whether this field may be absent in results. |
-| `map_to` | string | No | — | Source column/field name if different from the data field key. |
+    <ParamField body="input_transform" type="string">
+      Input transform script path. Runs before statement execution. Receives raw inputs and returns modified inputs.
+    </ParamField>
 
-The `data` block is metadata for documentation and schema purposes. It does not enforce runtime result validation.
+    <ParamField body="output_transform" type="string">
+      Output transform script path. Runs after statement execution. Receives raw results and returns modified results.
+    </ParamField>
+  </Expandable>
 
----
+  <Tip>
+  If scripts are omitted, convention-based discovery applies — see [Scripts](/concepts/scripts).
+  </Tip>
+</ParamField>
 
-### `scripts`
+<ParamField body="auth" type="object">
+  Route-level authentication. Omitting this block entirely makes the route unauthenticated.
 
-Script bindings for the route's execution pipeline.
+  <Expandable title="properties">
+    <ParamField body="plugin" type="string" required>
+      Registered auth plugin name. Built-in plugins: `allow_all`, `api_key`.
+    </ParamField>
 
-```yaml
-scripts:
-  handler: "./weather-handler.ts"
-  input_transform: "./validate-input.ts"
-  output_transform: "./format-output.ts"
-```
+    <ParamField body="policy" type="object">
+      Plugin-specific parameters. For `api_key`, set `value` to the expected key or an `{{ env.VAR }}` reference.
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `handler` | string | No | Path to handler script (relative to route directory). Replaces DB execution. |
-| `input_transform` | string | No | Path to input transform script. Runs before execution. |
-| `output_transform` | string | No | Path to output transform script. Runs after execution. |
+      ```yaml
+      auth:
+        plugin: api_key
+        policy:
+          value: "{{ env.API_KEY }}"
+      ```
+    </ParamField>
+  </Expandable>
+</ParamField>
 
-Script paths are resolved relative to the route directory. If omitted, convention-based discovery applies (see [Scripts](/concepts/scripts)).
+<ParamField body="cache" type="object">
+  Per-route cache settings. Overrides the global cache configuration from `.hyperterse`.
 
----
+  <Expandable title="properties">
+    <ParamField body="enabled" type="boolean">
+      Whether caching is active for this route. Inherits from `server.queries.cache.enabled` if not set.
+    </ParamField>
 
-### `auth`
+    <ParamField body="ttl" type="integer">
+      Cache TTL in seconds for this route. Inherits from `server.queries.cache.ttl` if not set.
+    </ParamField>
+  </Expandable>
+</ParamField>
 
-Authentication configuration for this route.
-
-```yaml
-auth:
-  plugin: api_key
-  policy:
-    value: "{{ env.API_KEY }}"
-```
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `plugin` | string | Yes (within `auth`) | Name of the registered auth plugin. |
-| `policy` | map[string, string] | No | Plugin-specific configuration parameters. |
-
-If the `auth` block is omitted entirely, the route is unauthenticated.
-
----
-
-### `cache`
-
-Per-route cache override.
-
-```yaml
-cache:
-  enabled: true
-  ttl: 30
-```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | boolean | (from global) | Whether caching is active for this route. |
-| `ttl` | integer | (from global) | Cache TTL in seconds for this route. |
-
----
 
 ## Validity rules
 
 A route is valid when at least one of these conditions is met:
 
-1. `use` is defined (DB-backed route).
+1. `use` is defined (database-backed route).
 2. `scripts.handler` is defined (script-backed route).
 
-Routes that satisfy neither condition are rejected during validation.
+<Warning>
+Routes with neither `use` nor `scripts.handler` are rejected during validation.
+</Warning>
 
----
 
 ## JSON Schema
 
-Editor validation is available through `schema/route.terse.schema.json`. Associate this schema with `**/routes/**/config.terse` file patterns in your editor. See [Configuration Schemas](/reference/configuration-schemas).
+Editor validation: `schema/route.terse.schema.json`. Associate with `**/routes/**/config.terse`. See [Configuration schemas](/reference/configuration-schemas).

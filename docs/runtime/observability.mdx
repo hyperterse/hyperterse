@@ -1,17 +1,13 @@
 ---
 title: Observability
-description: OpenTelemetry tracing and metrics integration, structured logging, attribute redaction, and configuration.
+description: OpenTelemetry tracing and metrics, structured logging, attribute redaction, and collector integration.
 ---
 
-## Overview
-
-Hyperterse integrates with OpenTelemetry for distributed tracing and metrics collection. The observability subsystem is configured through the runtime and provides instrumentation across the execution pipeline, connector lifecycle, and MCP transport.
-
----
+Hyperterse integrates with OpenTelemetry for distributed tracing and metrics. The observability subsystem instruments the execution pipeline, connector lifecycle, and MCP transport. Structured logging provides operational visibility at every level.
 
 ## Tracing
 
-When tracing is enabled, the runtime creates spans for key operations:
+When enabled, the runtime creates spans for each stage of tool execution:
 
 | Span | Attributes |
 |---|---|
@@ -22,39 +18,31 @@ When tracing is enabled, the runtime creates spans for key operations:
 | Output transform | Route name, script path |
 | Connector initialization | Adapter name, connector type |
 
-Traces follow the OpenTelemetry specification and can be exported to any compatible backend (Jaeger, Zipkin, OTLP-compatible collectors, Grafana Tempo).
+Traces follow the OpenTelemetry specification and export to any compatible backend: Jaeger, Zipkin, Grafana Tempo, Datadog, AWS X-Ray (via ADOT collector), or any OTLP receiver.
 
-### Trace provider setup
-
-The observability package configures the trace provider based on model settings. When enabled, the provider is set as the global OpenTelemetry trace provider, ensuring all spans from the Hyperterse runtime are captured.
-
----
 
 ## Metrics
 
-The metrics subsystem collects operational counters and histograms:
-
 | Metric | Type | Description |
 |---|---|---|
-| Tool invocation count | Counter | Number of `tools/call` requests per tool |
-| Execution duration | Histogram | End-to-end execution time per tool |
-| Cache hit/miss ratio | Counter | Cache hits vs. misses per query |
-| Connector execution time | Histogram | Time spent in connector `Execute` calls |
-| Auth failure count | Counter | Number of authentication rejections per plugin |
+| Tool invocation count | Counter | `tools/call` requests per tool |
+| Execution duration | Histogram | End-to-end time per tool |
+| Cache hit/miss ratio | Counter | Hits vs. misses per query |
+| Connector execution time | Histogram | Time in connector `Execute` calls |
+| Auth failure count | Counter | Rejections per plugin |
 
-Metrics are exported through the configured OpenTelemetry meter provider.
+Metrics export through the configured OpenTelemetry meter provider.
 
----
 
 ## Structured logging
 
-Hyperterse uses a tagged structured logger. Log output includes:
+Hyperterse uses a tagged structured logger with the following fields:
 
-- **Timestamp** — ISO 8601 format.
-- **Level** — `ERROR` (1), `WARN` (2), `INFO` (3), `DEBUG` (4).
-- **Tag** — Component identifier (e.g., `runtime`, `executor`, `connector`, `mcp`, `auth`).
+- **Timestamp** — ISO 8601.
+- **Level** — ERROR (1), WARN (2), INFO (3), DEBUG (4).
+- **Tag** — Component identifier: `runtime`, `executor`, `connector`, `mcp`, `auth`.
 - **Message** — Descriptive text.
-- **Fields** — Structured key-value pairs (tool name, adapter name, duration, error details).
+- **Fields** — Structured key-value pairs (tool name, adapter, duration, error details).
 
 ### Log levels
 
@@ -65,32 +53,28 @@ Hyperterse uses a tagged structured logger. Log output includes:
 | Info | 3 | Operational events. Startup, shutdown, tool registration, requests. |
 | Debug | 4 | Diagnostic detail. Substituted statements, auth context, cache keys. |
 
-Configure via `server.log_level` in the root config or `--log-level` / `--verbose` CLI flags.
+Configure via `server.log_level` in `.hyperterse`, or `--log-level` / `--verbose` CLI flags.
 
 ### Log routing
 
 | Flag | Description |
 |---|---|
 | `--log-file <path>` | Write logs to a file instead of stderr. |
-| `--log-tags <tags>` | Filter log output to specific component tags. |
+| `--log-tags <tags>` | Filter output to specific component tags. |
 
----
 
 ## Attribute redaction
 
-The observability subsystem automatically redacts sensitive values from trace attributes and log fields:
+The observability subsystem redacts sensitive values before export:
 
 - **Connection strings** — Replaced with `[REDACTED]` in trace spans.
-- **API keys** — Auth policy values are not included in trace attributes.
-- **Statement parameters** — Input values in substituted statements are logged at debug level only.
+- **API keys** — Auth policy values excluded from trace attributes.
+- **Statement parameters** — Input values in substituted statements logged at debug level only.
 
-Redaction is applied at the observability contract layer before spans and log entries are exported.
+Redaction is applied at the observability contract layer, not per-exporter.
 
----
 
 ## Configuration
-
-Observability settings are resolved from the `hyperterse.Model` at startup:
 
 ```yaml
 server:
@@ -104,22 +88,21 @@ server:
       endpoint: "http://localhost:4318/v1/metrics"
 ```
 
-The observability configuration is resolved from the model's server settings. When tracing or metrics are not explicitly configured, they default to disabled.
+When tracing or metrics are not configured, they default to disabled.
 
----
 
-## Integration with external systems
+## Collector integration
 
-### OTLP exporter
+Hyperterse exports via OTLP over HTTP. Point the endpoint to your collector:
 
-Hyperterse exports traces and metrics via the OpenTelemetry Protocol (OTLP) over HTTP. Point the endpoint to your collector:
+| Backend | Configuration |
+|---|---|
+| Jaeger | OTLP receiver on port 4318 |
+| Grafana Tempo | OTLP receiver |
+| Datadog Agent | OTLP ingestion endpoint |
+| AWS X-Ray | ADOT collector with OTLP receiver |
 
-- **Jaeger** — OTLP receiver on port 4318.
-- **Grafana Tempo** — OTLP receiver.
-- **Datadog Agent** — OTLP ingestion endpoint.
-- **AWS X-Ray** — Via ADOT collector with OTLP receiver.
-
-### Minimal setup with Jaeger
+### Quick start with Jaeger
 
 ```bash
 docker run -d --name jaeger \
@@ -128,4 +111,4 @@ docker run -d --name jaeger \
   jaegertracing/all-in-one:latest
 ```
 
-Configure Hyperterse to export to `http://localhost:4318/v1/traces`, then view traces at `http://localhost:16686`.
+Set the tracing endpoint to `http://localhost:4318/v1/traces` and view traces at `http://localhost:16686`.

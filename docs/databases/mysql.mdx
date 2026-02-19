@@ -1,0 +1,169 @@
+---
+title: MySQL
+description: Connect Hyperterse to MySQL for SQL-backed MCP tools with connection pooling and charset configuration.
+---
+
+Hyperterse supports MySQL with connection pooling, character set configuration, and parameterized query execution. All standard SQL features — joins, aggregations, subqueries, JSON functions, and window functions — work as expected in route statements.
+
+## Adapter configuration
+
+Create an adapter file in `app/adapters/`:
+
+```yaml app/adapters/mysql-db.terse
+connector: mysql
+connection_string: "{{ env.MYSQL_URL }}"
+options:
+  charset: utf8mb4
+  max_connections: "10"
+```
+
+The connection string uses the MySQL DSN format:
+
+```
+user:password@tcp(host:port)/database?param=value
+```
+
+<Note>
+MySQL DSN format differs from PostgreSQL URI format. The host and port are wrapped in `tcp(...)`.
+</Note>
+
+### Connection options
+
+<ParamField body="charset" type="string">
+  Character set for the connection. Use `utf8mb4` for full Unicode support including emoji.
+</ParamField>
+
+<ParamField body="max_connections" type="string">
+  Maximum number of connections in the pool.
+</ParamField>
+
+### Connection string parameters
+
+Fine-tune behavior through query parameters on the connection string:
+
+```yaml
+connection_string: "user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC&timeout=10s"
+```
+
+| Parameter | Example | Purpose |
+|---|---|---|
+| `charset` | `utf8mb4` | Connection character set |
+| `parseTime` | `true` | Parse `DATE` and `DATETIME` into time values |
+| `loc` | `UTC` | Timezone for parsed datetimes |
+| `timeout` | `10s` | Connection timeout |
+| `readTimeout` | `30s` | I/O read timeout |
+| `writeTimeout` | `30s` | I/O write timeout |
+
+<Note>
+Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MySQL instance and a connection string.
+</Note>
+
+### Recommended permissions
+
+Create a dedicated database user for Hyperterse and grant only the privileges your tools require:
+
+```sql
+-- Read-only
+GRANT SELECT ON myapp.* TO 'hyperterse'@'%';
+
+-- Read-write
+GRANT INSERT, UPDATE, DELETE ON myapp.* TO 'hyperterse'@'%';
+
+-- Specific tables only
+GRANT SELECT ON myapp.users, myapp.products TO 'hyperterse'@'%';
+```
+
+### Verify the connection
+
+Start the server and confirm the adapter connects:
+
+```bash
+hyperterse start
+```
+
+A successful connection produces:
+
+```
+INFO  Connected to adapter: mysql-db
+```
+
+If the connection fails, the server exits immediately with a diagnostic message.
+
+## Usage
+
+MySQL routes execute standard SQL through the adapter. Use `{{ inputs.field }}` placeholders for parameterized values.
+
+```yaml app/routes/get-product/config.terse
+description: "Retrieve a product by its identifier"
+use: main-db
+statement: |
+  SELECT id, name, price, description
+  FROM products
+  WHERE id = {{ inputs.product_id }}
+inputs:
+  product_id:
+    type: int
+    description: "Product ID"
+auth:
+  plugin: allow_all
+```
+
+MySQL-specific features like `JSON_EXTRACT`, stored procedures, and window functions are all supported. Use standard MySQL syntax in statements.
+
+### Read replicas
+
+Configure separate adapters for primary and replica databases:
+
+```yaml app/adapters/primary.terse
+connector: mysql
+connection_string: "{{ env.PRIMARY_DB_URL }}"
+```
+
+```yaml app/adapters/replica.terse
+connector: mysql
+connection_string: "{{ env.REPLICA_DB_URL }}"
+```
+
+Route read-only tools to the replica adapter.
+
+## Troubleshooting
+
+### Access denied
+
+Verify user grants:
+
+```sql
+SHOW GRANTS FOR 'hyperterse'@'%';
+```
+
+Ensure the user exists with the correct host permissions, then `FLUSH PRIVILEGES`.
+
+### Character set issues
+
+Use `utf8mb4` in the connection string to support the full Unicode range:
+
+```
+connection_string: "user:pass@tcp(host:3306)/db?charset=utf8mb4"
+```
+
+Verify the database character set:
+
+```sql
+SHOW CREATE DATABASE myapp;
+```
+
+### Connection timeout
+
+Increase timeout values in the connection string:
+
+```
+connection_string: "user:pass@tcp(host:3306)/db?timeout=30s&readTimeout=30s&writeTimeout=30s"
+```
+
+### Timezone issues
+
+Set the timezone explicitly for consistent datetime handling:
+
+```
+connection_string: "user:pass@tcp(host:3306)/db?parseTime=true&loc=UTC"
+```

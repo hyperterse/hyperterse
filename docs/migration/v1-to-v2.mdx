@@ -1,31 +1,32 @@
 ---
-title: V1 to V2 Migration
-description: Migration guide from Hyperterse v1 inline query configuration to v2 filesystem-based tool routing.
+title: V1 to V2 migration
+description: Migration guide from Hyperterse v1 inline configuration to v2 filesystem-based MCP framework.
 ---
-
-## What changed in V2
 
 Hyperterse v2 is a breaking redesign. The framework shifts from a single-file query gateway to a compiled, filesystem-routed MCP framework.
 
+## What changed
+
 | Aspect | V1 | V2 |
 |---|---|---|
-| **Configuration model** | Single `.hyperterse` file with inline `adapters` and `queries` blocks | Root `.hyperterse` for service settings + `app/adapters/*.terse` + `app/routes/*/config.terse` |
-| **Routing** | Query name from config keys | Filesystem-based: each route directory = one MCP tool |
-| **Script support** | None | TypeScript handlers, input transforms, output transforms |
-| **Auth** | None | Per-route pluggable auth (`allow_all`, `api_key`, custom) |
-| **Transport** | HTTP query endpoints | MCP Streamable HTTP (`/mcp`) + `/heartbeat` |
-| **Build model** | Runtime interprets config directly | `hyperterse build` compiles to `model.bin`; `hyperterse serve` runs from manifest |
-| **Bundling** | None | esbuild for route scripts + vendor.js for shared npm dependencies |
-| **Caching** | Global only | Global + per-route override |
-| **Observability** | Basic logging | OpenTelemetry tracing + metrics + structured logging |
+| Configuration | Single `.hyperterse` with inline `adapters` and `queries` | Root config + `app/adapters/*.terse` + `app/routes/*/config.terse` |
+| Routing | Query name from config keys | Filesystem: each route directory = one tool |
+| Scripts | None | TypeScript handlers, input/output transforms |
+| Auth | None | Per-route pluggable auth |
+| Transport | HTTP query endpoints | MCP Streamable HTTP (`/mcp`) |
+| Build | Runtime interprets config directly | `build` → `model.bin` → `serve` |
+| Bundling | None | Scripts bundled + vendor deduplication |
+| Caching | Global only | Global + per-route override |
+| Observability | Basic logging | OpenTelemetry tracing + metrics + structured logging |
 
----
 
 ## Migration steps
 
+Work through the following changes in order. Each step is independent — you can commit after each one.
+
 ### Keep the root config
 
-Your existing `.hyperterse` retains the `name`, `version`, and `server` blocks. Remove the `adapters` and `queries` blocks — those move to dedicated files.
+Your `.hyperterse` retains `name`, `version`, and `server`. Remove `adapters` and `queries` — those move to dedicated files.
 
 **Before:**
 
@@ -68,7 +69,7 @@ server:
 
 ### Extract adapters
 
-For each entry in the v1 `adapters` block, create a file in `app/adapters/`:
+For each v1 `adapters` entry, create `app/adapters/<name>.terse`:
 
 **`app/adapters/main-db.terse`:**
 
@@ -77,7 +78,7 @@ connector: postgres
 connection_string: "{{ env.DATABASE_URL }}"
 ```
 
-Note: v1 used underscores in adapter names (`main_db`). V2 uses the filename (`main-db`). Update route `use` references accordingly, or add an explicit `name` field:
+V1 used underscores (`main_db`). V2 uses the filename (`main-db`). Update route `use` references, or add an explicit `name` field to preserve the old identifier:
 
 ```yaml
 name: main_db
@@ -87,7 +88,7 @@ connection_string: "{{ env.DATABASE_URL }}"
 
 ### Extract routes
 
-For each entry in the v1 `queries` block, create a route directory with a `config.terse`:
+For each v1 `queries` entry, create `app/routes/<name>/config.terse`:
 
 **`app/routes/get-user/config.terse`:**
 
@@ -105,17 +106,17 @@ auth:
 
 ### Add authentication
 
-V1 had no auth. V2 requires explicit auth per route. For each route, decide:
+V1 had no auth. V2 requires explicit auth per route:
 
 - `allow_all` for public/health tools.
 - `api_key` for key-protected tools.
-- Custom plugins for advanced auth flows.
+- Custom plugins for advanced flows.
 
-**Do not leave routes without `auth` unless they are intentionally unauthenticated.**
+Do not leave routes without `auth` unless intentionally unauthenticated.
 
 ### Add scripts (optional)
 
-If queries need input validation or output formatting that v1 handled in client-side logic, implement those as route scripts:
+If queries need validation or formatting that v1 handled client-side:
 
 ```yaml
 scripts:
@@ -123,21 +124,18 @@ scripts:
   output_transform: "./format.ts"
 ```
 
-### Install dependencies (if using scripts)
+### Install dependencies
 
-If route scripts import npm packages:
+If scripts import npm packages:
 
 ```bash
-cd your-project
-npm init -y
-npm install dayjs uuid  # or whatever your scripts need
+npm init -y && npm install dayjs uuid
 ```
 
 Or with Bun:
 
 ```bash
-bun init
-bun add dayjs uuid
+bun init && bun add dayjs uuid
 ```
 
 ### Validate
@@ -146,14 +144,14 @@ bun add dayjs uuid
 hyperterse validate
 ```
 
-Fix any validation errors. Common issues:
+Common issues:
 
 | Error | Resolution |
 |---|---|
-| Route has neither `use` nor `scripts.handler` | Add a `use` adapter reference or a handler script. |
-| Adapter name not found | Verify the `use` value matches the adapter filename or explicit `name`. |
-| Unknown connector type | Use one of: `postgres`, `mysql`, `mongodb`, `redis`. |
-| Script file not found | Verify script paths are relative to the route directory. |
+| Route has neither `use` nor `scripts.handler` | Add adapter reference or handler. |
+| Adapter name not found | Verify `use` matches filename or explicit `name`. |
+| Unknown connector type | Use `postgres`, `mysql`, `mongodb`, or `redis`. |
+| Script file not found | Verify paths are relative to route directory. |
 
 ### Test
 
@@ -161,15 +159,13 @@ Fix any validation errors. Common issues:
 hyperterse start --watch
 ```
 
-Verify tools appear in `tools/list`:
+Verify tools in `tools/list`:
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' | jq
 ```
-
-Test each tool with `tools/call` to confirm correct behavior.
 
 ### Build for production
 
@@ -179,7 +175,7 @@ hyperterse build -o dist
 
 ### Update client integration
 
-V1 clients that used `/query/{name}` HTTP endpoints must migrate to MCP `tools/call`:
+V1 clients using `/query/{name}` must migrate to MCP `tools/call`:
 
 **Before (V1):**
 
@@ -205,7 +201,6 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
----
 
 ## Directory structure comparison
 
@@ -221,7 +216,7 @@ my-api/
 ```
 my-api/
   .hyperterse       # Service settings only
-  package.json      # npm deps for route scripts (optional)
+  package.json      # npm deps (optional)
   app/
     adapters/
       main-db.terse
@@ -234,15 +229,14 @@ my-api/
         config.terse
 ```
 
----
 
-## Breaking changes summary
+## Breaking changes
 
 | Change | Impact | Action |
 |---|---|---|
-| Inline `adapters` block removed | Existing config will not parse | Extract to `app/adapters/*.terse` |
-| Inline `queries` block removed | Existing config will not parse | Extract to `app/routes/*/config.terse` |
-| `/query/{name}` endpoint removed | HTTP clients break | Migrate to MCP `tools/call` |
-| Auth is now per-route | Routes are unauthenticated by default | Add `auth` blocks to all sensitive routes |
-| DSL parser deprecated | Text-format adapter/query blocks no longer supported | Convert to YAML format |
-| Build step introduced | Direct config interpretation replaced | Add `build` + `serve` to deployment pipeline |
+| Inline `adapters` removed | Config will not parse | Extract to `app/adapters/*.terse` |
+| Inline `queries` removed | Config will not parse | Extract to `app/routes/*/config.terse` |
+| `/query/{name}` removed | HTTP clients break | Migrate to MCP `tools/call` |
+| Auth now per-route | Routes unauthenticated by default | Add `auth` blocks |
+| DSL parser deprecated | Text-format blocks unsupported | Convert to YAML |
+| Build step introduced | Direct interpretation replaced | Add `build` + `serve` to pipeline |

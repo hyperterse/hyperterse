@@ -1,0 +1,92 @@
+---
+title: Cloudflare
+description: Put Hyperterse behind Cloudflare for edge security, caching, and DDoS protection.
+---
+
+Cloudflare acts as a network layer in front of your Hyperterse deployment. It provides DDoS protection, edge caching, Web Application Firewall (WAF), and automatic SSL — regardless of where your Hyperterse server runs.
+
+<Note>
+  Hyperterse is a long-running server process, not a serverless function. Deploy it on a container platform ([AWS](/deployment/aws), [GCP](/deployment/gcp), [Azure](/deployment/azure), [Railway](/deployment/railway), [DigitalOcean](/deployment/digital-ocean)) or [bare metal](/deployment/bare-metal), then put Cloudflare in front of it.
+</Note>
+
+## Cloudflare Tunnel
+
+Cloudflare Tunnel creates a secure, outbound-only connection from your server to Cloudflare's edge network. Your origin server never needs a public IP address.
+
+<Steps>
+  <Step title="Install cloudflared">
+    ```bash
+    # macOS
+    brew install cloudflare/cloudflare/cloudflared
+
+    # Linux
+    wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+    chmod +x cloudflared-linux-amd64
+    sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
+    ```
+  </Step>
+  <Step title="Create and configure the tunnel">
+    ```bash
+    cloudflared tunnel login
+    cloudflared tunnel create hyperterse
+    ```
+
+    Create a configuration file:
+
+    ```yaml
+    # ~/.cloudflared/config.yml
+    tunnel: <tunnel-id>
+    credentials-file: /path/to/<tunnel-id>.json
+
+    ingress:
+      - hostname: api.example.com
+        service: http://localhost:8080
+      - service: http_status:404
+    ```
+  </Step>
+  <Step title="Run the tunnel">
+    ```bash
+    cloudflared tunnel run hyperterse
+    ```
+
+    For production, run it as a systemd service:
+
+    ```ini
+    [Unit]
+    Description=Cloudflare Tunnel
+    After=network.target
+
+    [Service]
+    Type=simple
+    ExecStart=/usr/local/bin/cloudflared tunnel run hyperterse
+    Restart=always
+    RestartSec=5
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+  </Step>
+  <Step title="Configure DNS">
+    In the Cloudflare dashboard, create a CNAME record pointing `api.example.com` to `<tunnel-id>.cfargotunnel.com` with proxy enabled.
+  </Step>
+</Steps>
+
+## DNS proxy
+
+If your Hyperterse server already has a public IP, use Cloudflare as a reverse proxy by adding an A or CNAME record with proxy enabled (orange cloud). Set SSL/TLS mode to **Full (strict)**.
+
+## Caching
+
+Configure Cloudflare to cache read-heavy endpoints like `/heartbeat` while bypassing cache for the `/mcp` endpoint, which processes tool calls:
+
+- Cache Rule: `*api.example.com/heartbeat*` — Cache Everything, TTL 1 hour
+- Bypass Rule: `*api.example.com/mcp*` — Cache Level: Bypass
+
+## Security hardening
+
+Cloudflare provides several layers of protection:
+
+- **WAF**: Enable managed rulesets under Security > WAF
+- **Rate limiting**: Create rules to limit requests to `/mcp` (e.g., 100 requests per minute per IP)
+- **Bot management**: Enable Bot Fight Mode to block automated abuse
+- **DDoS protection**: Enabled automatically on all plans

@@ -1,36 +1,30 @@
 ---
 title: Caching
-description: In-memory query result caching with Ristretto, cache key derivation, TTL configuration, and override behavior.
+description: In-memory query result caching, cache key derivation, TTL, and override behavior.
 ---
 
-## Overview
-
-Hyperterse includes an executor-level in-memory cache backed by [Ristretto](https://github.com/dgraph-io/ristretto). The cache stores query results keyed by the combination of query name and final substituted statement, avoiding redundant connector execution for identical requests.
+Hyperterse includes an executor-level in-memory cache. The cache stores query results keyed by the combination of query name and substituted statement, eliminating redundant connector execution for identical requests.
 
 Caching applies to DB-backed routes only. Script-backed routes (handler-only) bypass the cache.
 
----
-
 ## Cache key derivation
 
-Each cache entry is identified by:
-
-1. **Query name** — The tool/route identifier.
-2. **Statement hash** — A hash of the fully substituted statement (after environment and input placeholder resolution).
-
-This means the same query with different input values produces different cache entries. Identical input values for the same query produce a cache hit.
+Each entry is identified by:
 
 ```
-Cache key = hash(query_name + substituted_statement)
+cache_key = hash(query_name + substituted_statement)
 ```
 
----
+The same query with different input values produces different cache entries. Identical inputs for the same query produce a cache hit.
+
 
 ## Configuration
 
-### Global cache settings
+Caching is controlled at two levels: global defaults in the root config and per-route overrides.
 
-Set default caching behavior in the root `.hyperterse` config:
+### Global defaults
+
+Set default caching in `.hyperterse`:
 
 ```yaml
 server:
@@ -43,78 +37,72 @@ server:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | boolean | `false` | Whether caching is active for all queries. |
-| `ttl` | integer | `120` | Time-to-live in seconds for cached results. |
+| `ttl` | integer | `120` | Time-to-live in seconds. |
 
 ### Per-route override
 
-Individual routes can override the global cache policy:
-
 ```yaml
-# Enable with custom TTL
 cache:
   enabled: true
   ttl: 30
 ```
 
 ```yaml
-# Disable for this route
 cache:
   enabled: false
 ```
 
-### Precedence order
+### Precedence
 
-1. **Route-level cache config** — Takes priority if present.
-2. **Global server cache config** — Applied when no route-level override exists.
-3. **Framework defaults** — `enabled: false`, `ttl: 120`.
+1. Route-level config (highest priority).
+2. Global server config.
+3. Framework defaults (`enabled: false`, `ttl: 120`).
 
----
 
-## Cache behavior
+## Behavior
+
+The cache operates as a read-through layer in front of connectors and handler scripts.
 
 ### On execution
 
-1. Before executing through the connector, the executor checks the cache using the derived key.
-2. **Cache hit** — The cached result is returned immediately. No connector execution occurs.
-3. **Cache miss** — The connector executes the statement. The result is stored in the cache with the configured TTL before being returned.
+1. Before connector execution, the executor checks the cache using the derived key.
+2. **Hit:** cached result returned immediately; connector is not called.
+3. **Miss:** connector executes; result stored with configured TTL before being returned.
 
 ### Eviction
 
-- **TTL-based** — Entries expire after their configured TTL elapses.
-- **Capacity-based** — Ristretto enforces memory bounds. When the cache approaches capacity, least-recently-used entries are evicted.
+- **TTL-based.** Entries expire after their configured TTL.
+- **Capacity-based.** The cache enforces memory bounds (128 MiB default). When approaching capacity, least-recently-used entries are evicted.
 
 ### No explicit invalidation
 
-There is no API or mechanism for explicit cache invalidation in the current runtime. Entries are evicted only by TTL expiration or capacity pressure. For use cases requiring immediate invalidation, disable caching on the affected routes and implement cache management in handler scripts with an external cache system.
+There is no API for manual cache invalidation. Entries are evicted only by TTL or capacity pressure. For immediate invalidation, disable caching on affected routes and manage cache externally (e.g., through a Redis adapter with handler logic).
 
----
 
 ## Characteristics
 
 | Property | Value |
 |---|---|
-| **Scope** | Process-local. Not shared between runtime instances. |
-| **Storage** | In-memory (Ristretto). No persistence across restarts. |
-| **Thread safety** | Ristretto is concurrent-safe. Cache reads and writes do not block execution. |
-| **Serialization** | Results are cloned before storage and on retrieval to prevent mutation side effects. |
-| **Distributed support** | None. For multi-instance deployments, each instance maintains its own cache. |
+| Scope | Process-local. Not shared between instances. |
+| Storage | In-memory. No persistence across restarts. |
+| Thread safety | Concurrent-safe. Reads and writes do not block execution. |
+| Serialization | Results are cloned on store and retrieval to prevent mutation. |
+| Distributed | None. Each instance maintains its own cache. |
 
----
 
-## When to use caching
+## When to enable caching
 
-**Enable caching for:**
+**Enable for:**
 - Read-heavy tools with stable data (reference tables, configuration lookups).
-- Tools with expensive queries where stale data is acceptable for the TTL duration.
-- High-frequency tools where connector load reduction is beneficial.
+- Expensive queries where staleness within the TTL window is acceptable.
+- High-frequency tools where connector load reduction matters.
 
-**Disable caching for:**
+**Disable for:**
 - Write operations or tools that must return real-time data.
-- Tools with highly variable inputs (cache fill rate exceeds hit rate).
+- Highly variable inputs where cache fill exceeds hit rate.
 - Tools where result freshness is critical for correctness.
 
----
 
 ## Monitoring
 
-Cache hit/miss status is included in OpenTelemetry trace spans when observability is configured. Monitor the cache hit ratio to determine whether TTL values are effective for your workload.
+Cache hit/miss status is included in OpenTelemetry trace spans when observability is configured. Monitor hit ratio to evaluate whether TTL values are effective for your workload.

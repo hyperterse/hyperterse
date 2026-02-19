@@ -1,0 +1,81 @@
+---
+title: Vercel
+description: Connect a Vercel-hosted frontend to a Hyperterse MCP server.
+---
+
+Vercel excels at hosting frontends and serverless functions. For Hyperterse — a long-running server process — the recommended architecture is to deploy Hyperterse on a container platform and connect your Vercel frontend to it through API routes.
+
+<Note>
+  Hyperterse requires a persistent server process. Deploy it on [Railway](/deployment/railway), [AWS](/deployment/aws), [GCP](/deployment/gcp), [Azure](/deployment/azure), [DigitalOcean](/deployment/digital-ocean), or [bare metal](/deployment/bare-metal), then configure your Vercel project to communicate with it.
+</Note>
+
+## Architecture
+
+Your Vercel frontend communicates with Hyperterse through server-side API routes. This keeps your Hyperterse endpoint private and lets Vercel handle CORS, authentication, and caching at the edge.
+
+```
+Browser → Vercel Edge → API Route → Hyperterse Server → Database
+```
+
+## Configure the proxy
+
+<Steps>
+  <Step title="Set the Hyperterse URL as an environment variable">
+    In the Vercel dashboard, go to **Settings > Environment Variables** and add:
+
+    ```
+    HYPERTERSE_URL=https://your-hyperterse-deployment.example.com
+    ```
+  </Step>
+  <Step title="Create an API route">
+    Forward MCP requests from your frontend to the Hyperterse server:
+
+    ```typescript
+    // app/api/mcp/route.ts (Next.js App Router)
+    import { NextRequest, NextResponse } from "next/server";
+
+    export async function POST(request: NextRequest) {
+      const body = await request.json();
+
+      const response = await fetch(`${process.env.HYPERTERSE_URL}/mcp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      return NextResponse.json(data, { status: response.status });
+    }
+    ```
+  </Step>
+  <Step title="Deploy">
+    Push to your connected Git repository, or deploy manually:
+
+    ```bash
+    vercel --prod
+    ```
+  </Step>
+</Steps>
+
+## Rewrites
+
+As an alternative to an API route, use Vercel rewrites to proxy requests directly:
+
+```json
+{
+  "rewrites": [
+    {
+      "source": "/mcp",
+      "destination": "https://your-hyperterse-deployment.example.com/mcp"
+    }
+  ]
+}
+```
+
+Add this to your `vercel.json`. Vercel forwards matching requests to your Hyperterse server without exposing its URL to the client.
+
+## Considerations
+
+- **Latency**: Place your Hyperterse server in the same region as your primary user base to minimize round-trip time.
+- **Authentication**: Add authentication in your API route or Vercel middleware before forwarding requests to Hyperterse.
+- **Timeouts**: Vercel serverless functions have execution time limits. For long-running tool calls, ensure your Hyperterse queries complete within the Vercel timeout window, or use streaming responses.

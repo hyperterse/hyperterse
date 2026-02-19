@@ -1,19 +1,15 @@
 ---
-title: Routes and Tools
-description: Route configuration, tool naming, DB-backed and script-backed execution models, input schemas, and output definitions.
+title: Routes and tools
+description: How routes define MCP tools, input schemas, and execution strategies.
 ---
 
-## Overview
+A route is the central abstraction in Hyperterse. Each `app/routes/*/config.terse` file defines exactly one MCP tool — its name, description, execution strategy, input schema, authentication policy, and caching behavior. When the server starts, every valid route is registered as a callable tool in the MCP `tools/list` response.
 
-Every `app/routes/*/config.terse` file defines one MCP tool. The route configuration specifies what the tool does, which adapter it uses, what inputs it accepts, and which scripts (if any) participate in the execution pipeline.
+## Execution models
 
----
+A route's execution model is determined by its configuration. There are two primary models:
 
-## Route types
-
-### DB-backed routes
-
-A DB-backed route executes a statement through a connector. It requires `use` (adapter reference) and `statement`:
+**DB-backed routes** execute a SQL or database command through a connector. They require `use` (the adapter name) and `statement`:
 
 ```yaml
 description: "Retrieve a user by their identifier"
@@ -30,11 +26,7 @@ auth:
   plugin: allow_all
 ```
 
-The statement is executed through the connector bound to `primary-db`. Input placeholders are substituted before execution.
-
-### Script-backed routes
-
-A script-backed route delegates execution entirely to a TypeScript handler. It requires `scripts.handler`:
+**Script-backed routes** delegate execution to a TypeScript handler. No adapter or statement is needed:
 
 ```yaml
 description: "Retrieve current weather conditions for a location"
@@ -44,54 +36,11 @@ auth:
   plugin: allow_all
 ```
 
-No adapter or statement is needed. The handler function receives the input payload and returns the result directly.
-
-### Hybrid routes
-
-Routes can combine a DB adapter with script transforms:
-
-```yaml
-description: "Get user with formatted output"
-use: primary-db
-statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
-inputs:
-  user_id:
-    type: int
-    description: "User identifier"
-scripts:
-  input_transform: "./validate-input.ts"
-  output_transform: "./format-output.ts"
-auth:
-  plugin: api_key
-  policy:
-    value: "{{ env.API_KEY }}"
-```
-
-Execution order: auth → input transform → DB execution → output transform.
-
----
-
-## Route validity
-
-Every route must satisfy at least one condition:
-
-1. `use` is defined (DB-backed), **or**
-2. `scripts.handler` is defined (script-backed).
-
-Routes that specify neither are rejected during validation.
-
----
+**Hybrid routes** combine a DB adapter with script transforms for pre-processing and post-processing. Execution order is: auth, input transform, DB execution, output transform.
 
 ## Tool naming
 
-The MCP tool name is derived from the route:
-
-1. If `name` is explicitly set in `config.terse`, that value is used.
-2. Otherwise, the route directory name is used (e.g., `app/routes/get-user/` → tool name `get-user`).
-
-Tool names must be unique across the project. The validator rejects duplicate names.
-
----
+The MCP tool name comes from the route. If the config sets a `name` field, that value is used. Otherwise, the directory name becomes the tool name. `app/routes/get-user/` becomes `get-user`. Tool names must be unique — duplicates are rejected at compile time.
 
 ## Input schema
 
@@ -109,137 +58,16 @@ inputs:
     default: "false"
 ```
 
-### Input field properties
-
-| Property | Type | Required | Description |
-|---|---|---|---|
-| `type` | string | Yes | Primitive type: `string`, `int`, `float`, `boolean`, `datetime`. |
-| `description` | string | No | Human-readable description. Exposed in MCP tool schema. |
-| `optional` | boolean | No | Whether the input can be omitted. Default: `false` (required). |
-| `default` | string | No | Default value used when the input is not provided. Always expressed as a string; converted at runtime. |
-
-### Input validation
-
-At execution time, the executor validates inputs before statement substitution:
-
-- **Required check** — Required inputs with no default must be provided. Missing required inputs return a validation error.
-- **Type conversion** — String representations are converted to the declared type. Invalid conversions (e.g., `"abc"` for `int`) return a type error.
-- **Default application** — When an optional input is omitted and a default is declared, the default value is applied.
-
-### Input placeholders
-
-Use `{{ inputs.field_name }}` in statements to reference input values:
-
-```yaml
-statement: "SELECT * FROM orders WHERE customer_id = {{ inputs.customer_id }} LIMIT {{ inputs.limit }}"
-```
-
-Placeholders are resolved via textual substitution. See [Input Safety](/security/input-safety) for security implications.
-
----
+Supported types are `string`, `int`, `float`, `boolean`, and `datetime`. Required inputs without a default must be provided by the caller. References in statements use `{{ inputs.field_name }}` placeholders.
 
 ## Output schema
 
-The `data` block declares the expected shape of the tool's output:
+The optional `data` block declares the expected output shape. It is metadata for documentation and schema generation — it does not enforce runtime result validation.
 
-```yaml
-data:
-  id:
-    type: int
-    description: "User identifier"
-  name:
-    type: string
-    description: "Full name"
-  email:
-    type: string
-    description: "Email address"
-    map_to: "email_address"
-```
+## Caching
 
-### Data field properties
+Routes can override the global cache policy with a `cache` block. See [Caching](/runtime/caching) for the full cache model.
 
-| Property | Type | Required | Description |
-|---|---|---|---|
-| `type` | string | Yes | Expected primitive type of this field. |
-| `description` | string | No | Human-readable description. |
-| `optional` | boolean | No | Whether the field may be absent in results. |
-| `map_to` | string | No | Original column/field name in the raw result if different from the data field name. |
+## Further reading
 
-The `data` block is metadata for documentation and schema generation. It does not enforce runtime result validation — the actual columns returned depend on the statement or handler output.
-
----
-
-## Cache override
-
-Routes can override the global cache policy:
-
-```yaml
-cache:
-  enabled: true
-  ttl: 30
-```
-
-Or disable caching for a specific route:
-
-```yaml
-cache:
-  enabled: false
-```
-
-See [Caching](/runtime/caching) for the full cache configuration model.
-
----
-
-## Multiple adapter references
-
-The `use` field accepts either a single adapter name or an array. When multiple adapters are referenced, the first matching adapter is used for execution:
-
-```yaml
-use: primary-db
-```
-
-```yaml
-use:
-  - primary-db
-  - fallback-db
-```
-
----
-
-## Complete route example
-
-```yaml
-name: get-user-profile
-description: "Retrieve a user profile by ID with formatted timestamps"
-use: primary-db
-statement: |
-  SELECT id, name, email, created_at, updated_at
-  FROM users
-  WHERE id = {{ inputs.user_id }}
-  AND active = true
-inputs:
-  user_id:
-    type: int
-    description: "User primary key"
-data:
-  id:
-    type: int
-  name:
-    type: string
-  email:
-    type: string
-  created_at:
-    type: datetime
-  updated_at:
-    type: datetime
-scripts:
-  input_transform: "./validate-user-id.ts"
-  output_transform: "./format-timestamps.ts"
-auth:
-  plugin: api_key
-  policy:
-    value: "{{ env.USER_SERVICE_API_KEY }}"
-cache:
-  enabled: true
-  ttl: 120
-```
+See [Route configuration reference](/reference/route-config) for the complete field specification, including all input properties, output definitions, and cache overrides.

@@ -1,0 +1,103 @@
+---
+title: Azure
+description: Deploy Hyperterse on Microsoft Azure using Container Apps.
+---
+
+Azure Container Apps is the recommended way to deploy Hyperterse on Azure. It provides a fully managed serverless container platform with automatic scaling, built-in HTTPS, and integration with Azure services.
+
+## Prerequisites
+
+You need the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) configured with an active subscription. Install the Container Apps extension:
+
+```bash
+az extension add --name containerapp --upgrade
+az provider register --namespace Microsoft.App
+az provider register --namespace Microsoft.OperationalInsights
+```
+
+## Deploy to Container Apps
+
+<Steps>
+  <Step title="Build the artifact">
+    ```bash
+    hyperterse build -o dist
+    ```
+  </Step>
+  <Step title="Create a resource group and container registry">
+    ```bash
+    az group create --name hyperterse-rg --location eastus
+
+    az acr create --name hyperterseregistry --resource-group hyperterse-rg --sku Basic
+    az acr login --name hyperterseregistry
+    ```
+  </Step>
+  <Step title="Build and push the container image">
+    Use the [Docker deployment patterns](/deployment/docker) to create your Dockerfile. Then push to Azure Container Registry:
+
+    ```bash
+    docker build -t hyperterseregistry.azurecr.io/hyperterse:latest .
+    docker push hyperterseregistry.azurecr.io/hyperterse:latest
+    ```
+  </Step>
+  <Step title="Create the Container Apps environment">
+    ```bash
+    az containerapp env create \
+      --name hyperterse-env \
+      --resource-group hyperterse-rg \
+      --location eastus
+    ```
+  </Step>
+  <Step title="Deploy">
+    ```bash
+    az containerapp create \
+      --name hyperterse \
+      --resource-group hyperterse-rg \
+      --environment hyperterse-env \
+      --image hyperterseregistry.azurecr.io/hyperterse:latest \
+      --registry-server hyperterseregistry.azurecr.io \
+      --target-port 8080 \
+      --ingress external \
+      --min-replicas 1 \
+      --max-replicas 10 \
+      --secrets "db-url=postgresql://user:pass@host:5432/db" \
+      --env-vars "DATABASE_URL=secretref:db-url"
+    ```
+  </Step>
+</Steps>
+
+## Azure Database for PostgreSQL
+
+Connect to a managed PostgreSQL instance:
+
+```bash
+az postgres flexible-server create \
+  --name hyperterse-db \
+  --resource-group hyperterse-rg \
+  --location eastus \
+  --admin-user admin \
+  --admin-password YourSecurePassword \
+  --sku-name Standard_B1ms \
+  --tier Burstable
+```
+
+Ensure the Container Apps environment and the database are on the same virtual network, or configure firewall rules to allow connectivity.
+
+## Key Vault integration
+
+For production credentials, use Azure Key Vault instead of inline secrets:
+
+```bash
+az keyvault create --name hyperterse-kv --resource-group hyperterse-rg --location eastus
+az keyvault secret set --vault-name hyperterse-kv --name database-url --value "postgresql://..."
+```
+
+Reference Key Vault secrets in your Container App configuration through managed identity.
+
+## AKS alternative
+
+For Kubernetes-based deployments, create an AKS cluster and follow the [Kubernetes deployment guide](/deployment/kubernetes):
+
+```bash
+az aks create --name hyperterse-aks --resource-group hyperterse-rg --node-count 3
+az aks get-credentials --name hyperterse-aks --resource-group hyperterse-rg
+```

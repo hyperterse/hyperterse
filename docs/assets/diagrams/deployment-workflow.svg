@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" fill="none">
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .step { rx: 6; stroke-width: 1.5; }
+    .step-label { font-size: 12px; font-weight: 600; }
+    .step-cmd { font-size: 10px; font-family: 'SF Mono', 'Fira Code', monospace; }
+    .arrow { stroke: #14B8A6; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .phase-label { font-size: 10px; fill: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#14B8A6"/>
+    </marker>
+  </defs>
+
+  <!-- Phase labels -->
+  <text x="200" y="20" class="phase-label" text-anchor="middle">CI / Local</text>
+  <text x="580" y="20" class="phase-label" text-anchor="middle">Target environment</text>
+
+  <!-- Divider -->
+  <line x1="420" y1="10" x2="420" y2="170" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="4 4"/>
+
+  <!-- Step 1: Validate -->
+  <rect x="30" y="40" width="140" height="55" class="step" fill="#FFF7ED" stroke="#F59E0B"/>
+  <text x="100" y="62" class="step-label" fill="#92400E" text-anchor="middle">Validate</text>
+  <text x="100" y="82" class="step-cmd" fill="#A16207" text-anchor="middle">hyperterse validate</text>
+
+  <line x1="170" y1="67" x2="195" y2="67" class="arrow"/>
+
+  <!-- Step 2: Build -->
+  <rect x="195" y="40" width="140" height="55" class="step" fill="#F0FDFA" stroke="#0F766E"/>
+  <text x="265" y="62" class="step-label" fill="#115E59" text-anchor="middle">Build</text>
+  <text x="265" y="82" class="step-cmd" fill="#0F766E" text-anchor="middle">hyperterse build -o dist</text>
+
+  <line x1="335" y1="67" x2="360" y2="67" class="arrow"/>
+
+  <!-- Step 3: Artifact -->
+  <rect x="360" y="40" width="60" height="55" class="step" fill="#115E59" stroke="#0F766E"/>
+  <text x="390" y="62" class="step-label" fill="#CCFBF1" text-anchor="middle">dist/</text>
+  <text x="390" y="78" font-size="9" fill="#99F6E4" text-anchor="middle">model.bin</text>
+  <text x="390" y="88" font-size="9" fill="#99F6E4" text-anchor="middle">binary</text>
+
+  <line x1="420" y1="67" x2="460" y2="67" class="arrow"/>
+
+  <!-- Step 4: Deploy -->
+  <rect x="460" y="40" width="120" height="55" class="step" fill="#F0FDF4" stroke="#22C55E"/>
+  <text x="520" y="62" class="step-label" fill="#166534" text-anchor="middle">Deploy artifact</text>
+  <text x="520" y="82" font-size="10" fill="#15803D" text-anchor="middle">Ship dist/ as-is</text>
+
+  <line x1="580" y1="67" x2="605" y2="67" class="arrow"/>
+
+  <!-- Step 5: Serve -->
+  <rect x="605" y="40" width="100" height="55" class="step" fill="#0F766E" stroke="#0F766E"/>
+  <text x="655" y="62" class="step-label" fill="#FFFFFF" text-anchor="middle">Serve</text>
+  <text x="655" y="82" class="step-cmd" fill="#CCFBF1" text-anchor="middle">./hyperterse serve</text>
+
+  <!-- Annotation -->
+  <rect x="30" y="120" width="370" height="40" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="215" y="138" font-size="11" fill="#374151" font-weight="500" text-anchor="middle">Build once. Validate before building. Never rebuild on target.</text>
+  <text x="215" y="152" font-size="11" fill="#6B7280" text-anchor="middle">Source files are not needed in the deployment artifact.</text>
+</svg>

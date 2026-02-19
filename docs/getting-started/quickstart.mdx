@@ -3,13 +3,15 @@ title: Quickstart
 description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
 ---
 
+This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a health check tool and a database-backed query tool responding to `tools/call` requests.
+
 ## Scaffold a project
 
 ```bash
 hyperterse init
 ```
 
-This creates the following structure:
+This generates the starter structure:
 
 ```
 .hyperterse
@@ -22,11 +24,8 @@ app/
       handler.ts
 ```
 
-- `.hyperterse` — Root service configuration.
-- `app/adapters/my-database.terse` — Placeholder adapter definition.
-- `app/routes/health/` — A health-check tool with a script-backed handler.
+`.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/routes/health/` is a script-backed tool with a TypeScript handler.
 
----
 
 ## Review the root configuration
 
@@ -39,49 +38,40 @@ server:
   log_level: 3
 ```
 
-`name` is the service identifier. `server.port` is the TCP port for the runtime. `server.log_level` controls verbosity (1 = error, 2 = warn, 3 = info, 4 = debug).
+`name` identifies the service. `server.port` sets the TCP port. `server.log_level` controls verbosity: 1 = error, 2 = warn, 3 = info, 4 = debug.
 
----
+This is the entire root config. Adapters and routes live in the `app/` directory — the root config handles service-level settings only.
 
-## Start the runtime
+
+## Start the server
 
 ```bash
 hyperterse start
 ```
 
-The runtime will:
+The CLI loads `.hyperterse` from the current directory, discovers adapters and routes under `app/`, compiles tool definitions, bundles any TypeScript scripts, and starts the MCP server.
 
-1. Parse the root config (`.hyperterse` in the current directory) and discover adapters/routes.
-2. Compile route definitions into tool metadata.
-3. Bundle any TypeScript scripts.
-4. Initialize connectors (skipped if no adapters with active routes).
-5. Start the HTTP server on the configured port.
-
-For development with automatic restart on file changes:
+For automatic restarts on file changes during development:
 
 ```bash
 hyperterse start --watch
 ```
 
----
 
-## Verify the health endpoint
+## Verify the server is running
 
 ```bash
 curl http://localhost:8080/heartbeat
 ```
 
-Expected response:
-
 ```json
 {"success": true}
 ```
 
----
+The `/heartbeat` endpoint confirms the HTTP server is accepting connections. It does not check connector health.
 
-## List available tools
 
-Send an MCP `tools/list` request:
+## List registered tools
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -93,9 +83,8 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
-The response contains a `tools` array with one entry per compiled route. Each tool includes its name, description, and JSON Schema for its input parameters.
+The response contains a `tools` array with one entry per compiled route. Each tool includes its name, description, and a JSON Schema describing its input parameters.
 
----
 
 ## Call a tool
 
@@ -115,13 +104,14 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
-The response contains the tool's output in the `content` field as a JSON-encoded text payload.
+The tool's output appears in the `content` field as a JSON-encoded text payload.
 
----
 
 ## Add a database-backed tool
 
-### Define an adapter
+The scaffolded project includes a placeholder adapter. Connect it to a real database and create a query tool.
+
+### Configure the adapter
 
 Edit `app/adapters/my-database.terse`:
 
@@ -156,9 +146,11 @@ auth:
   plugin: allow_all
 ```
 
-### Restart and invoke
+This defines an MCP tool called `list-users`. It executes a SQL statement through the `my-database` adapter, accepts a `limit` input with a default of 10, and uses the `allow_all` auth plugin (no authentication enforced).
 
-Restart the runtime (or let `--watch` detect the change), then call the tool:
+### Test the tool
+
+Restart the server (or let `--watch` pick up the change), then call the tool:
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -174,29 +166,20 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
----
 
-## Validate before shipping
-
-Run validation to catch configuration errors before deployment:
+## Validate before deploying
 
 ```bash
 hyperterse validate
 ```
 
-Validation checks:
-- Root config schema compliance.
-- Adapter connector and connection string presence.
-- Route validity (each route must have `use` or `scripts.handler`).
-- Script resolution and bundling feasibility.
-- Input type correctness.
+Validation catches errors before they reach production: missing adapter fields, invalid input types, unresolvable script paths, and bundle compilation failures. A zero exit code means the project is structurally sound.
 
----
 
 ## Next steps
 
-- [Project Structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
-- [Adapters](/concepts/adapters) — Connector configuration per database type.
-- [Routes and Tools](/concepts/routes-and-tools) — DB-backed and script-backed tool definitions.
+- [Project structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
+- [Adapters](/concepts/adapters) — Connector configuration for each supported database.
+- [Routes and tools](/concepts/routes-and-tools) — DB-backed and script-backed tool definitions.
 - [Scripts](/concepts/scripts) — TypeScript handler and transform contracts.
-- [CLI Reference](/reference/cli) — Complete command and flag documentation.
+- [CLI reference](/reference/cli) — Complete command and flag documentation.

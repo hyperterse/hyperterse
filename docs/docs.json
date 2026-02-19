@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/schema.json",
   "name": "Hyperterse",
-  "description": "Go-native MCP framework for building tool-first data interfaces with declarative configuration, embedded scripting, and pluggable authentication.",
+  "description": "MCP framework for building tool-first data interfaces with declarative configuration, embedded scripting, and pluggable authentication.",
   "logo": {
     "light": "/assets/logo-light.svg",
     "dark": "/assets/logo-dark.svg"
@@ -14,68 +14,111 @@
     "dark": "#115E59"
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Overview",
-        "pages": [
-          "introduction",
-          "concepts/architecture"
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction"
+            ]
+          },
+          {
+            "group": "Getting started",
+            "pages": [
+              "getting-started/installation",
+              "getting-started/quickstart"
+            ]
+          },
+          {
+            "group": "Core concepts",
+            "pages": [
+              "concepts/project-structure",
+              "concepts/adapters",
+              "concepts/routes-and-tools",
+              "concepts/scripts",
+              "concepts/authentication"
+            ]
+          },
+          {
+            "group": "Databases",
+            "pages": [
+              "databases/postgresql",
+              "databases/mysql",
+              "databases/mongodb",
+              "databases/redis"
+            ]
+          },
+          {
+            "group": "Runtime",
+            "pages": [
+              "runtime/mcp-transport",
+              "runtime/execution-pipeline",
+              "runtime/caching",
+              "runtime/observability"
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "security/input-safety",
+              "security/production-hardening"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/overview",
+              {
+                "group": "Methods",
+                "pages": [
+                  "deployment/docker",
+                  "deployment/kubernetes",
+                  "deployment/bare-metal"
+                ]
+              },
+              {
+                "group": "Providers",
+                "pages": [
+                  "deployment/aws",
+                  "deployment/gcp",
+                  "deployment/azure",
+                  "deployment/railway",
+                  "deployment/digital-ocean",
+                  "deployment/cloudflare",
+                  "deployment/vercel"
+                ]
+              }
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migration/v1-to-v2"
+            ]
+          }
         ]
       },
       {
-        "group": "Getting Started",
-        "pages": [
-          "getting-started/installation",
-          "getting-started/quickstart"
-        ]
-      },
-      {
-        "group": "Core Concepts",
-        "pages": [
-          "concepts/project-structure",
-          "concepts/adapters",
-          "concepts/routes-and-tools",
-          "concepts/scripts",
-          "concepts/authentication"
-        ]
-      },
-      {
-        "group": "Runtime",
-        "pages": [
-          "runtime/mcp-transport",
-          "runtime/execution-pipeline",
-          "runtime/caching",
-          "runtime/observability"
-        ]
-      },
-      {
-        "group": "Reference",
-        "pages": [
-          "reference/cli",
-          "reference/root-config",
-          "reference/adapter-config",
-          "reference/route-config",
-          "reference/environment-variables",
-          "reference/configuration-schemas"
-        ]
-      },
-      {
-        "group": "Security",
-        "pages": [
-          "security/input-safety",
-          "security/production-hardening"
-        ]
-      },
-      {
-        "group": "Deployment",
-        "pages": [
-          "deployment/build-and-serve"
-        ]
-      },
-      {
-        "group": "Migration",
-        "pages": [
-          "migration/v1-to-v2"
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "CLI",
+            "pages": [
+              "reference/cli"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "reference/root-config",
+              "reference/adapter-config",
+              "reference/route-config",
+              "reference/environment-variables",
+              "reference/configuration-schemas"
+            ]
+          }
         ]
       }
     ]

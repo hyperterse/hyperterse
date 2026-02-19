@@ -1,0 +1,59 @@
+---
+title: HTTP and MCP
+description: Runtime endpoints and MCP behavior.
+---
+
+## Registered endpoints
+
+Current server registers:
+
+- `GET/POST/DELETE /mcp` (MCP Streamable HTTP handler)
+- `GET /heartbeat` (health check)
+
+## Heartbeat
+
+```bash
+curl http://localhost:8080/heartbeat
+```
+
+Response:
+
+```json
+{ "success": true }
+```
+
+## MCP list tools
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "id": 1
+  }'
+```
+
+## MCP call tool
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "get-user",
+      "arguments": {
+        "user_id": 123
+      }
+    },
+    "id": 2
+  }'
+```
+
+Tool response content is returned as text payload containing JSON-encoded result rows.
+
+## About `/query/{name}`
+
+Protobuf contracts include query RPC definitions, but current runtime server does not register direct `/query/{name}` HTTP routes.

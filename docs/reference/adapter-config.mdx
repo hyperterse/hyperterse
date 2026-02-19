@@ -1,17 +1,13 @@
 ---
-title: Adapter Configuration
-description: Complete field reference for app/adapters/*.terse adapter definition files, including per-connector options and connection string formats.
+title: Adapter configuration
+description: Complete field reference for app/adapters/*.terse adapter definition files.
 ---
 
-## Overview
+Each file in `app/adapters/` defines one adapter — a named binding between the runtime and a database. Adapter files are YAML documents with a fixed schema.
 
-Each file in `app/adapters/` defines one adapter — a named binding between the Hyperterse runtime and an external data system. Adapter files are YAML documents with a fixed schema.
+## Full schema
 
----
-
-## Field reference
-
-```yaml
+```yaml app/adapters/primary-db.terse
 name: primary-db
 connector: postgres
 connection_string: "postgresql://user:pass@host:5432/db"
@@ -20,158 +16,108 @@ options:
   max_connections: "10"
 ```
 
-### `name`
 
-| | |
-|---|---|
-| **Type** | string |
-| **Required** | No |
-| **Default** | Filename without `.terse` extension |
-| **Pattern** | `^[a-zA-Z][a-zA-Z0-9_-]*$` |
-| **Description** | Adapter identifier. Referenced by routes via the `use` field. Must be unique across the project. |
+## Field reference
 
-### `connector`
+<ParamField body="name" type="string">
+  Adapter identifier, referenced by routes via `use`. Must be unique across all adapters. Must match `^[a-zA-Z][a-zA-Z0-9_-]*$`.
 
-| | |
-|---|---|
-| **Type** | string (enum) |
-| **Required** | Yes |
-| **Values** | `postgres`, `mysql`, `mongodb`, `redis` |
-| **Description** | Connector type that determines which database driver is used. |
+  **Default:** filename without the `.terse` extension (e.g., `primary-db` from `primary-db.terse`).
+</ParamField>
 
-### `connection_string`
+<ParamField body="connector" type="string" required>
+  Connector type. Determines which database driver to use.
 
-| | |
-|---|---|
-| **Type** | string |
-| **Required** | Yes |
-| **Description** | Database connection URI. Supports `{{ env.VAR }}` placeholders resolved at runtime. |
+  **Allowed values:** `postgres`, `mysql`, `mongodb`, `redis`
+</ParamField>
 
-### `options`
+<ParamField body="connection_string" type="string" required>
+  Database connection URI. Supports `{{ env.VAR }}` placeholders for secrets.
 
-| | |
-|---|---|
-| **Type** | map[string, string] |
-| **Required** | No |
-| **Description** | Driver-specific key-value configuration options. All values are strings. |
+  ```yaml
+  connection_string: "postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"
+  ```
+</ParamField>
 
----
+<ParamField body="options" type="object">
+  Driver-specific key-value options. All values must be strings.
+
+  ```yaml
+  options:
+    sslmode: "require"
+    connect_timeout: "10"
+  ```
+</ParamField>
+
 
 ## Connection string formats
 
-### PostgreSQL
+<Tabs>
+  <Tab title="PostgreSQL">
+    ```
+    postgresql://user:password@host:port/database?param=value
+    ```
 
-```
-postgresql://user:password@host:port/database?param=value
-```
+    Standard PostgreSQL DSN. Supports all driver parameters in the query string or `options` map.
 
-Standard `lib/pq` DSN. Supports all `pq` connection parameters in the query string or in the `options` map.
+    **Common options:**
 
-**Examples:**
+    | Key | Example | Description |
+    |---|---|---|
+    | `sslmode` | `require`, `disable`, `verify-full` | SSL mode |
+    | `connect_timeout` | `"10"` | Timeout in seconds |
+    | `application_name` | `"hyperterse"` | Name reported to server |
+  </Tab>
+  <Tab title="MySQL">
+    ```
+    user:password@tcp(host:port)/database?param=value
+    ```
 
-```yaml
-connection_string: "postgresql://admin:secret@db.internal:5432/production?sslmode=require"
-```
+    Standard MySQL DSN. Options are typically passed as query parameters in the connection string.
+  </Tab>
+  <Tab title="MongoDB">
+    ```
+    mongodb://user:password@host:port/database
+    mongodb+srv://user:password@cluster.example.com/database
+    ```
 
-```yaml
-connection_string: "{{ env.DATABASE_URL }}"
-```
+    Standard MongoDB URI. Supports replica sets and SRV records. Options are embedded in the connection string.
+  </Tab>
+  <Tab title="Redis">
+    ```
+    redis://user:password@host:port/db_number
+    ```
 
-### MySQL
+    Standard Redis URI. Database number as path component. TLS, password, and other options are embedded in the URI.
+  </Tab>
+</Tabs>
 
-```
-user:password@tcp(host:port)/database?param=value
-```
-
-Standard `go-sql-driver/mysql` DSN format.
-
-**Example:**
-
-```yaml
-connection_string: "{{ env.MYSQL_USER }}:{{ env.MYSQL_PASS }}@tcp({{ env.MYSQL_HOST }}:3306)/{{ env.MYSQL_DB }}"
-```
-
-### MongoDB
-
-```
-mongodb://user:password@host:port/database
-mongodb+srv://user:password@cluster.example.com/database
-```
-
-Standard MongoDB URI. Supports replica set URIs and SRV records.
-
-**Example:**
-
-```yaml
-connection_string: "{{ env.MONGODB_URL }}"
-```
-
-### Redis
-
-```
-redis://user:password@host:port/db_number
-redis://host:port/db_number
-```
-
-Standard `go-redis` URI. The database number is specified as the path component.
-
-**Example:**
-
-```yaml
-connection_string: "redis://{{ env.REDIS_HOST }}:6379/0"
-```
-
----
-
-## Common options
-
-### PostgreSQL options
-
-| Key | Example | Description |
-|---|---|---|
-| `sslmode` | `require`, `disable`, `verify-full` | SSL connection mode. |
-| `connect_timeout` | `"10"` | Connection timeout in seconds. |
-| `application_name` | `"hyperterse"` | Application name reported to the server. |
-
-### MySQL options
-
-Options are typically passed in the connection string query parameters. The `options` map can be used for additional driver configuration.
-
-### MongoDB options
-
-MongoDB connection options are typically embedded in the connection string. When `json_statements` mode is needed, it is configured through connector-level settings.
-
-### Redis options
-
-Redis connection options are typically embedded in the connection string (password, database number, TLS).
-
----
-
-## Environment variable substitution
-
-Connection strings and option values support `{{ env.VAR_NAME }}` placeholders:
-
-```yaml
-connection_string: "postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"
-options:
-  sslmode: "{{ env.DB_SSL_MODE }}"
-```
-
-Placeholders are resolved at runtime during connector initialization. Missing environment variables cause a startup failure with an explicit error message identifying the unresolved variable.
-
----
 
 ## Lifecycle
 
-1. **Discovery** — The compiler scans `app/adapters/*.terse` at build/start time.
-2. **Parsing** — Each file is parsed into an `Adapter` protobuf message.
-3. **Validation** — Connector type and connection string presence are verified. Name uniqueness is enforced.
-4. **Initialization** — At runtime startup, each adapter referenced by at least one route is initialized through the `ConnectorManager`. Connections are established in parallel.
-5. **Execution** — Routes reference adapters by name. The executor resolves the connector and delegates statement execution.
-6. **Shutdown** — All connectors are closed concurrently on runtime termination.
+<Steps>
+  <Step title="Discovery">
+    The compiler scans `app/adapters/*.terse` for adapter definitions.
+  </Step>
+  <Step title="Validation">
+    Connector type, connection string presence, and name uniqueness are verified at compile time.
+  </Step>
+  <Step title="Initialization">
+    At startup, all referenced adapters initialize their connections in parallel.
+  </Step>
+  <Step title="Execution">
+    Routes resolve adapters by name when executing statements.
+  </Step>
+  <Step title="Shutdown">
+    All connectors close concurrently on termination.
+  </Step>
+</Steps>
 
----
+<Warning>
+If any adapter fails to connect during initialization, the server does not start.
+</Warning>
+
 
 ## JSON Schema
 
-Editor validation is available through `schema/adapter.terse.schema.json`. Associate this schema with `**/adapters/*.terse` file patterns in your editor. See [Configuration Schemas](/reference/configuration-schemas).
+Editor validation: `schema/adapter.terse.schema.json`. Associate with `**/adapters/*.terse`. See [Configuration schemas](/reference/configuration-schemas).

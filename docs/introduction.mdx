@@ -1,89 +1,84 @@
 ---
 title: Introduction
-description: Hyperterse is a Go-native MCP framework that compiles declarative configuration into a production-ready tool runtime with embedded scripting, pluggable authentication, and filesystem-based routing.
+description: Build MCP tool servers from declarative configuration with built-in authentication, caching, and observability.
 ---
 
-## What Hyperterse is
+Every AI agent that queries a database, calls an API, or runs business logic needs the same infrastructure: connection management, input validation, authentication, caching, observability, and a transport protocol that LLMs understand.
 
-Hyperterse is a compiled MCP (Model Context Protocol) framework written in Go. It transforms declarative `.terse` configuration files and optional TypeScript scripts into a runtime that exposes database queries and custom logic as callable MCP tools.
+With Hyperterse, you define your tools in YAML configuration files. The framework compiles, validates, bundles, and serves them as a standards-compliant [MCP](https://modelcontextprotocol.io/) server. You own the data and the logic — the framework handles everything else.
 
-The framework handles connector lifecycle management, input validation, script bundling, query caching, authentication enforcement, and observability instrumentation. You define the shape of your tools through configuration; Hyperterse compiles and serves them.
+## What you can build
 
-### Design principles
+You use Hyperterse to expose databases and custom logic as MCP tools that any AI agent can call. A typical route looks like this:
 
-- **Declarative-first.** Adapters, routes, inputs, auth policies, and caching behavior are expressed in `.terse` YAML files. Code is reserved for logic that configuration cannot express.
-- **Tool-first routing.** Each route folder maps to exactly one MCP tool. The filesystem is the tool registry.
-- **Compiled runtime.** `hyperterse build` produces a self-contained binary and serialized manifest (`model.bin`). The production runtime boots from the manifest without re-parsing source files.
-- **Embedded scripting.** Route handlers and transforms are written in TypeScript, bundled with esbuild at build time, and executed inside a Goja JavaScript VM within the Go process. No external Node.js dependency is required at runtime.
-- **Protocol-native.** MCP Streamable HTTP is the primary transport. Tools, inputs, and results map directly to MCP `tools/list` and `tools/call` operations.
-
-### What Hyperterse is not
-
-Hyperterse is not a general-purpose HTTP framework, an ORM, a database migration tool, or a GraphQL server. It serves a specific purpose: exposing structured data operations and custom handlers as MCP tools with minimal boilerplate.
-
----
-
-## Runtime surface
-
-The compiled runtime registers two endpoint groups:
-
-| Endpoint | Methods | Purpose |
-|---|---|---|
-| `/mcp` | `GET`, `POST`, `DELETE` | MCP Streamable HTTP transport. Handles `tools/list`, `tools/call`, and session management. |
-| `/heartbeat` | `GET` | Health check. Returns `{"success": true}` when the runtime is accepting connections. |
-
-Direct REST endpoints (`/query/{name}`) are defined in protobuf service contracts but are not registered by the current runtime. All tool invocation routes through the MCP transport.
-
----
-
-## Supported connectors
-
-| Connector | Identifier | Driver |
-|---|---|---|
-| PostgreSQL | `postgres` | `lib/pq` |
-| MySQL | `mysql` | `go-sql-driver/mysql` |
-| MongoDB | `mongodb` | `mongo-driver` (JSON statement payloads) |
-| Redis | `redis` | `go-redis` |
-
-Connectors are initialized at startup through a parallel connection manager. Initialization failures block the runtime from starting.
-
----
-
-## Supported input types
-
-| Type | Description |
-|---|---|
-| `string` | UTF-8 text |
-| `int` | 64-bit signed integer |
-| `float` | 64-bit IEEE 754 floating point |
-| `boolean` | `true` or `false` |
-| `datetime` | ISO 8601 timestamp string |
-
-`uuid` is not a built-in primitive. Generate or validate UUIDs in input transform scripts when required.
-
----
-
-## High-level lifecycle
-
-```
-┌──────────────────────────────────────────────────┐
-│  1. Parse root config (.hyperterse)              │
-│  2. Discover app/adapters/*.terse                │
-│  3. Discover app/routes/*/config.terse           │
-│  4. Compile routes into tool definitions         │
-│  5. Bundle TypeScript scripts + vendor deps      │
-│  6. Serialize manifest (model.bin)               │
-│  7. Start runtime, init connectors               │
-│  8. Register MCP tools, begin accepting requests │
-└──────────────────────────────────────────────────┘
+```yaml app/routes/get-user/config.terse
+description: "Get user by ID"
+use: primary-db
+statement: "SELECT id, name, email FROM users WHERE id = {{ inputs.user_id }}"
+inputs:
+  user_id:
+    type: int
+    required: true
+auth:
+  plugin: api_key
+  policy:
+    value: "{{ env.API_KEY }}"
 ```
 
-In development, `hyperterse start --watch` performs steps 1–5 on each file change and restarts the runtime. In production, `hyperterse build` performs steps 1–6 once, and `hyperterse serve` performs steps 7–8 from the pre-built manifest.
+This configuration creates an MCP tool called `get-user` that queries your database, validates inputs, and enforces API key authentication — without writing any application code.
 
----
+## How it works
+
+<Steps>
+  <Step title="Define your tools">
+    Create `.terse` YAML files for your database connections and routes. Each directory under `app/routes/` becomes one MCP tool.
+  </Step>
+  <Step title="Compile your project">
+    Run `hyperterse build` to validate configuration, bundle scripts, and serialize everything into a single deployable artifact.
+  </Step>
+  <Step title="Serve your MCP server">
+    Run `hyperterse serve` to boot from the compiled artifact. Your tools are immediately available at `/mcp` over Streamable HTTP.
+  </Step>
+</Steps>
+
+<Tip>
+During development, run `hyperterse start --watch` to skip the separate build step. The framework recompiles automatically on every file change.
+</Tip>
+
+<Frame caption="Compile-time validation flows into a production-ready runtime">
+  <img src="/assets/diagrams/lifecycle.svg" alt="Hyperterse lifecycle: compile-time steps flow into runtime initialization" />
+</Frame>
+
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Database adapters" icon="database" href="/concepts/adapters">
+    Connect to PostgreSQL, MySQL, MongoDB, or Redis. Define connection strings in `app/adapters/` — the framework manages pooling, health checks, and shutdown.
+  </Card>
+  <Card title="Filesystem-based routing" icon="folder-tree" href="/concepts/routes-and-tools">
+    Each folder under `app/routes/` maps to one MCP tool. No manual registration — the directory name becomes the tool name.
+  </Card>
+  <Card title="Embedded scripting" icon="code" href="/concepts/scripts">
+    Add TypeScript handlers and transforms when you need logic that configuration alone cannot express. Scripts run in a sandboxed runtime with `fetch` and `console`.
+  </Card>
+  <Card title="Per-route authentication" icon="lock" href="/concepts/authentication">
+    Attach authentication to any route with a built-in `api_key` plugin, or write your own. No global middleware to configure.
+  </Card>
+  <Card title="In-memory caching" icon="bolt" href="/runtime/caching">
+    Enable query result caching globally or per-route with a TTL. Identical requests return cached results without hitting your database.
+  </Card>
+  <Card title="Observability" icon="chart-line" href="/runtime/observability">
+    Built-in OpenTelemetry support gives you distributed tracing, metrics, and structured logging out of the box.
+  </Card>
+</CardGroup>
 
 ## Next steps
 
-- [Architecture](/concepts/architecture) — System design, component boundaries, and data flow.
-- [Installation](/getting-started/installation) — Install the binary or build from source.
-- [Quickstart](/getting-started/quickstart) — Scaffold and run your first MCP tool in under five minutes.
+<CardGroup cols={2}>
+  <Card title="Install the CLI" icon="download" href="/getting-started/installation">
+    Set up Hyperterse on your machine in under a minute.
+  </Card>
+  <Card title="Build your first tool server" icon="rocket" href="/getting-started/quickstart">
+    Scaffold a project and serve your first MCP tool in under five minutes.
+  </Card>
+</CardGroup>

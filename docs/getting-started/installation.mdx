@@ -3,59 +3,51 @@ title: Installation
 description: System requirements and installation methods for the Hyperterse CLI.
 ---
 
-## System Requirements
+## System requirements
 
-| Requirement | Minimum |
-|---|---|
-| Operating system | Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64) |
-| Bun or Node.js | Bun 1.0+ or Node.js 18+ (only required if route scripts import npm packages) |
+| Requirement      | Minimum                                                             |
+| ---------------- | ------------------------------------------------------------------- |
+| Operating system | Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64)         |
+| Bun or Node.js   | Bun 1.0+ or Node.js 18+ (only if route scripts import npm packages) |
 
-The Hyperterse binary is a statically linked Go executable with no runtime dependencies. TypeScript bundling uses the embedded esbuild compiler — no external JavaScript runtime is needed to serve built manifests.
+The Hyperterse binary is a single statically linked executable. It has no runtime dependencies — no external runtime is needed to build or serve manifests.
 
----
+## Install
 
-## Install via Script
+Hyperterse is available on multiple package managers. The recommended way to install is via the installer script, but you can also install manually.
 
-```bash
-curl -fsSL https://hyperterse.com/install | bash
-```
+<CodeGroup>
+  
+  ```bash cURL
+  curl -fsSL https://hyperterse.com/install | bash
+  ```
 
-## Install via Homebrew
-
-```bash
-brew install hyperterse/tap/hyperterse
-```
-
-## Install via npm
-
-```bash
+```bash npm
 npm install -g hyperterse
 ```
 
-## Install via Bun
-
-```bash
-bun install -g hyperterse
+```bash bun
+bun install -g Hyperterse
 ```
 
----
+```bash brew
+brew install hyperterse/tap/hyperterse
+```
 
-## Verify
+</CodeGroup>
+
+Once installed, you can verify the installation by running:
 
 ```bash
 hyperterse --version
 ```
 
----
-
 ## Upgrade
+
+To upgrade to the latest version, run:
 
 ```bash
 hyperterse upgrade
 ```
 
----
-
-## Next Steps
-
-Proceed to [Quickstart](/getting-started/quickstart) to scaffold and run your first project.
+Include pre-release builds with `--prerelease`, or target a specific major version with `--major 3` or `--major next`.

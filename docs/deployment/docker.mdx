@@ -1,0 +1,96 @@
+---
+title: Docker
+description: Container deployment patterns for Hyperterse — multi-stage builds, pre-built artifacts, and minimal images.
+---
+
+Containerizing Hyperterse gives you reproducible, portable deployments. The build artifact is a static binary with no external dependencies, so your final image can be extremely small — even `scratch` works.
+
+## Multi-stage build
+
+Build from source inside a container and produce a minimal final image. Source files stay in the build stage and never reach the deployed image.
+
+```dockerfile
+FROM hyperterse-builder AS builder
+WORKDIR /src
+COPY . .
+RUN hyperterse build -o dist
+
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates
+RUN adduser -D -u 1001 hyperterse
+COPY --from=builder /src/dist/ /app/
+WORKDIR /app
+USER hyperterse
+EXPOSE 8080
+ENTRYPOINT ["./hyperterse", "serve"]
+```
+
+This approach is ideal when your CI pipeline builds the container image directly from the repository.
+
+## Pre-built artifact
+
+If your pipeline already produces the `dist/` directory (for example, as a CI artifact), skip the build stage and copy the output directly:
+
+```dockerfile
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates
+RUN adduser -D -u 1001 hyperterse
+COPY dist/ /app/
+WORKDIR /app
+USER hyperterse
+EXPOSE 8080
+ENTRYPOINT ["./hyperterse", "serve"]
+```
+
+## Scratch image
+
+The Hyperterse binary is statically compiled. You can deploy it on a `scratch` base image with no OS layer at all:
+
+```dockerfile
+FROM scratch
+COPY dist/hyperterse /hyperterse
+COPY dist/model.bin /model.bin
+COPY dist/build/ /build/
+EXPOSE 8080
+ENTRYPOINT ["/hyperterse", "serve"]
+```
+
+This produces the smallest possible image — just the binary and the manifest.
+
+<Warning>
+Scratch images have no shell, no package manager, and no debugging tools. Use them for production deployments where you have external observability in place. For troubleshooting, use the Alpine-based image.
+</Warning>
+
+## Docker Compose
+
+Run Hyperterse alongside your database for local development or simple deployments:
+
+```yaml
+services:
+  hyperterse:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 3s
+```
+
+## Best practices
+
+- **Run as a non-root user.** All examples above use a dedicated `hyperterse` user with UID 1001.
+- **Use `env_file` or secrets for credentials.** Never bake connection strings into the image.
+- **Use health checks.** Hyperterse exposes `/heartbeat` — configure Docker's `HEALTHCHECK` or your orchestrator's probes to use it.
+- **Pin your base image.** Use specific tags like `alpine:3.19`, not `alpine:latest`.

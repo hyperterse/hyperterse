@@ -1,0 +1,154 @@
+---
+title: PostgreSQL
+description: Connect Hyperterse to PostgreSQL for SQL-backed MCP tools with connection pooling and SSL.
+---
+
+PostgreSQL is the most common connector for Hyperterse deployments. It supports all standard SQL features — joins, aggregations, window functions, JSON operations, full-text search, and advanced data types — with connection pooling, SSL/TLS, and parameterized query execution built in.
+
+## Adapter configuration
+
+Create an adapter file in `app/adapters/`:
+
+```yaml app/adapters/primary-db.terse
+connector: postgres
+connection_string: "{{ env.DATABASE_URL }}"
+options:
+  sslmode: require
+  connect_timeout: "10"
+```
+
+The connection string follows the standard PostgreSQL URI format:
+
+```
+postgresql://user:password@host:port/database?param=value
+```
+
+<Tip>
+Always use `{{ env.VAR }}` placeholders for connection strings. Never commit credentials to source control.
+</Tip>
+
+### Connection options
+
+Pass driver-level settings through the `options` map. All values must be strings.
+
+<ParamField body="sslmode" type="string">
+  SSL negotiation mode. Use `require` or stricter in production.
+
+  **Values:** `disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`
+</ParamField>
+
+<ParamField body="connect_timeout" type="string">
+  Connection timeout in seconds. Connections that exceed this threshold are terminated.
+</ParamField>
+
+<ParamField body="application_name" type="string">
+  Application name reported to the PostgreSQL server. Useful for identifying connections in `pg_stat_activity`.
+</ParamField>
+
+<ParamField body="max_connections" type="string">
+  Maximum number of connections in the pool.
+</ParamField>
+
+<Warning>
+Never use `sslmode: disable` with cloud-hosted databases or production environments. Connection traffic is unencrypted.
+</Warning>
+
+<Note>
+Hyperterse connects to your existing database. It does not create or manage databases — you provide a running PostgreSQL instance and a connection string.
+</Note>
+
+### Recommended permissions
+
+Create a dedicated database user for Hyperterse and grant only the privileges your tools require:
+
+```sql
+-- Read-only access
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO hyperterse;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO hyperterse;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO hyperterse;
+```
+
+For tools that write data, add the necessary privileges:
+
+```sql
+GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hyperterse;
+```
+
+### Verify the connection
+
+Start the server and confirm the adapter connects:
+
+```bash
+hyperterse start
+```
+
+A successful connection produces:
+
+```
+INFO  Connected to adapter: primary-db
+```
+
+If the connection fails, the server exits immediately with a diagnostic message.
+
+## Usage
+
+PostgreSQL routes execute standard SQL through the adapter. Use `{{ inputs.field }}` placeholders for parameterized values — they are never interpolated as raw SQL.
+
+```yaml app/routes/get-user/config.terse
+description: "Retrieve a user by their identifier"
+use: main-db
+statement: |
+  SELECT id, name, email, created_at
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+inputs:
+  user_id:
+    type: int
+    description: "Primary key of the user record"
+auth:
+  plugin: allow_all
+```
+
+PostgreSQL-specific features like `jsonb` operators, `tsvector` search, array operations, CTEs, and window functions are all supported. Use standard PostgreSQL syntax in statements.
+
+### Read replicas
+
+For read-heavy workloads, configure separate adapters for primary and replica databases:
+
+```yaml app/adapters/primary.terse
+connector: postgres
+connection_string: "{{ env.PRIMARY_DB_URL }}"
+```
+
+```yaml app/adapters/replica.terse
+connector: postgres
+connection_string: "{{ env.REPLICA_DB_URL }}"
+```
+
+Route read-only tools to the replica adapter and write tools to the primary.
+
+## Troubleshooting
+
+### Connection refused
+
+Verify that PostgreSQL is running and the host is reachable:
+
+```bash
+psql -h localhost -U hyperterse -d myapp
+```
+
+Check firewall rules and security groups if connecting to a remote or cloud-hosted instance.
+
+### SSL certificate errors
+
+For self-signed certificates, set `sslmode` to `require` (encrypts traffic without certificate verification). For full verification, use `verify-ca` or `verify-full` and ensure the CA certificate is installed on the machine running Hyperterse.
+
+### Permission denied
+
+Inspect the current grants for your user:
+
+```sql
+\dp table_name
+```
+
+Grant the missing permissions, then restart Hyperterse to re-establish the connection pool.

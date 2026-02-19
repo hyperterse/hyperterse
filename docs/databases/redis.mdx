@@ -1,0 +1,171 @@
+---
+title: Redis
+description: Connect Hyperterse to Redis for key-value, caching, and data structure operations.
+---
+
+Hyperterse supports Redis as a connector for key-value operations, caching lookups, session retrieval, rate limit checks, and working with Redis data structures (hashes, lists, sets, sorted sets). Statements are standard Redis commands executed directly against the server.
+
+## Adapter configuration
+
+Create an adapter file in `app/adapters/`:
+
+```yaml app/adapters/cache.terse
+connector: redis
+connection_string: "{{ env.REDIS_URL }}"
+options:
+  pool_size: "10"
+```
+
+The connection string uses the standard Redis URI format:
+
+<Tabs>
+  <Tab title="Standard">
+    ```
+    redis://user:password@host:port/db_number
+    ```
+  </Tab>
+  <Tab title="TLS (cloud providers)">
+    ```
+    rediss://user:password@host:port/db_number
+    ```
+    Note the double `s` in `rediss://` for TLS-encrypted connections.
+  </Tab>
+</Tabs>
+
+### Connection options
+
+<ParamField body="pool_size" type="string">
+  Maximum number of connections in the pool.
+</ParamField>
+
+<Note>
+Hyperterse connects to your existing Redis instance. It does not create or manage databases — you provide a running Redis server (self-hosted, AWS ElastiCache, Upstash, etc.) and a connection string.
+</Note>
+
+For password-protected instances, include the password in the URI:
+
+```yaml
+connection_string: "redis://:password@localhost:6379/0"
+```
+
+For TLS-enabled cloud providers, use the `rediss://` scheme:
+
+```yaml
+connection_string: "rediss://:password@host:6379/0"
+```
+
+### Verify the connection
+
+Start the server and confirm the adapter connects:
+
+```bash
+hyperterse start
+```
+
+A successful connection produces:
+
+```
+INFO  Connected to adapter: cache
+```
+
+If the connection fails, the server exits immediately with a diagnostic message.
+
+## Usage
+
+Redis route statements contain the Redis command to execute. Use `{{ inputs.field }}` placeholders for dynamic values.
+
+```yaml app/routes/get-cached-value/config.terse
+description: "Retrieve a cached value by key"
+use: cache
+statement: "GET {{ inputs.key }}"
+inputs:
+  key:
+    type: string
+    description: "Cache key"
+auth:
+  plugin: allow_all
+```
+
+Redis commands return results in JSON format. Multiple values are returned as arrays; hash operations return key-value pairs.
+
+### Common command patterns
+
+<Tabs>
+  <Tab title="Strings">
+    ```yaml
+    # GET
+    statement: "GET {{ inputs.key }}"
+
+    # SET with expiry
+    statement: "SET {{ inputs.key }} {{ inputs.value }} EX {{ inputs.ttl }}"
+    ```
+  </Tab>
+  <Tab title="Hashes">
+    ```yaml
+    # Get all fields
+    statement: "HGETALL {{ inputs.key }}"
+
+    # Get a specific field
+    statement: "HGET {{ inputs.key }} {{ inputs.field }}"
+    ```
+  </Tab>
+  <Tab title="Lists">
+    ```yaml
+    # Get a range
+    statement: "LRANGE {{ inputs.key }} 0 {{ inputs.count }}"
+    ```
+  </Tab>
+  <Tab title="Sorted sets">
+    ```yaml
+    # Top entries by score
+    statement: "ZREVRANGE {{ inputs.key }} 0 {{ inputs.count }} WITHSCORES"
+    ```
+  </Tab>
+</Tabs>
+
+### Separate adapters for different concerns
+
+Use separate Redis adapters for distinct purposes:
+
+```
+app/adapters/
+  session-store.terse   # Redis DB 0 — session data
+  rate-limiter.terse    # Redis DB 1 — rate limit counters
+  feature-flags.terse   # Redis DB 2 — feature flag values
+```
+
+Each adapter can connect to a different Redis database number or a different Redis instance entirely. Routes reference the appropriate adapter by name.
+
+## Troubleshooting
+
+### Connection refused
+
+Verify Redis is running:
+
+```bash
+redis-cli ping
+```
+
+A `PONG` response confirms the server is accessible. Check firewall rules for remote instances.
+
+### Authentication failed
+
+Ensure the password is correct in the connection string:
+
+```
+redis://:correct_password@localhost:6379/0
+```
+
+Verify that Redis has authentication enabled in its configuration (`requirepass` directive).
+
+### TLS required
+
+Cloud-hosted Redis instances typically require TLS. Switch from `redis://` to `rediss://`:
+
+```
+rediss://:password@host:6379/0
+```
+
+### Memory issues
+
+Monitor Redis memory usage with `INFO memory`. Configure `maxmemory` and an eviction policy (`maxmemory-policy`) on the Redis server to prevent out-of-memory conditions.

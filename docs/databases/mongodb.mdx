@@ -1,0 +1,164 @@
+---
+title: MongoDB
+description: Connect Hyperterse to MongoDB for document-backed MCP tools using native database commands.
+---
+
+Hyperterse supports MongoDB as a document database connector. Statements are passed as native MongoDB database commands — the same syntax used by `db.runCommand()` in the MongoDB shell. This gives you access to any operation MongoDB supports: `find`, `aggregate`, `insert`, `update`, `delete`, and administrative commands.
+
+## Adapter configuration
+
+Create an adapter file in `app/adapters/`:
+
+```yaml app/adapters/mongo-db.terse
+connector: mongodb
+connection_string: "{{ env.MONGODB_URL }}"
+options:
+  maxPoolSize: "50"
+  minPoolSize: "5"
+```
+
+The connection string uses the standard MongoDB URI format:
+
+<Tabs>
+  <Tab title="Standard">
+    ```
+    mongodb://user:password@host:27017/database
+    ```
+  </Tab>
+  <Tab title="Atlas / SRV">
+    ```
+    mongodb+srv://user:password@cluster.mongodb.net/database
+    ```
+  </Tab>
+</Tabs>
+
+### Connection options
+
+<ParamField body="maxPoolSize" type="string">
+  Maximum number of connections in the pool.
+</ParamField>
+
+<ParamField body="minPoolSize" type="string">
+  Minimum number of idle connections maintained in the pool.
+</ParamField>
+
+<ParamField body="connectTimeoutMS" type="string">
+  Timeout in milliseconds for establishing a new connection.
+</ParamField>
+
+<ParamField body="serverSelectionTimeoutMS" type="string">
+  Timeout in milliseconds for selecting a server from a replica set or sharded cluster.
+</ParamField>
+
+<Note>
+Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MongoDB instance (self-hosted or [MongoDB Atlas](https://www.mongodb.com/atlas)) and a connection string.
+</Note>
+
+### Verify the connection
+
+Start the server and confirm the adapter connects:
+
+```bash
+hyperterse start
+```
+
+A successful connection produces:
+
+```
+INFO  Connected to adapter: mongo-db
+```
+
+If the connection fails, the server exits immediately with a diagnostic message.
+
+## Usage
+
+MongoDB route statements are JSON objects with two required fields: `database` and `command`. The `command` field takes a raw MongoDB database command.
+
+```yaml app/routes/find-users/config.terse
+description: "Find users by name"
+use: mongo-db
+statement: |
+  {
+    "database": "mydb",
+    "command": {
+      "find": "users",
+      "filter": { "name": "{{ inputs.name }}" },
+      "limit": 10
+    }
+  }
+inputs:
+  name:
+    type: string
+    description: "User name to search for"
+auth:
+  plugin: allow_all
+```
+
+<Warning>
+The command name (e.g., `"find"`, `"insert"`, `"aggregate"`) **must be the first key** inside the `command` object. MongoDB rejects commands where the operation name is not the first field.
+</Warning>
+
+### Statement format
+
+| Field | Description |
+|---|---|
+| `database` | The MongoDB database to run the command against. |
+| `command` | A raw MongoDB [database command](https://www.mongodb.com/docs/manual/reference/command/) object. |
+
+### Aggregation example
+
+```yaml app/routes/sales-summary/config.terse
+description: "Aggregate sales by product category"
+use: mongo-db
+statement: |
+  {
+    "database": "analytics",
+    "command": {
+      "aggregate": "sales",
+      "pipeline": [
+        { "$match": { "year": {{ inputs.year }} } },
+        { "$group": { "_id": "$category", "total": { "$sum": "$amount" } } },
+        { "$sort": { "total": -1 } }
+      ],
+      "cursor": {}
+    }
+  }
+inputs:
+  year:
+    type: int
+    description: "Calendar year to aggregate"
+auth:
+  plugin: allow_all
+```
+
+### ObjectId handling
+
+For queries involving ObjectId fields, pass them using the extended JSON format:
+
+```json
+{ "filter": { "_id": { "$oid": "{{ inputs.id }}" } } }
+```
+
+## Troubleshooting
+
+### Connection refused
+
+Verify MongoDB is running and reachable:
+
+```bash
+mongosh "mongodb://localhost:27017"
+```
+
+Check firewall rules for remote instances and ensure the Atlas IP allowlist includes your server's address.
+
+### Authentication failed
+
+Ensure the connection string contains the correct username and password. URL-encode special characters in passwords (e.g., `@` becomes `%40`).
+
+### TLS / Atlas
+
+For MongoDB Atlas, always use the `mongodb+srv://` URI provided by Atlas. The driver handles TLS and server discovery automatically. For custom certificates, configure TLS options in the connection string.
+
+### Invalid statement JSON
+
+The `statement` field must be valid JSON after `{{ inputs.* }}` substitution. Ensure all placeholders resolve to properly quoted JSON values. The `command` object must have the operation name as its first key.

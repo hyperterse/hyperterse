@@ -1,0 +1,98 @@
+---
+title: Bare metal
+description: Deploy Hyperterse directly on servers without containers or orchestrators.
+---
+
+For environments where containers are not an option, you can deploy the Hyperterse build artifact directly on a server. The artifact is a self-contained directory — copy it to the target machine, set your environment variables, and start the process.
+
+## Deploy the artifact
+
+Build on your CI machine (or locally), then transfer the output:
+
+```bash
+hyperterse build -o dist
+scp -r dist/ deploy@server:/opt/hyperterse/
+```
+
+On the server, start the process:
+
+```bash
+cd /opt/hyperterse
+DATABASE_URL="postgresql://..." ./hyperterse serve
+```
+
+## Process management with systemd
+
+Use a systemd unit to ensure Hyperterse starts on boot and restarts on failure:
+
+```ini
+[Unit]
+Description=Hyperterse MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=hyperterse
+WorkingDirectory=/opt/hyperterse
+ExecStart=/opt/hyperterse/hyperterse serve
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/opt/hyperterse/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl enable hyperterse
+sudo systemctl start hyperterse
+```
+
+<Tip>
+Store credentials in the `EnvironmentFile` (`.env`) with restrictive permissions (`chmod 600`). Do not embed them in the unit file.
+</Tip>
+
+## Reverse proxy
+
+Place Hyperterse behind a reverse proxy (nginx, Caddy, HAProxy) for TLS termination, rate limiting, and access control:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name mcp.example.com;
+
+    ssl_certificate /etc/ssl/certs/mcp.pem;
+    ssl_certificate_key /etc/ssl/private/mcp.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## Multiple instances
+
+Run multiple Hyperterse processes on different ports behind a load balancer for horizontal scaling:
+
+```bash
+PORT=8081 ./hyperterse serve &
+PORT=8082 ./hyperterse serve &
+PORT=8083 ./hyperterse serve &
+```
+
+Each instance is independent with its own in-memory cache. Configure your load balancer to distribute traffic across them.
+
+## Checklist
+
+Before going live, verify:
+
+- The process runs as a non-root user.
+- Credentials are supplied through environment variables, not hardcoded.
+- TLS is terminated at the proxy layer.
+- The `/heartbeat` endpoint is monitored.
+- Log output is routed to your logging infrastructure.
+- Automatic restarts are configured (systemd, supervisor, or equivalent).
