@@ -11,7 +11,7 @@ This page covers security measures beyond input validation. It addresses network
 
 ## Authentication
 
-### Enforce Auth on Every Sensitive Route
+### Enforce auth on every sensitive route
 
 Auth is per-route, not global. There is no server-wide authentication middleware. Every route that accesses sensitive data or performs mutations must declare an `auth` block:
 
@@ -27,7 +27,7 @@ auth:
 - `allow_all` should only be used for health checks and intentionally public tools.
 - Use `hyperterse validate` to confirm all routes are well-formed, then manually verify auth presence.
 
-### Rotate Credentials
+### Rotate credentials
 
 API keys and tokens referenced via `{{ env.VAR }}` are resolved at startup. Rotation requires a runtime restart. For zero-downtime rotation:
 
@@ -37,9 +37,9 @@ API keys and tokens referenced via `{{ env.VAR }}` are resolved at startup. Rota
 
 ---
 
-## Network Security
+## Network security
 
-### TLS Termination
+### TLS termination
 
 Hyperterse does not perform TLS termination natively. Deploy behind a reverse proxy or load balancer that handles TLS:
 
@@ -50,7 +50,7 @@ Hyperterse does not perform TLS termination natively. Deploy behind a reverse pr
 
 All client-facing traffic should use HTTPS. The Hyperterse runtime can listen on a private network interface or loopback address.
 
-### CORS Configuration
+### CORS configuration
 
 The runtime applies permissive CORS headers by default (all origins, standard methods and headers). For production:
 
@@ -58,7 +58,7 @@ The runtime applies permissive CORS headers by default (all origins, standard me
 2. Configure restrictive CORS at the proxy level.
 3. Restrict the runtime's CORS to your application domain or disable it entirely when the proxy handles CORS.
 
-### Network Segmentation
+### Network segmentation
 
 - Place the runtime in a private network segment.
 - Restrict inbound traffic to the reverse proxy or load balancer only.
@@ -67,9 +67,9 @@ The runtime applies permissive CORS headers by default (all origins, standard me
 
 ---
 
-## Logging Hygiene
+## Logging hygiene
 
-### Log Level
+### Log level
 
 Set the production log level to `2` (warn) or `3` (info):
 
@@ -80,11 +80,11 @@ server:
 
 Debug-level logging (`4`) may include substituted statement text, input values, and internal execution details. This is acceptable in development but poses a data exposure risk in production.
 
-### Log Routing
+### Log routing
 
 Use `--log-file` to write logs to a file for collection by a log aggregation system (Fluentd, Vector, CloudWatch agent, etc.). Avoid logging to stdout in containerized environments where stdout is captured to a shared log store with broad read access.
 
-### Sensitive Data in Logs
+### Sensitive data in logs
 
 - Connection strings are redacted in trace attributes.
 - Input values may appear in debug-level logs.
@@ -92,9 +92,9 @@ Use `--log-file` to write logs to a file for collection by a log aggregation sys
 
 ---
 
-## Container Security
+## Container security
 
-### Minimal Base Image
+### Minimal base image
 
 Use a minimal base image for the runtime binary:
 
@@ -116,7 +116,7 @@ WORKDIR /app
 ENTRYPOINT ["./hyperterse", "serve"]
 ```
 
-### Non-Root Execution
+### Non-root execution
 
 Run the container as a non-root user:
 
@@ -125,7 +125,7 @@ RUN adduser -D -u 1001 hyperterse
 USER hyperterse
 ```
 
-### Read-Only Filesystem
+### Read-only filesystem
 
 Mount the container filesystem as read-only. Hyperterse does not write to disk at runtime (cache is in-memory):
 
@@ -136,9 +136,9 @@ securityContext:
 
 ---
 
-## Secrets Management
+## Secrets management
 
-### Do Not Embed Secrets in Config
+### Do not embed secrets in config
 
 All credentials (database passwords, API keys, tokens) should be supplied via environment variables:
 
@@ -159,7 +159,7 @@ env:
         key: url
 ```
 
-### External Secrets Managers
+### External secrets managers
 
 For environments using AWS Secrets Manager, HashiCorp Vault, or similar:
 
@@ -169,7 +169,7 @@ For environments using AWS Secrets Manager, HashiCorp Vault, or similar:
 
 ---
 
-## Rate Limiting
+## Rate limiting
 
 Hyperterse does not include built-in rate limiting. Implement rate limiting at the infrastructure layer:
 
@@ -181,9 +181,9 @@ Rate limiting should be applied to the `/mcp` endpoint, which handles all tool i
 
 ---
 
-## Health Checks and Monitoring
+## Health checks and monitoring
 
-### Liveness Probe
+### Liveness probe
 
 The `/heartbeat` endpoint confirms the HTTP server is accepting connections:
 
@@ -193,7 +193,7 @@ curl http://localhost:8080/heartbeat
 
 Use this as a liveness probe in container orchestrators. It does not verify connector health.
 
-### Readiness Probe
+### Readiness probe
 
 For readiness checks that verify full system health (including connector connectivity), implement a custom tool that queries each adapter and reports status:
 
@@ -217,7 +217,7 @@ When observability is enabled, expose the metrics endpoint to your monitoring sy
 
 ---
 
-## Deployment Checklist
+## Deployment checklist
 
 - [ ] All sensitive routes have `auth` blocks.
 - [ ] No `allow_all` on routes that access sensitive data.

@@ -11,7 +11,7 @@ Caching applies to DB-backed routes only. Script-backed routes (handler-only) by
 
 ---
 
-## Cache Key Derivation
+## Cache key derivation
 
 Each cache entry is identified by:
 
@@ -28,7 +28,7 @@ Cache key = hash(query_name + substituted_statement)
 
 ## Configuration
 
-### Global Cache Settings
+### Global cache settings
 
 Set default caching behavior in the root `.hyperterse` config:
 
@@ -45,7 +45,7 @@ server:
 | `enabled` | boolean | `false` | Whether caching is active for all queries. |
 | `ttl` | integer | `120` | Time-to-live in seconds for cached results. |
 
-### Per-Route Override
+### Per-route override
 
 Individual routes can override the global cache policy:
 
@@ -62,7 +62,7 @@ cache:
   enabled: false
 ```
 
-### Precedence Order
+### Precedence order
 
 1. **Route-level cache config** — Takes priority if present.
 2. **Global server cache config** — Applied when no route-level override exists.
@@ -70,9 +70,9 @@ cache:
 
 ---
 
-## Cache Behavior
+## Cache behavior
 
-### On Execution
+### On execution
 
 1. Before executing through the connector, the executor checks the cache using the derived key.
 2. **Cache hit** — The cached result is returned immediately. No connector execution occurs.
@@ -83,7 +83,7 @@ cache:
 - **TTL-based** — Entries expire after their configured TTL elapses.
 - **Capacity-based** — Ristretto enforces memory bounds. When the cache approaches capacity, least-recently-used entries are evicted.
 
-### No Explicit Invalidation
+### No explicit invalidation
 
 There is no API or mechanism for explicit cache invalidation in the current runtime. Entries are evicted only by TTL expiration or capacity pressure. For use cases requiring immediate invalidation, disable caching on the affected routes and implement cache management in handler scripts with an external cache system.
 
@@ -101,7 +101,7 @@ There is no API or mechanism for explicit cache invalidation in the current runt
 
 ---
 
-## When to Use Caching
+## When to use caching
 
 **Enable caching for:**
 - Read-heavy tools with stable data (reference tables, configuration lookups).

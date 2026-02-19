@@ -3,7 +3,7 @@ title: MCP Transport
 description: MCP Streamable HTTP endpoint behavior, JSON-RPC protocol surface, request and response formats, CORS configuration, and error handling.
 ---
 
-## Transport Model
+## Transport model
 
 Hyperterse exposes tools through the MCP (Model Context Protocol) Streamable HTTP transport. The runtime registers a single MCP endpoint that handles both tool discovery and tool execution via JSON-RPC 2.0.
 
@@ -93,7 +93,7 @@ Executes a tool with the provided arguments.
 }
 ```
 
-### Successful Response
+### Successful response
 
 ```json
 {
@@ -159,7 +159,7 @@ For production deployments behind a reverse proxy, configure CORS at the proxy l
 
 ---
 
-## HTTP Headers in MCP Context
+## HTTP headers in MCP context
 
 When a `tools/call` request arrives via MCP HTTP transport, the HTTP request headers are extracted and made available to the execution pipeline. This enables:
 
@@ -170,7 +170,7 @@ Headers are available through `framework.RequestHeadersFromContext(ctx)` in Go a
 
 ---
 
-## Session Management
+## Session management
 
 The MCP Streamable HTTP transport supports session-based interaction via the `Mcp-Session-Id` header. The `DELETE /mcp` method terminates a session.
 
@@ -178,7 +178,7 @@ For stateless tool invocation (the common case), sessions are not required. Each
 
 ---
 
-## Protobuf Service Contracts
+## Protobuf service contracts
 
 The `runtime.proto` file defines two RPC services:
 

@@ -19,10 +19,12 @@ This separation provides:
 ### Command
 
 ```bash
-hyperterse build -f .hyperterse -o dist
+hyperterse build -o dist
 ```
 
-### What Build Produces
+When run from the project root, the CLI loads `.hyperterse` automatically. Use a positional argument to point to a different project directory: `hyperterse build path/to/project -o dist`.
+
+### What build produces
 
 | Artifact | Description |
 |---|---|
@@ -31,7 +33,7 @@ hyperterse build -f .hyperterse -o dist
 | `dist/build/vendor.js` | Shared npm dependency bundle (if route scripts import external packages) |
 | `dist/build/routes/<name>/*.js` | Per-route script bundles (handler, input_transform, output_transform) |
 
-### Build Process
+### Build process
 
 1. Parse root config and validate.
 2. Discover and compile adapters and routes from `app/`.
@@ -40,11 +42,11 @@ hyperterse build -f .hyperterse -o dist
 5. Serialize the complete model and framework manifest to `model.bin`.
 6. Copy the runtime binary to the output directory.
 
-### Build Flags
+### Build flags
 
 | Flag | Short | Default | Description |
 |---|---|---|---|
-| `--file` | `-f` | `.hyperterse` | Root config file path. |
+| `--file` | `-f` | `""` | Path to config file. Alternative to positional arg. Default: `.hyperterse` in current directory. |
 | `--out` | `-o` | `dist` | Output directory. |
 | `--clean-dir` | | `false` | Remove output directory before building. |
 
@@ -58,13 +60,9 @@ hyperterse build -f .hyperterse -o dist
 hyperterse serve dist/
 ```
 
-Or explicitly:
+If `dist/` contains `model.bin`, passing the directory is sufficient. Alternatively, pass the manifest file directly as the positional argument: `hyperterse serve dist/model.bin`.
 
-```bash
-hyperterse serve -f dist/model.bin
-```
-
-### What Serve Does
+### What serve does
 
 1. Load and deserialize `model.bin`.
 2. Reconstruct the `Project` from the `FrameworkManifest` (routes, bundles, adapters).
@@ -72,20 +70,23 @@ hyperterse serve -f dist/model.bin
 4. Register MCP tools.
 5. Start the HTTP server.
 
-### Serve Flags
+### Serve flags
 
 | Flag | Short | Description |
 |---|---|---|
-| `--file` | `-f` | Path to `model.bin` or directory containing it. |
+| `--file` | `-f` | Path to `model.bin`. Alternative to positional arg. Default: `./model.bin`. |
+| `--port` | `-p` | Server port (overrides manifest and `PORT` env var). |
+| `--log-level` | | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides manifest). |
+| `--verbose` | | Enable verbose logging (sets log level to DEBUG). |
 
 ---
 
-## Recommended Deployment Workflow
+## Recommended deployment workflow
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  1. hyperterse validate -f .hyperterse           │
-│  2. hyperterse build -f .hyperterse -o dist      │
+│  1. hyperterse validate                           │
+│  2. hyperterse build -o dist                      │
 │  3. Test locally: cd dist && ./hyperterse serve   │
 │  4. Ship dist/ to target environment              │
 │  5. Run: ./hyperterse serve                       │
@@ -96,7 +97,7 @@ Validate before building. Build once, deploy the artifact. Do not rebuild in the
 
 ---
 
-## Container Deployment
+## Container deployment
 
 ### Dockerfile
 
@@ -116,7 +117,7 @@ EXPOSE 8080
 ENTRYPOINT ["./hyperterse", "serve"]
 ```
 
-### Minimal Image (Pre-Built)
+### Minimal image (pre-built)
 
 If you build locally or in CI and only need to package the output:
 
@@ -131,7 +132,7 @@ EXPOSE 8080
 ENTRYPOINT ["./hyperterse", "serve"]
 ```
 
-### Scratch Image
+### Scratch image
 
 For the smallest possible image (no shell, no package manager):
 
@@ -227,8 +228,8 @@ jobs:
         with:
           go-version: '1.22'
       - run: make generate && make build
-      - run: ./dist/hyperterse validate -f .hyperterse
-      - run: ./dist/hyperterse build -f .hyperterse -o dist
+      - run: ./dist/hyperterse validate
+      - run: ./dist/hyperterse build -o dist
       - uses: actions/upload-artifact@v4
         with:
           name: hyperterse-dist

@@ -3,7 +3,7 @@ title: Execution Pipeline
 description: Step-by-step execution flow for tool invocations, including route resolution, authentication, input processing, execution, output processing, and error propagation.
 ---
 
-## Pipeline Overview
+## Pipeline overview
 
 Every `tools/call` request passes through a deterministic pipeline. The pipeline is identical regardless of whether the route is DB-backed or script-backed — only the execution step differs.
 
@@ -22,7 +22,7 @@ If any stage fails, execution halts immediately and an error response is returne
 
 ---
 
-## Stage 1: Route Resolution
+## Route resolution
 
 The MCP adapter matches the tool name from the `tools/call` request to a compiled route definition.
 
@@ -33,7 +33,7 @@ Route lookup is O(1) via an in-memory map populated at startup.
 
 ---
 
-## Stage 2: Authentication
+## Authentication
 
 If the route defines an `auth` block, the configured plugin is invoked with the request context and policy parameters.
 
@@ -46,7 +46,7 @@ If the route defines an `auth` block, the configured plugin is invoked with the 
 
 ---
 
-## Stage 3: Input Transform
+## Input transform
 
 If `scripts.input_transform` is configured (or discovered by convention), the bundled `inputTransform` function is executed in the Goja VM.
 
@@ -68,9 +68,9 @@ If `scripts.input_transform` is configured (or discovered by convention), the bu
 
 ---
 
-## Stage 4: Execution
+## Execution
 
-### Script-Backed Routes (Handler)
+### Script-backed routes (handler)
 
 When `scripts.handler` is configured, the bundled `handler` function is executed in the Goja VM.
 
@@ -85,7 +85,7 @@ When `scripts.handler` is configured, the bundled `handler` function is executed
 
 The handler's return value becomes the execution result.
 
-### DB-Backed Routes (Connector)
+### DB-backed routes (connector)
 
 When `use` and `statement` are configured, the executor performs:
 
@@ -103,7 +103,7 @@ When `use` and `statement` are configured, the executor performs:
 
 ---
 
-## Stage 5: Output Transform
+## Output transform
 
 If `scripts.output_transform` is configured (or discovered by convention), the bundled `outputTransform` function is executed in the Goja VM.
 
@@ -125,7 +125,7 @@ If `scripts.output_transform` is configured (or discovered by convention), the b
 
 ---
 
-## Stage 6: Response Serialization
+## Response serialization
 
 The final result is JSON-encoded and wrapped in an MCP `content` block:
 
@@ -142,7 +142,7 @@ The final result is JSON-encoded and wrapped in an MCP `content` block:
 
 ---
 
-## Error Propagation
+## Error propagation
 
 Errors at any stage produce a JSON-RPC error response:
 

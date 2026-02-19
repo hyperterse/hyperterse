@@ -9,9 +9,9 @@ Every `app/routes/*/config.terse` file defines one MCP tool. The route configura
 
 ---
 
-## Route Types
+## Route types
 
-### DB-Backed Routes
+### DB-backed routes
 
 A DB-backed route executes a statement through a connector. It requires `use` (adapter reference) and `statement`:
 
@@ -32,7 +32,7 @@ auth:
 
 The statement is executed through the connector bound to `primary-db`. Input placeholders are substituted before execution.
 
-### Script-Backed Routes
+### Script-backed routes
 
 A script-backed route delegates execution entirely to a TypeScript handler. It requires `scripts.handler`:
 
@@ -46,7 +46,7 @@ auth:
 
 No adapter or statement is needed. The handler function receives the input payload and returns the result directly.
 
-### Hybrid Routes
+### Hybrid routes
 
 Routes can combine a DB adapter with script transforms:
 
@@ -71,7 +71,7 @@ Execution order: auth → input transform → DB execution → output transform.
 
 ---
 
-## Route Validity
+## Route validity
 
 Every route must satisfy at least one condition:
 
@@ -82,7 +82,7 @@ Routes that specify neither are rejected during validation.
 
 ---
 
-## Tool Naming
+## Tool naming
 
 The MCP tool name is derived from the route:
 
@@ -93,7 +93,7 @@ Tool names must be unique across the project. The validator rejects duplicate na
 
 ---
 
-## Input Schema
+## Input schema
 
 The `inputs` block defines typed parameters that the tool accepts:
 
@@ -109,7 +109,7 @@ inputs:
     default: "false"
 ```
 
-### Input Field Properties
+### Input field properties
 
 | Property | Type | Required | Description |
 |---|---|---|---|
@@ -118,7 +118,7 @@ inputs:
 | `optional` | boolean | No | Whether the input can be omitted. Default: `false` (required). |
 | `default` | string | No | Default value used when the input is not provided. Always expressed as a string; converted at runtime. |
 
-### Input Validation
+### Input validation
 
 At execution time, the executor validates inputs before statement substitution:
 
@@ -126,7 +126,7 @@ At execution time, the executor validates inputs before statement substitution:
 - **Type conversion** — String representations are converted to the declared type. Invalid conversions (e.g., `"abc"` for `int`) return a type error.
 - **Default application** — When an optional input is omitted and a default is declared, the default value is applied.
 
-### Input Placeholders
+### Input placeholders
 
 Use `{{ inputs.field_name }}` in statements to reference input values:
 
@@ -138,7 +138,7 @@ Placeholders are resolved via textual substitution. See [Input Safety](/security
 
 ---
 
-## Output Schema
+## Output schema
 
 The `data` block declares the expected shape of the tool's output:
 
@@ -156,7 +156,7 @@ data:
     map_to: "email_address"
 ```
 
-### Data Field Properties
+### Data field properties
 
 | Property | Type | Required | Description |
 |---|---|---|---|
@@ -169,7 +169,7 @@ The `data` block is metadata for documentation and schema generation. It does no
 
 ---
 
-## Cache Override
+## Cache override
 
 Routes can override the global cache policy:
 
@@ -190,7 +190,7 @@ See [Caching](/runtime/caching) for the full cache configuration model.
 
 ---
 
-## Multiple Adapter References
+## Multiple adapter references
 
 The `use` field accepts either a single adapter name or an array. When multiple adapters are referenced, the first matching adapter is used for execution:
 
@@ -206,7 +206,7 @@ use:
 
 ---
 
-## Complete Route Example
+## Complete route example
 
 ```yaml
 name: get-user-profile

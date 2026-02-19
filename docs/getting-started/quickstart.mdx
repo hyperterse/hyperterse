@@ -3,7 +3,7 @@ title: Quickstart
 description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
 ---
 
-## 1. Scaffold a Project
+## Scaffold a project
 
 ```bash
 hyperterse init
@@ -28,7 +28,7 @@ app/
 
 ---
 
-## 2. Review the Root Configuration
+## Review the root configuration
 
 Open `.hyperterse`:
 
@@ -43,15 +43,15 @@ server:
 
 ---
 
-## 3. Start the Runtime
+## Start the runtime
 
 ```bash
-hyperterse start -f .hyperterse
+hyperterse start
 ```
 
 The runtime will:
 
-1. Parse the root config and discover adapters/routes.
+1. Parse the root config (`.hyperterse` in the current directory) and discover adapters/routes.
 2. Compile route definitions into tool metadata.
 3. Bundle any TypeScript scripts.
 4. Initialize connectors (skipped if no adapters with active routes).
@@ -60,12 +60,12 @@ The runtime will:
 For development with automatic restart on file changes:
 
 ```bash
-hyperterse start --watch -f .hyperterse
+hyperterse start --watch
 ```
 
 ---
 
-## 4. Verify the Health Endpoint
+## Verify the health endpoint
 
 ```bash
 curl http://localhost:8080/heartbeat
@@ -79,7 +79,7 @@ Expected response:
 
 ---
 
-## 5. List Available Tools
+## List available tools
 
 Send an MCP `tools/list` request:
 
@@ -97,7 +97,7 @@ The response contains a `tools` array with one entry per compiled route. Each to
 
 ---
 
-## 6. Call a Tool
+## Call a tool
 
 Invoke the `health` tool:
 
@@ -119,7 +119,7 @@ The response contains the tool's output in the `content` field as a JSON-encoded
 
 ---
 
-## 7. Add a Database-Backed Tool
+## Add a database-backed tool
 
 ### Define an adapter
 
@@ -176,12 +176,12 @@ curl -s -X POST http://localhost:8080/mcp \
 
 ---
 
-## 8. Validate Before Shipping
+## Validate before shipping
 
 Run validation to catch configuration errors before deployment:
 
 ```bash
-hyperterse validate -f .hyperterse
+hyperterse validate
 ```
 
 Validation checks:
@@ -193,7 +193,7 @@ Validation checks:
 
 ---
 
-## Next Steps
+## Next steps
 
 - [Project Structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
 - [Adapters](/concepts/adapters) — Connector configuration per database type.

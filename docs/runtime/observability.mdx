@@ -24,7 +24,7 @@ When tracing is enabled, the runtime creates spans for key operations:
 
 Traces follow the OpenTelemetry specification and can be exported to any compatible backend (Jaeger, Zipkin, OTLP-compatible collectors, Grafana Tempo).
 
-### Trace Provider Setup
+### Trace provider setup
 
 The observability package configures the trace provider based on model settings. When enabled, the provider is set as the global OpenTelemetry trace provider, ensuring all spans from the Hyperterse runtime are captured.
 
@@ -46,7 +46,7 @@ Metrics are exported through the configured OpenTelemetry meter provider.
 
 ---
 
-## Structured Logging
+## Structured logging
 
 Hyperterse uses a tagged structured logger. Log output includes:
 
@@ -56,7 +56,7 @@ Hyperterse uses a tagged structured logger. Log output includes:
 - **Message** — Descriptive text.
 - **Fields** — Structured key-value pairs (tool name, adapter name, duration, error details).
 
-### Log Levels
+### Log levels
 
 | Level | Value | Description |
 |---|---|---|
@@ -67,7 +67,7 @@ Hyperterse uses a tagged structured logger. Log output includes:
 
 Configure via `server.log_level` in the root config or `--log-level` / `--verbose` CLI flags.
 
-### Log Routing
+### Log routing
 
 | Flag | Description |
 |---|---|
@@ -76,7 +76,7 @@ Configure via `server.log_level` in the root config or `--log-level` / `--verbos
 
 ---
 
-## Attribute Redaction
+## Attribute redaction
 
 The observability subsystem automatically redacts sensitive values from trace attributes and log fields:
 
@@ -108,9 +108,9 @@ The observability configuration is resolved from the model's server settings. Wh
 
 ---
 
-## Integration with External Systems
+## Integration with external systems
 
-### OTLP Exporter
+### OTLP exporter
 
 Hyperterse exports traces and metrics via the OpenTelemetry Protocol (OTLP) over HTTP. Point the endpoint to your collector:
 
@@ -119,7 +119,7 @@ Hyperterse exports traces and metrics via the OpenTelemetry Protocol (OTLP) over
 - **Datadog Agent** — OTLP ingestion endpoint.
 - **AWS X-Ray** — Via ADOT collector with OTLP receiver.
 
-### Minimal Setup with Jaeger
+### Minimal setup with Jaeger
 
 ```bash
 docker run -d --name jaeger \

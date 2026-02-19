@@ -3,11 +3,11 @@ title: Environment Variables
 description: Environment variables used by the Hyperterse runtime, CLI, and configuration substitution system.
 ---
 
-## Configuration Substitution
+## Configuration substitution
 
 Hyperterse supports `{{ env.VAR_NAME }}` placeholders in configuration values. These are resolved at runtime during startup.
 
-### Supported Locations
+### Supported locations
 
 | Config location | Example |
 |---|---|
@@ -17,7 +17,7 @@ Hyperterse supports `{{ env.VAR_NAME }}` placeholders in configuration values. T
 | Route `auth.policy` values | `value: "{{ env.API_KEY }}"` |
 | Root config `server.port` | `port: "{{ env.PORT }}"` |
 
-### Resolution Behavior
+### Resolution behavior
 
 - Placeholders are resolved at the point of use (connector initialization, statement execution, auth check).
 - If a referenced variable is not set in the process environment, the runtime fails with an error identifying the unresolved variable.
@@ -26,7 +26,7 @@ Hyperterse supports `{{ env.VAR_NAME }}` placeholders in configuration values. T
 
 ---
 
-## Runtime Environment Variables
+## Runtime environment variables
 
 These variables influence Hyperterse behavior when set in the process environment.
 
@@ -70,7 +70,7 @@ Environment variables set in the shell take precedence over `.env` file values. 
 
 ---
 
-## Security Guidance
+## Security guidance
 
 - **Do not commit `.env` files to version control.** Add `.env` to `.gitignore`.
 - **Use `{{ env.VAR }}` for all credentials.** Connection strings, API keys, and tokens should reference environment variables rather than embedding plaintext values.

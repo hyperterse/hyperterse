@@ -11,7 +11,7 @@ Adapters are resolved by name when a route references them via the `use` field. 
 
 ---
 
-## Adapter File Format
+## Adapter file format
 
 Each `app/adapters/*.terse` file is a YAML document with the following structure:
 
@@ -33,7 +33,7 @@ options:
 
 ---
 
-## Connector Reference
+## Connector reference
 
 ### PostgreSQL
 
@@ -79,7 +79,7 @@ The Redis connector uses `go-redis`. Connection strings follow the `redis://` UR
 
 ---
 
-## Environment Variable Substitution
+## Environment variable substitution
 
 Connection strings support `{{ env.VAR_NAME }}` placeholders. These are resolved at runtime during connector initialization. If a referenced environment variable is not set, the runtime fails at startup with an explicit error identifying the missing variable.
 
@@ -91,7 +91,7 @@ Store credentials in environment variables or a secrets manager. Do not commit p
 
 ---
 
-## Connector Lifecycle
+## Connector lifecycle
 
 1. **Initialization** — When the runtime starts, the `ConnectorManager` initializes all adapters referenced by at least one route. Initialization happens in parallel using `errgroup`. Each connector establishes its connection pool and performs a connectivity check.
 
@@ -103,7 +103,7 @@ Store credentials in environment variables or a secrets manager. Do not commit p
 
 ---
 
-## Naming Constraints
+## Naming constraints
 
 - Adapter names must start with a letter (`a-z`, `A-Z`).
 - Subsequent characters may include letters, digits, hyphens, and underscores.
@@ -112,7 +112,7 @@ Store credentials in environment variables or a secrets manager. Do not commit p
 
 ---
 
-## Multiple Adapters
+## Multiple adapters
 
 A project can define any number of adapters. Different routes can reference different adapters:
 

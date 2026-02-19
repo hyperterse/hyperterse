@@ -9,7 +9,7 @@ Each file in `app/adapters/` defines one adapter — a named binding between the
 
 ---
 
-## Field Reference
+## Field reference
 
 ```yaml
 name: primary-db
@@ -57,7 +57,7 @@ options:
 
 ---
 
-## Connection String Formats
+## Connection string formats
 
 ### PostgreSQL
 
@@ -123,9 +123,9 @@ connection_string: "redis://{{ env.REDIS_HOST }}:6379/0"
 
 ---
 
-## Common Options
+## Common options
 
-### PostgreSQL Options
+### PostgreSQL options
 
 | Key | Example | Description |
 |---|---|---|
@@ -133,21 +133,21 @@ connection_string: "redis://{{ env.REDIS_HOST }}:6379/0"
 | `connect_timeout` | `"10"` | Connection timeout in seconds. |
 | `application_name` | `"hyperterse"` | Application name reported to the server. |
 
-### MySQL Options
+### MySQL options
 
 Options are typically passed in the connection string query parameters. The `options` map can be used for additional driver configuration.
 
-### MongoDB Options
+### MongoDB options
 
 MongoDB connection options are typically embedded in the connection string. When `json_statements` mode is needed, it is configured through connector-level settings.
 
-### Redis Options
+### Redis options
 
 Redis connection options are typically embedded in the connection string (password, database number, TLS).
 
 ---
 
-## Environment Variable Substitution
+## Environment variable substitution
 
 Connection strings and option values support `{{ env.VAR_NAME }}` placeholders:
 

@@ -29,7 +29,7 @@ If no `auth` block is present on a route, the route has no authentication enforc
 
 ---
 
-## Built-In Plugins
+## Built-in plugins
 
 ### `allow_all`
 
@@ -77,7 +77,7 @@ The auth pipeline does not differentiate between transport mechanisms. The same 
 
 ---
 
-## Execution Order
+## Execution order
 
 ```
 Tool invocation
@@ -102,7 +102,7 @@ Auth failure returns an error response immediately. No further pipeline stages a
 
 ---
 
-## Custom Plugins
+## Custom plugins
 
 Custom auth plugins can be registered programmatically through the auth registry. A plugin implements the auth interface and is registered before runtime startup:
 
@@ -128,7 +128,7 @@ auth:
     audience: "my-service"
 ```
 
-### Plugin Interface
+### Plugin interface
 
 An auth plugin function receives:
 
@@ -139,7 +139,7 @@ Return `nil` to allow the request. Return an error to reject it.
 
 ---
 
-## Security Considerations
+## Security considerations
 
 - **Do not embed secrets directly in config files.** Use `{{ env.VAR }}` placeholders for API keys, tokens, and credentials.
 - **Auth is per-route, not global.** There is no server-wide auth middleware. Every route that requires authentication must declare it explicitly.

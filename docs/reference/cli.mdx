@@ -3,7 +3,7 @@ title: CLI Reference
 description: Complete command and flag reference for the Hyperterse CLI.
 ---
 
-## Global Behavior
+## Global behavior
 
 The Hyperterse CLI is built with [Cobra](https://github.com/spf13/cobra). All commands load `.env` files from the working directory if present.
 
@@ -29,20 +29,20 @@ Start the runtime from a configuration source. Parses the config, compiles the p
 hyperterse start [path] [flags]
 ```
 
-If `path` is provided positionally, it is used as the config file. Otherwise, the `-f` flag or default `.hyperterse` is used.
+When run without arguments, the CLI loads `.hyperterse` from the current directory. A positional `path` argument can point to a directory (which must contain `.hyperterse`) or directly to a config file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
 
 ### Flags
 
 | Flag | Short | Type | Default | Description |
 |---|---|---|---|---|
-| `--file` | `-f` | string | `.hyperterse` | Path to root configuration file. |
-| `--port` | `-p` | int | (from config or `8080`) | Override the server port. |
-| `--log-level` | | int | (from config or `3`) | Override the log level (1–4). |
-| `--verbose` | | bool | `false` | Set log level to 4 (debug). |
-| `--source` | | string | | Source directory override. |
-| `--watch` | | bool | `false` | Enable hot reload. Restarts the runtime on config or script file changes. |
-| `--log-tags` | | string | | Comma-separated list of component tags to include in log output. |
-| `--log-file` | | string | | Write log output to a file instead of stderr. |
+| `--file` | `-f` | string | `""` | Path to the configuration file (`.hyperterse` or `.terse`). Alternative to positional arg. |
+| `--port` | `-p` | string | `""` | Server port (overrides config file and `PORT` env var). |
+| `--log-level` | | int | `0` | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides config file). |
+| `--verbose` | | bool | `false` | Enable verbose logging (sets log level to DEBUG). |
+| `--source` | `-s` | string | `""` | Configuration as a string (alternative to `--file`). |
+| `--watch` | | bool | `false` | Watch `.terse`/`.ts` files and hot-reload on changes. |
+| `--log-tags` | | string | `""` | Filter logs by tags (comma-separated, use `-tag` to exclude). Overrides `HYPERTERSE_LOG_TAGS` env var. |
+| `--log-file` | | bool | `false` | Stream logs to file in `/tmp/.hyperterse/logs/`. |
 
 ### Resolution Order
 
@@ -53,9 +53,10 @@ If `path` is provided positionally, it is used as the config file. Otherwise, th
 ### Examples
 
 ```bash
-hyperterse start -f .hyperterse
-hyperterse start --watch -f .hyperterse
-hyperterse start -f config.terse -p 9090 --verbose
+hyperterse start
+hyperterse start --watch
+hyperterse start path/to/project
+hyperterse start -p 9090 --verbose
 ```
 
 ---
@@ -68,23 +69,25 @@ Start the runtime from a pre-built manifest. Loads `model.bin` and reconstructs 
 hyperterse serve [manifest-or-dir] [flags]
 ```
 
-If a directory is provided, the runtime looks for `model.bin` inside it. If a file is provided, it is loaded directly.
+When run without arguments, the runtime searches for `model.bin` in the current directory. A positional argument can point to a directory (which must contain `model.bin`) or directly to a manifest file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
 
 ### Flags
 
 | Flag | Short | Type | Default | Description |
 |---|---|---|---|---|
-| `--file` | `-f` | string | | Path to `model.bin` manifest file. |
+| `--file` | `-f` | string | `""` | Path to the model manifest file. Alternative to positional arg. Default: `./model.bin`. |
+| `--port` | `-p` | string | `""` | Server port (overrides manifest and `PORT` env var). |
+| `--log-level` | | int | `0` | Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (overrides manifest). |
+| `--verbose` | | bool | `false` | Enable verbose logging (sets log level to DEBUG). |
+| `--log-tags` | | string | `""` | Filter logs by tags (comma-separated, use `-tag` to exclude). Overrides `HYPERTERSE_LOG_TAGS` env var. |
+| `--log-file` | | bool | `false` | Stream logs to file in `/tmp/.hyperterse/logs/`. |
 
 ### Examples
 
 ```bash
 hyperterse serve dist/
-hyperterse serve -f dist/model.bin
 hyperterse serve
 ```
-
-When invoked without arguments, the runtime searches for `model.bin` in the current directory.
 
 ---
 
@@ -96,12 +99,14 @@ Compile the project into a deployable output directory. Parses config, compiles 
 hyperterse build [path] [flags]
 ```
 
+When run without arguments, the CLI loads `.hyperterse` from the current directory. A positional `path` argument can point to a directory (which must contain `.hyperterse`) or directly to a config file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
+
 ### Flags
 
 | Flag | Short | Type | Default | Description |
 |---|---|---|---|---|
-| `--file` | `-f` | string | `.hyperterse` | Path to root configuration file. |
-| `--out` | `-o` | string | `dist` | Output directory for build artifacts. |
+| `--file` | `-f` | string | `""` | Path to the configuration file (`.hyperterse` or `.terse`). Alternative to positional arg. |
+| `--out` | `-o` | string | `""` | Output directory for build artifacts. Default: `dist`. |
 | `--clean-dir` | | bool | `false` | Remove existing output directory before building. |
 
 ### Output Structure
@@ -122,8 +127,9 @@ dist/
 ### Examples
 
 ```bash
-hyperterse build -f .hyperterse -o dist
-hyperterse build -f .hyperterse -o release --clean-dir
+hyperterse build
+hyperterse build -o release --clean-dir
+hyperterse build path/to/project -o dist
 ```
 
 ---
@@ -136,11 +142,14 @@ Validate the configuration and project structure without starting the runtime. C
 hyperterse validate [path] [flags]
 ```
 
+When run without arguments, the CLI loads `.hyperterse` from the current directory. A positional `path` argument can point to a directory (which must contain `.hyperterse`) or directly to a config file. The `--file` flag is an alternative to the positional argument — they cannot be combined.
+
 ### Flags
 
 | Flag | Short | Type | Default | Description |
 |---|---|---|---|---|
-| `--file` | `-f` | string | `.hyperterse` | Path to root configuration file. |
+| `--file` | `-f` | string | `""` | Path to the configuration file (`.hyperterse` or `.terse`). Alternative to positional arg. |
+| `--source` | `-s` | string | `""` | Configuration as a string (alternative to `--file`). |
 
 ### Validation Checks
 
@@ -162,8 +171,8 @@ hyperterse validate [path] [flags]
 ### Examples
 
 ```bash
-hyperterse validate -f .hyperterse
-hyperterse validate -f my-project/config.terse
+hyperterse validate
+hyperterse validate path/to/project
 ```
 
 ---

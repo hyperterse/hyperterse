@@ -3,13 +3,13 @@ title: Introduction
 description: Hyperterse is a Go-native MCP framework that compiles declarative configuration into a production-ready tool runtime with embedded scripting, pluggable authentication, and filesystem-based routing.
 ---
 
-## What Hyperterse Is
+## What Hyperterse is
 
 Hyperterse is a compiled MCP (Model Context Protocol) framework written in Go. It transforms declarative `.terse` configuration files and optional TypeScript scripts into a runtime that exposes database queries and custom logic as callable MCP tools.
 
 The framework handles connector lifecycle management, input validation, script bundling, query caching, authentication enforcement, and observability instrumentation. You define the shape of your tools through configuration; Hyperterse compiles and serves them.
 
-### Design Principles
+### Design principles
 
 - **Declarative-first.** Adapters, routes, inputs, auth policies, and caching behavior are expressed in `.terse` YAML files. Code is reserved for logic that configuration cannot express.
 - **Tool-first routing.** Each route folder maps to exactly one MCP tool. The filesystem is the tool registry.
@@ -17,13 +17,13 @@ The framework handles connector lifecycle management, input validation, script b
 - **Embedded scripting.** Route handlers and transforms are written in TypeScript, bundled with esbuild at build time, and executed inside a Goja JavaScript VM within the Go process. No external Node.js dependency is required at runtime.
 - **Protocol-native.** MCP Streamable HTTP is the primary transport. Tools, inputs, and results map directly to MCP `tools/list` and `tools/call` operations.
 
-### What Hyperterse Is Not
+### What Hyperterse is not
 
 Hyperterse is not a general-purpose HTTP framework, an ORM, a database migration tool, or a GraphQL server. It serves a specific purpose: exposing structured data operations and custom handlers as MCP tools with minimal boilerplate.
 
 ---
 
-## Runtime Surface
+## Runtime surface
 
 The compiled runtime registers two endpoint groups:
 
@@ -36,7 +36,7 @@ Direct REST endpoints (`/query/{name}`) are defined in protobuf service contract
 
 ---
 
-## Supported Connectors
+## Supported connectors
 
 | Connector | Identifier | Driver |
 |---|---|---|
@@ -49,7 +49,7 @@ Connectors are initialized at startup through a parallel connection manager. Ini
 
 ---
 
-## Supported Input Types
+## Supported input types
 
 | Type | Description |
 |---|---|
@@ -63,7 +63,7 @@ Connectors are initialized at startup through a parallel connection manager. Ini
 
 ---
 
-## High-Level Lifecycle
+## High-level lifecycle
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -82,7 +82,7 @@ In development, `hyperterse start --watch` performs steps 1–5 on each file cha
 
 ---
 
-## Next Steps
+## Next steps
 
 - [Architecture](/concepts/architecture) — System design, component boundaries, and data flow.
 - [Installation](/getting-started/installation) — Install the binary or build from source.

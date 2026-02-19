@@ -17,7 +17,7 @@ Scripts are authored in TypeScript, bundled at build time with esbuild, and exec
 
 ---
 
-## Script Hooks
+## Script hooks
 
 ### Handler
 
@@ -36,7 +36,7 @@ export function handler(payload: { inputs: Record<string, any>; route: string })
 
 The return value becomes the tool's result payload.
 
-### Input Transform
+### Input transform
 
 An input transform pre-processes the input arguments before they reach the executor or handler. Use it for validation, normalization, enrichment, or rejection.
 
@@ -56,7 +56,7 @@ The returned object replaces the original inputs for subsequent pipeline stages.
 
 Throwing an error from an input transform aborts execution and returns the error to the caller.
 
-### Output Transform
+### Output transform
 
 An output transform post-processes the execution result before it is returned to the caller. Use it for field mapping, formatting, redaction, or enrichment.
 
@@ -79,9 +79,9 @@ The returned value replaces the tool's result payload.
 
 ---
 
-## Payload Contracts
+## Payload contracts
 
-### Handler and Input Transform Payload
+### Handler and input transform payload
 
 ```typescript
 interface Payload {
@@ -93,7 +93,7 @@ interface Payload {
 - `inputs` — The tool's input arguments after type conversion and default application.
 - `route` — The tool/route name.
 
-### Output Transform Payload
+### Output transform payload
 
 ```typescript
 interface OutputPayload {
@@ -107,7 +107,7 @@ interface OutputPayload {
 
 ---
 
-## Available Runtime APIs
+## Available runtime APIs
 
 Scripts execute in a sandboxed Goja VM with the following injected globals:
 
@@ -128,7 +128,7 @@ const data = await response.json();
 
 Logging functions that write to the Hyperterse structured log output.
 
-### Not Available
+### Not available
 
 The following are **not** available in the script runtime:
 
@@ -140,9 +140,9 @@ The following are **not** available in the script runtime:
 
 ---
 
-## Script Configuration
+## Script configuration
 
-### Explicit Declaration
+### Explicit declaration
 
 Specify script paths relative to the route directory in `config.terse`:
 
@@ -153,7 +153,7 @@ scripts:
   output_transform: "./format.ts"
 ```
 
-### Convention-Based Discovery
+### Convention-based discovery
 
 When script fields are omitted, the compiler scans the route directory for files matching these patterns:
 
@@ -169,14 +169,14 @@ Explicit declarations take precedence. If a `scripts.handler` field is set, conv
 
 ## Bundling Model
 
-### Build-Time Process
+### Build-time process
 
 1. The bundler scans all route scripts for `import` statements referencing packages outside the route directory.
 2. External dependencies (npm packages) are resolved from `node_modules/` at the project root.
 3. All shared dependencies across routes are compiled into a single `vendor.js` bundle.
 4. Per-route bundles are emitted with import rewrites pointing to `globalThis.__hyperterse_vendor`.
 
-### Runtime Loading
+### Runtime loading
 
 When a script is invoked:
 
@@ -184,7 +184,7 @@ When a script is invoked:
 2. The route-specific bundle is loaded.
 3. The target export function (`handler`, `inputTransform`, or `outputTransform`) is called with the appropriate payload.
 
-### Dependency Management
+### Dependency management
 
 To use npm packages in route scripts:
 
@@ -201,7 +201,7 @@ The bundler handles resolution and deduplication.
 
 ---
 
-## Async Support
+## Async support
 
 Scripts can use `async`/`await` patterns. The Go host runs the Goja event loop to completion before collecting the return value:
 
@@ -215,7 +215,7 @@ export async function handler(payload: { inputs: Record<string, any>; route: str
 
 ---
 
-## Error Handling
+## Error handling
 
 Errors thrown from scripts propagate as tool execution errors in the MCP response:
 

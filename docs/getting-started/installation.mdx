@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install the Hyperterse CLI binary or build it from source. Includes system requirements, verification, and upgrade procedures.
+description: System requirements and installation methods for the Hyperterse CLI.
 ---
 
 ## System Requirements
@@ -8,10 +8,9 @@ description: Install the Hyperterse CLI binary or build it from source. Includes
 | Requirement | Minimum |
 |---|---|
 | Operating system | Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64) |
-| Go (build from source only) | 1.22+ |
-| Bun or Node.js (route scripts only) | Bun 1.0+ or Node.js 18+ for `npm install` of route dependencies |
+| Bun or Node.js | Bun 1.0+ or Node.js 18+ (only required if route scripts import npm packages) |
 
-The compiled Hyperterse binary is a statically linked Go executable with no runtime dependencies. Route script bundling (TypeScript) is performed at build time using the embedded esbuild compiler — no external JavaScript runtime is required to serve built manifests.
+The Hyperterse binary is a statically linked Go executable with no runtime dependencies. TypeScript bundling uses the embedded esbuild compiler — no external JavaScript runtime is needed to serve built manifests.
 
 ---
 
@@ -21,85 +20,39 @@ The compiled Hyperterse binary is a statically linked Go executable with no runt
 curl -fsSL https://hyperterse.com/install | bash
 ```
 
-The install script detects your platform and architecture, downloads the appropriate binary, and places it in a directory on your `$PATH`.
+## Install via Homebrew
 
-Verify the installation:
+```bash
+brew install hyperterse/tap/hyperterse
+```
+
+## Install via npm
+
+```bash
+npm install -g hyperterse
+```
+
+## Install via Bun
+
+```bash
+bun install -g hyperterse
+```
+
+---
+
+## Verify
 
 ```bash
 hyperterse --version
 ```
 
-Expected output:
-
-```
-hyperterse version X.Y.Z
-```
-
----
-
-## Build from Source
-
-Clone the repository and build:
-
-```bash
-git clone https://github.com/hyperterse/hyperterse.git
-cd hyperterse
-go mod download
-make generate
-make build
-```
-
-The build produces a binary in `dist/`. Add it to your `$PATH` or invoke it directly:
-
-```bash
-./dist/hyperterse --version
-```
-
-### Build Prerequisites
-
-- Go 1.22 or later
-- `protoc` (Protocol Buffers compiler) for `make generate`
-- `protoc-gen-go` plugin for Go protobuf code generation
-
----
-
-## Verify the CLI
-
-After installation, confirm all commands are available:
-
-```bash
-hyperterse --help
-```
-
-The following commands should be listed:
-
-| Command | Purpose |
-|---|---|
-| `start` | Start runtime from configuration source |
-| `serve` | Serve a pre-built manifest |
-| `build` | Compile project into deployable output |
-| `validate` | Validate configuration and route scripts |
-| `init` | Scaffold a new project |
-| `upgrade` | Upgrade the installed binary |
-
 ---
 
 ## Upgrade
 
-Upgrade to the latest stable release:
-
 ```bash
 hyperterse upgrade
 ```
-
-### Upgrade Flags
-
-| Flag | Description |
-|---|---|
-| `--prerelease` | Include pre-release versions in upgrade candidates |
-| `--major <n\|next>` | Target a specific major version or the next major version |
-
-After upgrading, verify with `hyperterse --version`.
 
 ---
 

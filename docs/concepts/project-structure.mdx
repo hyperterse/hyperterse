@@ -3,7 +3,7 @@ title: Project Structure
 description: Filesystem conventions, discovery rules, and directory layout for Hyperterse v2 projects.
 ---
 
-## Directory Layout
+## Directory layout
 
 Hyperterse uses convention-based filesystem discovery. The framework compiler scans specific paths relative to the root configuration file to resolve adapters, routes, and scripts.
 
@@ -38,7 +38,7 @@ project-root/
 
 ---
 
-## Root Configuration File
+## Root configuration file
 
 The root config is a YAML file named `.hyperterse` (or any `.terse` file passed via `-f`). It contains service-level settings: name, version, server options, build options, and optional framework directives.
 
@@ -48,7 +48,7 @@ See [Root Configuration Reference](/reference/root-config) for the complete fiel
 
 ---
 
-## Adapter Discovery
+## Adapter discovery
 
 The compiler scans `app/adapters/*.terse` for adapter definitions. Each file defines exactly one adapter.
 
@@ -64,7 +64,7 @@ The compiler scans `app/adapters/*.terse` for adapter definitions. Each file def
 
 ---
 
-## Route Discovery
+## Route discovery
 
 The compiler scans `app/routes/*/config.terse` for route definitions. Each `config.terse` file defines exactly one MCP tool.
 
@@ -82,7 +82,7 @@ Routes may combine both: a `use` adapter with `scripts.input_transform` and `scr
 
 ---
 
-## Script Resolution
+## Script resolution
 
 Script paths in route configs are resolved relative to the route directory:
 
@@ -105,7 +105,7 @@ Explicit `scripts` declarations in `config.terse` take precedence over conventio
 
 ---
 
-## Vendor Dependencies
+## Vendor dependencies
 
 If route scripts import npm packages, the project must include a `package.json` at the project root with those dependencies installed.
 
@@ -120,7 +120,7 @@ This prevents duplicate dependency code across route bundles.
 
 ---
 
-## Build Output
+## Build output
 
 `hyperterse build` writes to the configured output directory (default: `dist/`):
 

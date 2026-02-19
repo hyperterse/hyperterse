@@ -3,7 +3,7 @@ title: Input Validation and SQL Safety
 description: Statement substitution model, security implications, input validation behavior, and recommended defensive patterns.
 ---
 
-## Statement Substitution Model
+## Statement substitution model
 
 Hyperterse uses textual substitution for `{{ inputs.field }}` placeholders in route statements. Before a statement reaches the connector driver, the executor performs two substitution passes:
 
@@ -21,9 +21,9 @@ The resulting statement is a fully formed string passed to the connector's `Exec
 
 ---
 
-## Built-In Protections
+## Built-in protections
 
-### Input Type Validation
+### Input type validation
 
 The executor validates inputs against their declared types before substitution:
 
@@ -35,20 +35,20 @@ The executor validates inputs against their declared types before substitution:
 
 Type validation ensures that an `int` input receives a numeric value, a `boolean` receives `true`/`false`, etc. This prevents certain classes of injection by constraining the value space.
 
-### Credential Isolation
+### Credential isolation
 
 - Connection strings are server-side only. Tool callers never see adapter credentials.
 - Auth policy values (API keys, tokens) are resolved from environment variables and not returned in responses.
 - Trace attributes redact connection strings and sensitive configuration values.
 
-### Auth Enforcement
+### Auth enforcement
 
 - Route-level auth runs before any input processing or execution.
 - Auth failures halt the pipeline immediately.
 
 ---
 
-## What Hyperterse Does NOT Protect Against
+## What Hyperterse does not protect against
 
 - **SQL injection via string inputs.** A `string`-typed input has no content restriction. If a statement embeds a string input without additional validation, malicious SQL can be injected.
 - **Statement manipulation via crafted values.** Any input that contributes to statement structure (not just data values) is a potential injection vector.
@@ -56,9 +56,9 @@ Type validation ensures that an `int` input receives a numeric value, a `boolean
 
 ---
 
-## Recommended Defensive Patterns
+## Recommended defensive patterns
 
-### 1. Use Strict Input Types
+### Use strict input types
 
 Prefer `int`, `float`, and `boolean` types over `string` where possible. Numeric and boolean types have constrained value spaces that eliminate SQL injection risk for those parameters.
 
@@ -70,7 +70,7 @@ inputs:
     type: boolean
 ```
 
-### 2. Validate String Inputs in Transforms
+### Validate string inputs in transforms
 
 For `string`-typed inputs, implement validation in an input transform script:
 
@@ -86,7 +86,7 @@ export function inputTransform(payload: { inputs: Record<string, any>; route: st
 }
 ```
 
-### 3. Keep Statements Narrow and Deterministic
+### Keep statements narrow and deterministic
 
 Write statements that use inputs only in value positions, not in structural positions:
 
@@ -98,7 +98,7 @@ statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
 statement: "SELECT * FROM {{ inputs.table_name }}"
 ```
 
-### 4. Use Handler Scripts for Complex Queries
+### Use handler scripts for complex queries
 
 When a query requires dynamic structure (conditional clauses, variable column lists), implement it as a handler script with explicit sanitization rather than using statement-level substitution:
 
@@ -114,7 +114,7 @@ export async function handler(payload: { inputs: Record<string, any>; route: str
 }
 ```
 
-### 5. Deploy Behind a Gateway
+### Deploy behind a gateway
 
 In production, place the Hyperterse runtime behind an API gateway or reverse proxy that provides:
 
@@ -126,7 +126,7 @@ In production, place the Hyperterse runtime behind an API gateway or reverse pro
 
 ---
 
-## Environment Variable Safety
+## Environment variable safety
 
 `{{ env.VAR }}` placeholders in statements are resolved at runtime. Missing variables fail execution rather than silently defaulting to empty strings. This prevents accidental statement corruption from missing configuration.
 

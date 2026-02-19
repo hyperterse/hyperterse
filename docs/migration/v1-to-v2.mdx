@@ -3,7 +3,7 @@ title: V1 to V2 Migration
 description: Migration guide from Hyperterse v1 inline query configuration to v2 filesystem-based tool routing.
 ---
 
-## What Changed in V2
+## What changed in V2
 
 Hyperterse v2 is a breaking redesign. The framework shifts from a single-file query gateway to a compiled, filesystem-routed MCP framework.
 
@@ -21,9 +21,9 @@ Hyperterse v2 is a breaking redesign. The framework shifts from a single-file qu
 
 ---
 
-## Migration Steps
+## Migration steps
 
-### Step 1: Keep the Root Config
+### Keep the root config
 
 Your existing `.hyperterse` retains the `name`, `version`, and `server` blocks. Remove the `adapters` and `queries` blocks — those move to dedicated files.
 
@@ -66,7 +66,7 @@ server:
       ttl: 60
 ```
 
-### Step 2: Extract Adapters
+### Extract adapters
 
 For each entry in the v1 `adapters` block, create a file in `app/adapters/`:
 
@@ -85,7 +85,7 @@ connector: postgres
 connection_string: "{{ env.DATABASE_URL }}"
 ```
 
-### Step 3: Extract Routes
+### Extract routes
 
 For each entry in the v1 `queries` block, create a route directory with a `config.terse`:
 
@@ -103,7 +103,7 @@ auth:
   plugin: allow_all
 ```
 
-### Step 4: Add Authentication
+### Add authentication
 
 V1 had no auth. V2 requires explicit auth per route. For each route, decide:
 
@@ -113,7 +113,7 @@ V1 had no auth. V2 requires explicit auth per route. For each route, decide:
 
 **Do not leave routes without `auth` unless they are intentionally unauthenticated.**
 
-### Step 5: Add Scripts (Optional)
+### Add scripts (optional)
 
 If queries need input validation or output formatting that v1 handled in client-side logic, implement those as route scripts:
 
@@ -123,7 +123,7 @@ scripts:
   output_transform: "./format.ts"
 ```
 
-### Step 6: Install Dependencies (If Using Scripts)
+### Install dependencies (if using scripts)
 
 If route scripts import npm packages:
 
@@ -140,10 +140,10 @@ bun init
 bun add dayjs uuid
 ```
 
-### Step 7: Validate
+### Validate
 
 ```bash
-hyperterse validate -f .hyperterse
+hyperterse validate
 ```
 
 Fix any validation errors. Common issues:
@@ -155,10 +155,10 @@ Fix any validation errors. Common issues:
 | Unknown connector type | Use one of: `postgres`, `mysql`, `mongodb`, `redis`. |
 | Script file not found | Verify script paths are relative to the route directory. |
 
-### Step 8: Test
+### Test
 
 ```bash
-hyperterse start --watch -f .hyperterse
+hyperterse start --watch
 ```
 
 Verify tools appear in `tools/list`:
@@ -171,13 +171,13 @@ curl -s -X POST http://localhost:8080/mcp \
 
 Test each tool with `tools/call` to confirm correct behavior.
 
-### Step 9: Build for Production
+### Build for production
 
 ```bash
-hyperterse build -f .hyperterse -o dist
+hyperterse build -o dist
 ```
 
-### Step 10: Update Client Integration
+### Update client integration
 
 V1 clients that used `/query/{name}` HTTP endpoints must migrate to MCP `tools/call`:
 
@@ -207,7 +207,7 @@ curl -X POST http://localhost:8080/mcp \
 
 ---
 
-## Directory Structure Comparison
+## Directory structure comparison
 
 **V1:**
 
@@ -236,7 +236,7 @@ my-api/
 
 ---
 
-## Breaking Changes Summary
+## Breaking changes summary
 
 | Change | Impact | Action |
 |---|---|---|
