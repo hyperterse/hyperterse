@@ -1,0 +1,202 @@
+---
+title: Quickstart
+description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
+---
+
+## 1. Scaffold a Project
+
+```bash
+hyperterse init
+```
+
+This creates the following structure:
+
+```
+.hyperterse
+app/
+  adapters/
+    my-database.terse
+  routes/
+    health/
+      config.terse
+      handler.ts
+```
+
+- `.hyperterse` — Root service configuration.
+- `app/adapters/my-database.terse` — Placeholder adapter definition.
+- `app/routes/health/` — A health-check tool with a script-backed handler.
+
+---
+
+## 2. Review the Root Configuration
+
+Open `.hyperterse`:
+
+```yaml
+name: myconfig
+server:
+  port: 8080
+  log_level: 3
+```
+
+`name` is the service identifier. `server.port` is the TCP port for the runtime. `server.log_level` controls verbosity (1 = error, 2 = warn, 3 = info, 4 = debug).
+
+---
+
+## 3. Start the Runtime
+
+```bash
+hyperterse start -f .hyperterse
+```
+
+The runtime will:
+
+1. Parse the root config and discover adapters/routes.
+2. Compile route definitions into tool metadata.
+3. Bundle any TypeScript scripts.
+4. Initialize connectors (skipped if no adapters with active routes).
+5. Start the HTTP server on the configured port.
+
+For development with automatic restart on file changes:
+
+```bash
+hyperterse start --watch -f .hyperterse
+```
+
+---
+
+## 4. Verify the Health Endpoint
+
+```bash
+curl http://localhost:8080/heartbeat
+```
+
+Expected response:
+
+```json
+{"success": true}
+```
+
+---
+
+## 5. List Available Tools
+
+Send an MCP `tools/list` request:
+
+```bash
+curl -s -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "id": 1
+  }' | jq
+```
+
+The response contains a `tools` array with one entry per compiled route. Each tool includes its name, description, and JSON Schema for its input parameters.
+
+---
+
+## 6. Call a Tool
+
+Invoke the `health` tool:
+
+```bash
+curl -s -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "health",
+      "arguments": {}
+    },
+    "id": 2
+  }' | jq
+```
+
+The response contains the tool's output in the `content` field as a JSON-encoded text payload.
+
+---
+
+## 7. Add a Database-Backed Tool
+
+### Define an adapter
+
+Edit `app/adapters/my-database.terse`:
+
+```yaml
+connector: postgres
+connection_string: "{{ env.DATABASE_URL }}"
+```
+
+Set the environment variable:
+
+```bash
+export DATABASE_URL="postgresql://user:pass@localhost:5432/mydb"
+```
+
+### Create a route
+
+Create `app/routes/list-users/config.terse`:
+
+```yaml
+description: "List all users with optional limit"
+use: my-database
+statement: |
+  SELECT id, name, email
+  FROM users
+  LIMIT {{ inputs.limit }}
+inputs:
+  limit:
+    type: int
+    description: "Maximum number of rows to return"
+    default: "10"
+auth:
+  plugin: allow_all
+```
+
+### Restart and invoke
+
+Restart the runtime (or let `--watch` detect the change), then call the tool:
+
+```bash
+curl -s -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "list-users",
+      "arguments": { "limit": 5 }
+    },
+    "id": 3
+  }' | jq
+```
+
+---
+
+## 8. Validate Before Shipping
+
+Run validation to catch configuration errors before deployment:
+
+```bash
+hyperterse validate -f .hyperterse
+```
+
+Validation checks:
+- Root config schema compliance.
+- Adapter connector and connection string presence.
+- Route validity (each route must have `use` or `scripts.handler`).
+- Script resolution and bundling feasibility.
+- Input type correctness.
+
+---
+
+## Next Steps
+
+- [Project Structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
+- [Adapters](/concepts/adapters) — Connector configuration per database type.
+- [Routes and Tools](/concepts/routes-and-tools) — DB-backed and script-backed tool definitions.
+- [Scripts](/concepts/scripts) — TypeScript handler and transform contracts.
+- [CLI Reference](/reference/cli) — Complete command and flag documentation.

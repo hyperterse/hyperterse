@@ -1,0 +1,78 @@
+---
+title: Environment Variables
+description: Environment variables used by the Hyperterse runtime, CLI, and configuration substitution system.
+---
+
+## Configuration Substitution
+
+Hyperterse supports `{{ env.VAR_NAME }}` placeholders in configuration values. These are resolved at runtime during startup.
+
+### Supported Locations
+
+| Config location | Example |
+|---|---|
+| Adapter `connection_string` | `"postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"` |
+| Adapter `options` values | `sslmode: "{{ env.DB_SSL_MODE }}"` |
+| Route `statement` | `"SELECT * FROM {{ env.TABLE_PREFIX }}_users WHERE id = {{ inputs.user_id }}"` |
+| Route `auth.policy` values | `value: "{{ env.API_KEY }}"` |
+| Root config `server.port` | `port: "{{ env.PORT }}"` |
+
+### Resolution Behavior
+
+- Placeholders are resolved at the point of use (connector initialization, statement execution, auth check).
+- If a referenced variable is not set in the process environment, the runtime fails with an error identifying the unresolved variable.
+- Placeholders are not recursive — `{{ env.VAR }}` where `VAR` itself contains `{{ env.OTHER }}` is not expanded.
+- The `.env` file in the working directory is loaded automatically by the CLI before command execution.
+
+---
+
+## Runtime Environment Variables
+
+These variables influence Hyperterse behavior when set in the process environment.
+
+### `PORT`
+
+| | |
+|---|---|
+| **Type** | integer |
+| **Default** | `8080` |
+| **Description** | Fallback port when not specified via CLI flag or `server.port` config. |
+| **Precedence** | CLI `--port` → config `server.port` → env `PORT` → `8080` |
+
+### `HYPERTERSE_API_KEY`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Default** | (none) |
+| **Description** | Fallback API key for the `api_key` auth plugin. Used when `auth.policy.value` is not set on a route. |
+| **Precedence** | Route `auth.policy.value` → env `HYPERTERSE_API_KEY` |
+
+---
+
+## `.env` File Loading
+
+The CLI automatically loads a `.env` file from the current working directory if one exists. Variables defined in `.env` are injected into the process environment before any command execution.
+
+### Format
+
+```
+DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
+API_KEY=sk-secret-key-value
+PORT=9090
+```
+
+Standard `KEY=VALUE` format. Blank lines and lines starting with `#` are ignored.
+
+### Precedence
+
+Environment variables set in the shell take precedence over `.env` file values. The `.env` file provides defaults, not overrides.
+
+---
+
+## Security Guidance
+
+- **Do not commit `.env` files to version control.** Add `.env` to `.gitignore`.
+- **Use `{{ env.VAR }}` for all credentials.** Connection strings, API keys, and tokens should reference environment variables rather than embedding plaintext values.
+- **Rotate secrets without redeploying.** Since env vars are resolved at startup, changing a secret requires a runtime restart. For zero-downtime rotation, use a secrets manager with a sidecar that updates the environment and signals a restart.
+- **Redaction in logs.** Connection strings containing credentials are redacted in trace attributes and log output. However, debug-level logs may include substituted statement text. Set production log level to `2` (warn) or `3` (info) to avoid exposing sensitive values.

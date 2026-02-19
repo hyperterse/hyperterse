@@ -1,0 +1,120 @@
+---
+title: Caching
+description: In-memory query result caching with Ristretto, cache key derivation, TTL configuration, and override behavior.
+---
+
+## Overview
+
+Hyperterse includes an executor-level in-memory cache backed by [Ristretto](https://github.com/dgraph-io/ristretto). The cache stores query results keyed by the combination of query name and final substituted statement, avoiding redundant connector execution for identical requests.
+
+Caching applies to DB-backed routes only. Script-backed routes (handler-only) bypass the cache.
+
+---
+
+## Cache Key Derivation
+
+Each cache entry is identified by:
+
+1. **Query name** — The tool/route identifier.
+2. **Statement hash** — A hash of the fully substituted statement (after environment and input placeholder resolution).
+
+This means the same query with different input values produces different cache entries. Identical input values for the same query produce a cache hit.
+
+```
+Cache key = hash(query_name + substituted_statement)
+```
+
+---
+
+## Configuration
+
+### Global Cache Settings
+
+Set default caching behavior in the root `.hyperterse` config:
+
+```yaml
+server:
+  queries:
+    cache:
+      enabled: true
+      ttl: 60
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | `false` | Whether caching is active for all queries. |
+| `ttl` | integer | `120` | Time-to-live in seconds for cached results. |
+
+### Per-Route Override
+
+Individual routes can override the global cache policy:
+
+```yaml
+# Enable with custom TTL
+cache:
+  enabled: true
+  ttl: 30
+```
+
+```yaml
+# Disable for this route
+cache:
+  enabled: false
+```
+
+### Precedence Order
+
+1. **Route-level cache config** — Takes priority if present.
+2. **Global server cache config** — Applied when no route-level override exists.
+3. **Framework defaults** — `enabled: false`, `ttl: 120`.
+
+---
+
+## Cache Behavior
+
+### On Execution
+
+1. Before executing through the connector, the executor checks the cache using the derived key.
+2. **Cache hit** — The cached result is returned immediately. No connector execution occurs.
+3. **Cache miss** — The connector executes the statement. The result is stored in the cache with the configured TTL before being returned.
+
+### Eviction
+
+- **TTL-based** — Entries expire after their configured TTL elapses.
+- **Capacity-based** — Ristretto enforces memory bounds. When the cache approaches capacity, least-recently-used entries are evicted.
+
+### No Explicit Invalidation
+
+There is no API or mechanism for explicit cache invalidation in the current runtime. Entries are evicted only by TTL expiration or capacity pressure. For use cases requiring immediate invalidation, disable caching on the affected routes and implement cache management in handler scripts with an external cache system.
+
+---
+
+## Characteristics
+
+| Property | Value |
+|---|---|
+| **Scope** | Process-local. Not shared between runtime instances. |
+| **Storage** | In-memory (Ristretto). No persistence across restarts. |
+| **Thread safety** | Ristretto is concurrent-safe. Cache reads and writes do not block execution. |
+| **Serialization** | Results are cloned before storage and on retrieval to prevent mutation side effects. |
+| **Distributed support** | None. For multi-instance deployments, each instance maintains its own cache. |
+
+---
+
+## When to Use Caching
+
+**Enable caching for:**
+- Read-heavy tools with stable data (reference tables, configuration lookups).
+- Tools with expensive queries where stale data is acceptable for the TTL duration.
+- High-frequency tools where connector load reduction is beneficial.
+
+**Disable caching for:**
+- Write operations or tools that must return real-time data.
+- Tools with highly variable inputs (cache fill rate exceeds hit rate).
+- Tools where result freshness is critical for correctness.
+
+---
+
+## Monitoring
+
+Cache hit/miss status is included in OpenTelemetry trace spans when observability is configured. Monitor the cache hit ratio to determine whether TTL values are effective for your workload.

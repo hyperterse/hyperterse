@@ -1,53 +1,51 @@
-# Starlight Starter Kit: Tailwind
+# Hyperterse Docs (Mintlify)
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+This directory now contains Mintlify-native docs source.
 
-```
-bun create astro@latest -- --template starlight/tailwind
-```
+## Structure
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+- `docs.json` - Mintlify site configuration and navigation.
+- `assets/` - logo and favicon assets.
+- `*.mdx` - documentation pages.
+- section folders:
+  - `getting-started/`
+  - `concepts/`
+  - `runtime/`
+  - `reference/`
+  - `security/`
+  - `deployment/`
+  - `migration/`
 
-## 🚀 Project Structure
+## Local development
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+From this directory:
 
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   ├── styles/
-│   │   └── global.css
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+```bash
+bun install
+bun run dev
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+This starts the Mintlify local server (hot reload enabled).
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+## Build
 
-Static assets, like favicons, can be placed in the `public/` directory.
+```bash
+bun run build
+```
 
-The project includes [Tailwind CSS](https://starlight.astro.build/guides/css-and-tailwind/#tailwind-css) for styling. Customize your design by modifying `src/styles/global.css`.
+## One-off (without install)
 
-## 🧞 Commands
+If you want to run without creating local `node_modules` first:
 
-All commands are run from the root of the project, from a terminal:
+```bash
+bunx mintlify dev
+```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `bun install`             | Installs dependencies                            |
-| `bun dev`             | Starts local dev server at `localhost:4321`      |
-| `bun build`           | Build your production site to `./dist/`          |
-| `bun preview`         | Preview your build locally, before deploying     |
-| `bun astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun astro -- --help` | Get help using the Astro CLI                     |
+## Editing guidelines
 
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+- Keep docs aligned with implemented behavior in `core/`.
+- Avoid documenting planned endpoints/commands as if they already exist.
+- For config shape changes, update:
+  - schema files in `schema/`
+  - this docs content
+  - `docs/reference/configuration-schemas.mdx`

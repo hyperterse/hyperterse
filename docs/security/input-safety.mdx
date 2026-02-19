@@ -1,0 +1,146 @@
+---
+title: Input Validation and SQL Safety
+description: Statement substitution model, security implications, input validation behavior, and recommended defensive patterns.
+---
+
+## Statement Substitution Model
+
+Hyperterse uses textual substitution for `{{ inputs.field }}` placeholders in route statements. Before a statement reaches the connector driver, the executor performs two substitution passes:
+
+1. **Environment substitution** — `{{ env.VAR }}` placeholders are replaced with process environment values.
+2. **Input substitution** — `{{ inputs.field }}` placeholders are replaced with string representations of the validated input values.
+
+The resulting statement is a fully formed string passed to the connector's `Execute` method. **No parameterized query binding occurs at the substitution layer.**
+
+### Implications
+
+- Values are inserted directly into the statement text.
+- The connector driver receives the complete statement as a single string.
+- Statement safety depends on the query patterns and input validation logic you implement.
+- This model is functionally equivalent to string interpolation in the query — it does not provide the injection protection of prepared statements with parameter binding.
+
+---
+
+## Built-In Protections
+
+### Input Type Validation
+
+The executor validates inputs against their declared types before substitution:
+
+| Validation | Behavior |
+|---|---|
+| Required inputs | Missing required inputs (non-optional, no default) produce an error before execution. |
+| Type conversion | Input values are converted from their wire representation to the declared type. Invalid conversions (e.g., `"abc"` for `int`) produce a type error. |
+| Default application | When an optional input is omitted and a default is declared, the default value is applied. |
+
+Type validation ensures that an `int` input receives a numeric value, a `boolean` receives `true`/`false`, etc. This prevents certain classes of injection by constraining the value space.
+
+### Credential Isolation
+
+- Connection strings are server-side only. Tool callers never see adapter credentials.
+- Auth policy values (API keys, tokens) are resolved from environment variables and not returned in responses.
+- Trace attributes redact connection strings and sensitive configuration values.
+
+### Auth Enforcement
+
+- Route-level auth runs before any input processing or execution.
+- Auth failures halt the pipeline immediately.
+
+---
+
+## What Hyperterse Does NOT Protect Against
+
+- **SQL injection via string inputs.** A `string`-typed input has no content restriction. If a statement embeds a string input without additional validation, malicious SQL can be injected.
+- **Statement manipulation via crafted values.** Any input that contributes to statement structure (not just data values) is a potential injection vector.
+- **Business logic abuse.** Inputs that pass type validation but contain semantically invalid values (negative IDs, excessive limits) are not caught by the framework.
+
+---
+
+## Recommended Defensive Patterns
+
+### 1. Use Strict Input Types
+
+Prefer `int`, `float`, and `boolean` types over `string` where possible. Numeric and boolean types have constrained value spaces that eliminate SQL injection risk for those parameters.
+
+```yaml
+inputs:
+  user_id:
+    type: int
+  active:
+    type: boolean
+```
+
+### 2. Validate String Inputs in Transforms
+
+For `string`-typed inputs, implement validation in an input transform script:
+
+```typescript
+export function inputTransform(payload: { inputs: Record<string, any>; route: string }) {
+  const { email } = payload.inputs;
+  
+  if (typeof email !== "string" || !email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
+    throw new Error("Invalid email format");
+  }
+  
+  return payload.inputs;
+}
+```
+
+### 3. Keep Statements Narrow and Deterministic
+
+Write statements that use inputs only in value positions, not in structural positions:
+
+```yaml
+# Safer: input used as a WHERE value
+statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
+
+# Dangerous: input used as a table name or column
+statement: "SELECT * FROM {{ inputs.table_name }}"
+```
+
+### 4. Use Handler Scripts for Complex Queries
+
+When a query requires dynamic structure (conditional clauses, variable column lists), implement it as a handler script with explicit sanitization rather than using statement-level substitution:
+
+```typescript
+export async function handler(payload: { inputs: Record<string, any>; route: string }) {
+  const { user_id, fields } = payload.inputs;
+  
+  const allowedFields = ["id", "name", "email", "created_at"];
+  const selectedFields = fields.filter((f: string) => allowedFields.includes(f));
+  
+  // Construct query with validated field list
+  // ...
+}
+```
+
+### 5. Deploy Behind a Gateway
+
+In production, place the Hyperterse runtime behind an API gateway or reverse proxy that provides:
+
+- Rate limiting
+- Request size limits
+- IP-based access control
+- TLS termination
+- Additional authentication layers
+
+---
+
+## Environment Variable Safety
+
+`{{ env.VAR }}` placeholders in statements are resolved at runtime. Missing variables fail execution rather than silently defaulting to empty strings. This prevents accidental statement corruption from missing configuration.
+
+However, environment variable values are substituted without sanitization. If an environment variable contains SQL-significant characters and is used in a statement position, the same injection risk applies as with input substitution.
+
+---
+
+## Summary
+
+| Layer | Protection | Responsibility |
+|---|---|---|
+| Input type validation | Type conversion and required checks | Framework (automatic) |
+| Credential isolation | Connection strings hidden from callers | Framework (automatic) |
+| Auth enforcement | Pre-execution access control | Framework (configured per-route) |
+| String input sanitization | Content validation and format enforcement | Developer (input transform scripts) |
+| Statement safety | Avoiding structural injection | Developer (query design and validation) |
+| Network security | TLS, rate limiting, access control | Operator (deployment infrastructure) |

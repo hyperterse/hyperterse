@@ -1,0 +1,245 @@
+---
+title: Routes and Tools
+description: Route configuration, tool naming, DB-backed and script-backed execution models, input schemas, and output definitions.
+---
+
+## Overview
+
+Every `app/routes/*/config.terse` file defines one MCP tool. The route configuration specifies what the tool does, which adapter it uses, what inputs it accepts, and which scripts (if any) participate in the execution pipeline.
+
+---
+
+## Route Types
+
+### DB-Backed Routes
+
+A DB-backed route executes a statement through a connector. It requires `use` (adapter reference) and `statement`:
+
+```yaml
+description: "Retrieve a user by their identifier"
+use: primary-db
+statement: |
+  SELECT id, name, email, created_at
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+inputs:
+  user_id:
+    type: int
+    description: "Primary key of the user record"
+auth:
+  plugin: allow_all
+```
+
+The statement is executed through the connector bound to `primary-db`. Input placeholders are substituted before execution.
+
+### Script-Backed Routes
+
+A script-backed route delegates execution entirely to a TypeScript handler. It requires `scripts.handler`:
+
+```yaml
+description: "Retrieve current weather conditions for a location"
+scripts:
+  handler: "./weather-handler.ts"
+auth:
+  plugin: allow_all
+```
+
+No adapter or statement is needed. The handler function receives the input payload and returns the result directly.
+
+### Hybrid Routes
+
+Routes can combine a DB adapter with script transforms:
+
+```yaml
+description: "Get user with formatted output"
+use: primary-db
+statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
+inputs:
+  user_id:
+    type: int
+    description: "User identifier"
+scripts:
+  input_transform: "./validate-input.ts"
+  output_transform: "./format-output.ts"
+auth:
+  plugin: api_key
+  policy:
+    value: "{{ env.API_KEY }}"
+```
+
+Execution order: auth → input transform → DB execution → output transform.
+
+---
+
+## Route Validity
+
+Every route must satisfy at least one condition:
+
+1. `use` is defined (DB-backed), **or**
+2. `scripts.handler` is defined (script-backed).
+
+Routes that specify neither are rejected during validation.
+
+---
+
+## Tool Naming
+
+The MCP tool name is derived from the route:
+
+1. If `name` is explicitly set in `config.terse`, that value is used.
+2. Otherwise, the route directory name is used (e.g., `app/routes/get-user/` → tool name `get-user`).
+
+Tool names must be unique across the project. The validator rejects duplicate names.
+
+---
+
+## Input Schema
+
+The `inputs` block defines typed parameters that the tool accepts:
+
+```yaml
+inputs:
+  user_id:
+    type: int
+    description: "Primary key of the user"
+  include_inactive:
+    type: boolean
+    description: "Whether to include deactivated accounts"
+    optional: true
+    default: "false"
+```
+
+### Input Field Properties
+
+| Property | Type | Required | Description |
+|---|---|---|---|
+| `type` | string | Yes | Primitive type: `string`, `int`, `float`, `boolean`, `datetime`. |
+| `description` | string | No | Human-readable description. Exposed in MCP tool schema. |
+| `optional` | boolean | No | Whether the input can be omitted. Default: `false` (required). |
+| `default` | string | No | Default value used when the input is not provided. Always expressed as a string; converted at runtime. |
+
+### Input Validation
+
+At execution time, the executor validates inputs before statement substitution:
+
+- **Required check** — Required inputs with no default must be provided. Missing required inputs return a validation error.
+- **Type conversion** — String representations are converted to the declared type. Invalid conversions (e.g., `"abc"` for `int`) return a type error.
+- **Default application** — When an optional input is omitted and a default is declared, the default value is applied.
+
+### Input Placeholders
+
+Use `{{ inputs.field_name }}` in statements to reference input values:
+
+```yaml
+statement: "SELECT * FROM orders WHERE customer_id = {{ inputs.customer_id }} LIMIT {{ inputs.limit }}"
+```
+
+Placeholders are resolved via textual substitution. See [Input Safety](/security/input-safety) for security implications.
+
+---
+
+## Output Schema
+
+The `data` block declares the expected shape of the tool's output:
+
+```yaml
+data:
+  id:
+    type: int
+    description: "User identifier"
+  name:
+    type: string
+    description: "Full name"
+  email:
+    type: string
+    description: "Email address"
+    map_to: "email_address"
+```
+
+### Data Field Properties
+
+| Property | Type | Required | Description |
+|---|---|---|---|
+| `type` | string | Yes | Expected primitive type of this field. |
+| `description` | string | No | Human-readable description. |
+| `optional` | boolean | No | Whether the field may be absent in results. |
+| `map_to` | string | No | Original column/field name in the raw result if different from the data field name. |
+
+The `data` block is metadata for documentation and schema generation. It does not enforce runtime result validation — the actual columns returned depend on the statement or handler output.
+
+---
+
+## Cache Override
+
+Routes can override the global cache policy:
+
+```yaml
+cache:
+  enabled: true
+  ttl: 30
+```
+
+Or disable caching for a specific route:
+
+```yaml
+cache:
+  enabled: false
+```
+
+See [Caching](/runtime/caching) for the full cache configuration model.
+
+---
+
+## Multiple Adapter References
+
+The `use` field accepts either a single adapter name or an array. When multiple adapters are referenced, the first matching adapter is used for execution:
+
+```yaml
+use: primary-db
+```
+
+```yaml
+use:
+  - primary-db
+  - fallback-db
+```
+
+---
+
+## Complete Route Example
+
+```yaml
+name: get-user-profile
+description: "Retrieve a user profile by ID with formatted timestamps"
+use: primary-db
+statement: |
+  SELECT id, name, email, created_at, updated_at
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+  AND active = true
+inputs:
+  user_id:
+    type: int
+    description: "User primary key"
+data:
+  id:
+    type: int
+  name:
+    type: string
+  email:
+    type: string
+  created_at:
+    type: datetime
+  updated_at:
+    type: datetime
+scripts:
+  input_transform: "./validate-user-id.ts"
+  output_transform: "./format-timestamps.ts"
+auth:
+  plugin: api_key
+  policy:
+    value: "{{ env.USER_SERVICE_API_KEY }}"
+cache:
+  enabled: true
+  ttl: 120
+```

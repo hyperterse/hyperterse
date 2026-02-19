@@ -1,0 +1,140 @@
+---
+title: Project Structure
+description: Filesystem conventions, discovery rules, and directory layout for Hyperterse v2 projects.
+---
+
+## Directory Layout
+
+Hyperterse uses convention-based filesystem discovery. The framework compiler scans specific paths relative to the root configuration file to resolve adapters, routes, and scripts.
+
+```
+project-root/
+├── .hyperterse                        # Root service configuration
+├── package.json                       # npm dependencies for route scripts (optional)
+├── app/
+│   ├── adapters/
+│   │   ├── primary-db.terse           # Adapter: PostgreSQL
+│   │   └── cache-store.terse          # Adapter: Redis
+│   └── routes/
+│       ├── get-user/
+│       │   ├── config.terse           # Route configuration
+│       │   ├── input-validator.ts     # Input transform script
+│       │   └── data-mapper.ts         # Output transform script
+│       └── get-weather/
+│           ├── config.terse           # Route configuration
+│           └── handler.ts             # Custom handler script
+├── dist/                              # Build output (generated)
+│   ├── hyperterse                     # Runtime binary
+│   ├── model.bin                      # Serialized manifest
+│   └── build/
+│       ├── vendor.js                  # Shared npm dependency bundle
+│       └── routes/
+│           ├── get-user/
+│           │   ├── input_transform.js
+│           │   └── output_transform.js
+│           └── get-weather/
+│               └── handler.js
+```
+
+---
+
+## Root Configuration File
+
+The root config is a YAML file named `.hyperterse` (or any `.terse` file passed via `-f`). It contains service-level settings: name, version, server options, build options, and optional framework directives.
+
+The root config does **not** contain adapter or route definitions. Those are discovered from the `app/` directory tree.
+
+See [Root Configuration Reference](/reference/root-config) for the complete field specification.
+
+---
+
+## Adapter Discovery
+
+The compiler scans `app/adapters/*.terse` for adapter definitions. Each file defines exactly one adapter.
+
+**Naming rules:**
+- If the file contains a `name` field, that value is used as the adapter identifier.
+- If `name` is omitted, the filename (without extension) becomes the adapter identifier.
+- Adapter names must match the pattern `^[a-zA-Z][a-zA-Z0-9_-]*$`.
+- Adapter names must be unique across the project.
+
+**Required fields per adapter:**
+- `connector` — One of `postgres`, `mysql`, `mongodb`, `redis`.
+- `connection_string` — Database connection URI. Supports `{{ env.VAR }}` placeholders.
+
+---
+
+## Route Discovery
+
+The compiler scans `app/routes/*/config.terse` for route definitions. Each `config.terse` file defines exactly one MCP tool.
+
+**Tool naming rules:**
+- If the route config contains a `name` field, that value is used as the tool name.
+- If `name` is omitted, the directory name (e.g., `get-user`) becomes the tool name.
+- Tool names must be unique across the project.
+
+**Route validity:**
+Every route must satisfy at least one of:
+- `use` is set — the route is DB-backed and executes a statement through a connector.
+- `scripts.handler` is set — the route is script-backed and executes a TypeScript handler.
+
+Routes may combine both: a `use` adapter with `scripts.input_transform` and `scripts.output_transform` to pre-process inputs and post-process results.
+
+---
+
+## Script Resolution
+
+Script paths in route configs are resolved relative to the route directory:
+
+```yaml
+scripts:
+  handler: "./weather-handler.ts"
+  input_transform: "./input-validator.ts"
+  output_transform: "./data-mapper.ts"
+```
+
+If script fields are omitted, the compiler applies convention-based discovery within the route folder:
+
+| Convention pattern | Resolved as |
+|---|---|
+| `*handler*.ts` | `scripts.handler` |
+| `*input*validator*.ts` | `scripts.input_transform` |
+| `*data*mapper*.ts` | `scripts.output_transform` |
+
+Explicit `scripts` declarations in `config.terse` take precedence over convention-based discovery.
+
+---
+
+## Vendor Dependencies
+
+If route scripts import npm packages, the project must include a `package.json` at the project root with those dependencies installed.
+
+At build time, the bundler:
+
+1. Scans all route scripts for external `import` statements.
+2. Resolves imported packages from `node_modules/`.
+3. Bundles all shared dependencies into a single `vendor.js`.
+4. Rewrites route bundle imports to reference `globalThis.__hyperterse_vendor`.
+
+This prevents duplicate dependency code across route bundles.
+
+---
+
+## Build Output
+
+`hyperterse build` writes to the configured output directory (default: `dist/`):
+
+| Path | Content |
+|---|---|
+| `hyperterse` (or `hyperterse.exe`) | Compiled runtime binary |
+| `model.bin` | Serialized `Model` and `FrameworkManifest` (protobuf binary) |
+| `build/vendor.js` | Shared dependency bundle |
+| `build/routes/<name>/*.js` | Per-route script bundles |
+
+The `dist/` directory is self-contained. Deploy it as-is.
+
+---
+
+## Notes on `framework.app_dir`
+
+The JSON schema exposes a `framework.app_dir` field for forward compatibility. The current runtime discovers adapters and routes from `app/` relative to the root config path regardless of this setting.

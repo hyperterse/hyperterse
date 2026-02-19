@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="48" viewBox="0 0 220 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="10" fill="#0F766E" />
+  <path d="M13 14H21V22H27V14H35V34H27V28H21V34H13V14Z" fill="#F0FDFA" />
+  <text x="56" y="31" fill="#0F172A" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="22" font-weight="700">Hyperterse</text>
+</svg>

@@ -1,0 +1,89 @@
+---
+title: Introduction
+description: Hyperterse is a Go-native MCP framework that compiles declarative configuration into a production-ready tool runtime with embedded scripting, pluggable authentication, and filesystem-based routing.
+---
+
+## What Hyperterse Is
+
+Hyperterse is a compiled MCP (Model Context Protocol) framework written in Go. It transforms declarative `.terse` configuration files and optional TypeScript scripts into a runtime that exposes database queries and custom logic as callable MCP tools.
+
+The framework handles connector lifecycle management, input validation, script bundling, query caching, authentication enforcement, and observability instrumentation. You define the shape of your tools through configuration; Hyperterse compiles and serves them.
+
+### Design Principles
+
+- **Declarative-first.** Adapters, routes, inputs, auth policies, and caching behavior are expressed in `.terse` YAML files. Code is reserved for logic that configuration cannot express.
+- **Tool-first routing.** Each route folder maps to exactly one MCP tool. The filesystem is the tool registry.
+- **Compiled runtime.** `hyperterse build` produces a self-contained binary and serialized manifest (`model.bin`). The production runtime boots from the manifest without re-parsing source files.
+- **Embedded scripting.** Route handlers and transforms are written in TypeScript, bundled with esbuild at build time, and executed inside a Goja JavaScript VM within the Go process. No external Node.js dependency is required at runtime.
+- **Protocol-native.** MCP Streamable HTTP is the primary transport. Tools, inputs, and results map directly to MCP `tools/list` and `tools/call` operations.
+
+### What Hyperterse Is Not
+
+Hyperterse is not a general-purpose HTTP framework, an ORM, a database migration tool, or a GraphQL server. It serves a specific purpose: exposing structured data operations and custom handlers as MCP tools with minimal boilerplate.
+
+---
+
+## Runtime Surface
+
+The compiled runtime registers two endpoint groups:
+
+| Endpoint | Methods | Purpose |
+|---|---|---|
+| `/mcp` | `GET`, `POST`, `DELETE` | MCP Streamable HTTP transport. Handles `tools/list`, `tools/call`, and session management. |
+| `/heartbeat` | `GET` | Health check. Returns `{"success": true}` when the runtime is accepting connections. |
+
+Direct REST endpoints (`/query/{name}`) are defined in protobuf service contracts but are not registered by the current runtime. All tool invocation routes through the MCP transport.
+
+---
+
+## Supported Connectors
+
+| Connector | Identifier | Driver |
+|---|---|---|
+| PostgreSQL | `postgres` | `lib/pq` |
+| MySQL | `mysql` | `go-sql-driver/mysql` |
+| MongoDB | `mongodb` | `mongo-driver` (JSON statement payloads) |
+| Redis | `redis` | `go-redis` |
+
+Connectors are initialized at startup through a parallel connection manager. Initialization failures block the runtime from starting.
+
+---
+
+## Supported Input Types
+
+| Type | Description |
+|---|---|
+| `string` | UTF-8 text |
+| `int` | 64-bit signed integer |
+| `float` | 64-bit IEEE 754 floating point |
+| `boolean` | `true` or `false` |
+| `datetime` | ISO 8601 timestamp string |
+
+`uuid` is not a built-in primitive. Generate or validate UUIDs in input transform scripts when required.
+
+---
+
+## High-Level Lifecycle
+
+```
+┌──────────────────────────────────────────────────┐
+│  1. Parse root config (.hyperterse)              │
+│  2. Discover app/adapters/*.terse                │
+│  3. Discover app/routes/*/config.terse           │
+│  4. Compile routes into tool definitions         │
+│  5. Bundle TypeScript scripts + vendor deps      │
+│  6. Serialize manifest (model.bin)               │
+│  7. Start runtime, init connectors               │
+│  8. Register MCP tools, begin accepting requests │
+└──────────────────────────────────────────────────┘
+```
+
+In development, `hyperterse start --watch` performs steps 1–5 on each file change and restarts the runtime. In production, `hyperterse build` performs steps 1–6 once, and `hyperterse serve` performs steps 7–8 from the pre-built manifest.
+
+---
+
+## Next Steps
+
+- [Architecture](/concepts/architecture) — System design, component boundaries, and data flow.
+- [Installation](/getting-started/installation) — Install the binary or build from source.
+- [Quickstart](/getting-started/quickstart) — Scaffold and run your first MCP tool in under five minutes.

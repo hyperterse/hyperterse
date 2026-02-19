@@ -1,0 +1,214 @@
+---
+title: Route Configuration
+description: Complete field reference for app/routes/*/config.terse route definition files.
+---
+
+## Overview
+
+Each `app/routes/*/config.terse` file defines one MCP tool. The route config specifies what the tool does, which adapter it uses (if any), what inputs it accepts, what output it produces, which scripts participate in execution, and what authentication is required.
+
+---
+
+## Full Schema
+
+```yaml
+name: get-user-profile
+description: "Retrieve a user profile by primary key"
+use: primary-db
+statement: |
+  SELECT id, name, email, created_at
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+inputs:
+  user_id:
+    type: int
+    description: "User primary key"
+data:
+  id:
+    type: int
+  name:
+    type: string
+  email:
+    type: string
+  created_at:
+    type: datetime
+scripts:
+  input_transform: "./validate-input.ts"
+  output_transform: "./format-output.ts"
+auth:
+  plugin: api_key
+  policy:
+    value: "{{ env.API_KEY }}"
+cache:
+  enabled: true
+  ttl: 120
+```
+
+---
+
+## Field Reference
+
+### `name`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | No |
+| **Default** | Directory name (e.g., `get-user` from `app/routes/get-user/`) |
+| **Description** | MCP tool name. Must be unique across the project. |
+
+### `description`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | No (recommended) |
+| **Description** | Human-readable tool description. Exposed in MCP `tools/list` responses. |
+
+### `use`
+
+| | |
+|---|---|
+| **Type** | string or string[] |
+| **Required** | Conditional — required if `scripts.handler` is not set |
+| **Description** | Adapter name(s) to use for statement execution. References an adapter defined in `app/adapters/`. |
+
+### `statement`
+
+| | |
+|---|---|
+| **Type** | string (multiline) |
+| **Required** | No (relevant only for DB-backed routes) |
+| **Description** | SQL or command statement to execute through the connector. Supports `{{ env.VAR }}` and `{{ inputs.field }}` placeholders. |
+
+---
+
+### `inputs`
+
+Map of input parameter definitions. Keys are input names.
+
+```yaml
+inputs:
+  user_id:
+    type: int
+    description: "User primary key"
+    optional: false
+  limit:
+    type: int
+    description: "Maximum rows"
+    optional: true
+    default: "10"
+```
+
+#### Input Fields
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `type` | string | Yes | — | Primitive type: `string`, `int`, `float`, `boolean`, `datetime`. |
+| `description` | string | No | — | Human-readable description. Exposed in MCP tool input schema. |
+| `optional` | boolean | No | `false` | Whether the input can be omitted by the caller. |
+| `default` | string | No | — | Default value applied when the input is omitted. Always a string; converted to the declared type at runtime. |
+
+---
+
+### `data`
+
+Map of output field definitions. Keys are field names.
+
+```yaml
+data:
+  id:
+    type: int
+    description: "User identifier"
+  name:
+    type: string
+  email:
+    type: string
+    map_to: "email_address"
+```
+
+#### Data Fields
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `type` | string | Yes | — | Expected primitive type. |
+| `description` | string | No | — | Human-readable description. |
+| `optional` | boolean | No | `false` | Whether this field may be absent in results. |
+| `map_to` | string | No | — | Source column/field name if different from the data field key. |
+
+The `data` block is metadata for documentation and schema purposes. It does not enforce runtime result validation.
+
+---
+
+### `scripts`
+
+Script bindings for the route's execution pipeline.
+
+```yaml
+scripts:
+  handler: "./weather-handler.ts"
+  input_transform: "./validate-input.ts"
+  output_transform: "./format-output.ts"
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `handler` | string | No | Path to handler script (relative to route directory). Replaces DB execution. |
+| `input_transform` | string | No | Path to input transform script. Runs before execution. |
+| `output_transform` | string | No | Path to output transform script. Runs after execution. |
+
+Script paths are resolved relative to the route directory. If omitted, convention-based discovery applies (see [Scripts](/concepts/scripts)).
+
+---
+
+### `auth`
+
+Authentication configuration for this route.
+
+```yaml
+auth:
+  plugin: api_key
+  policy:
+    value: "{{ env.API_KEY }}"
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `plugin` | string | Yes (within `auth`) | Name of the registered auth plugin. |
+| `policy` | map[string, string] | No | Plugin-specific configuration parameters. |
+
+If the `auth` block is omitted entirely, the route is unauthenticated.
+
+---
+
+### `cache`
+
+Per-route cache override.
+
+```yaml
+cache:
+  enabled: true
+  ttl: 30
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | boolean | (from global) | Whether caching is active for this route. |
+| `ttl` | integer | (from global) | Cache TTL in seconds for this route. |
+
+---
+
+## Validity Rules
+
+A route is valid when at least one of these conditions is met:
+
+1. `use` is defined (DB-backed route).
+2. `scripts.handler` is defined (script-backed route).
+
+Routes that satisfy neither condition are rejected during validation.
+
+---
+
+## JSON Schema
+
+Editor validation is available through `schema/route.terse.schema.json`. Associate this schema with `**/routes/**/config.terse` file patterns in your editor. See [Configuration Schemas](/reference/configuration-schemas).

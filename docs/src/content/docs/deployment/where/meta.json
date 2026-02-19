@@ -1,5 +1,0 @@
-{
-  "title": "Providers",
-  "icon": "Cloud",
-  "pages": ["aws", "gcp", "azure", "cloudflare", "vercel", "railway", "digital-ocean"]
-}

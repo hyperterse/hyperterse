@@ -1,7 +1,6 @@
-# build output
+# Mintlify local/build artifacts
+.mintlify/
 dist/
-# generated types
-.astro/
 
 # dependencies
 node_modules/
@@ -12,10 +11,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-
-# environment variables
+# environment files
 .env
+.env.local
 .env.production
 
-# macOS-specific files
+# OS files
 .DS_Store

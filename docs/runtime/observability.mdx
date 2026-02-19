@@ -1,0 +1,131 @@
+---
+title: Observability
+description: OpenTelemetry tracing and metrics integration, structured logging, attribute redaction, and configuration.
+---
+
+## Overview
+
+Hyperterse integrates with OpenTelemetry for distributed tracing and metrics collection. The observability subsystem is configured through the runtime and provides instrumentation across the execution pipeline, connector lifecycle, and MCP transport.
+
+---
+
+## Tracing
+
+When tracing is enabled, the runtime creates spans for key operations:
+
+| Span | Attributes |
+|---|---|
+| MCP request handling | Method, tool name, request ID |
+| Auth plugin execution | Plugin name, route name, success/failure |
+| Input transform | Route name, script path |
+| Connector execution | Adapter name, connector type, cache hit/miss |
+| Output transform | Route name, script path |
+| Connector initialization | Adapter name, connector type |
+
+Traces follow the OpenTelemetry specification and can be exported to any compatible backend (Jaeger, Zipkin, OTLP-compatible collectors, Grafana Tempo).
+
+### Trace Provider Setup
+
+The observability package configures the trace provider based on model settings. When enabled, the provider is set as the global OpenTelemetry trace provider, ensuring all spans from the Hyperterse runtime are captured.
+
+---
+
+## Metrics
+
+The metrics subsystem collects operational counters and histograms:
+
+| Metric | Type | Description |
+|---|---|---|
+| Tool invocation count | Counter | Number of `tools/call` requests per tool |
+| Execution duration | Histogram | End-to-end execution time per tool |
+| Cache hit/miss ratio | Counter | Cache hits vs. misses per query |
+| Connector execution time | Histogram | Time spent in connector `Execute` calls |
+| Auth failure count | Counter | Number of authentication rejections per plugin |
+
+Metrics are exported through the configured OpenTelemetry meter provider.
+
+---
+
+## Structured Logging
+
+Hyperterse uses a tagged structured logger. Log output includes:
+
+- **Timestamp** — ISO 8601 format.
+- **Level** — `ERROR` (1), `WARN` (2), `INFO` (3), `DEBUG` (4).
+- **Tag** — Component identifier (e.g., `runtime`, `executor`, `connector`, `mcp`, `auth`).
+- **Message** — Descriptive text.
+- **Fields** — Structured key-value pairs (tool name, adapter name, duration, error details).
+
+### Log Levels
+
+| Level | Value | Description |
+|---|---|---|
+| Error | 1 | Unrecoverable failures. Connector init failures, fatal config errors. |
+| Warn | 2 | Recoverable issues. Cache misses on expected hits, slow queries. |
+| Info | 3 | Operational events. Startup, shutdown, tool registration, requests. |
+| Debug | 4 | Diagnostic detail. Substituted statements, auth context, cache keys. |
+
+Configure via `server.log_level` in the root config or `--log-level` / `--verbose` CLI flags.
+
+### Log Routing
+
+| Flag | Description |
+|---|---|
+| `--log-file <path>` | Write logs to a file instead of stderr. |
+| `--log-tags <tags>` | Filter log output to specific component tags. |
+
+---
+
+## Attribute Redaction
+
+The observability subsystem automatically redacts sensitive values from trace attributes and log fields:
+
+- **Connection strings** — Replaced with `[REDACTED]` in trace spans.
+- **API keys** — Auth policy values are not included in trace attributes.
+- **Statement parameters** — Input values in substituted statements are logged at debug level only.
+
+Redaction is applied at the observability contract layer before spans and log entries are exported.
+
+---
+
+## Configuration
+
+Observability settings are resolved from the `hyperterse.Model` at startup:
+
+```yaml
+server:
+  log_level: 3
+  observability:
+    tracing:
+      enabled: true
+      endpoint: "http://localhost:4318/v1/traces"
+    metrics:
+      enabled: true
+      endpoint: "http://localhost:4318/v1/metrics"
+```
+
+The observability configuration is resolved from the model's server settings. When tracing or metrics are not explicitly configured, they default to disabled.
+
+---
+
+## Integration with External Systems
+
+### OTLP Exporter
+
+Hyperterse exports traces and metrics via the OpenTelemetry Protocol (OTLP) over HTTP. Point the endpoint to your collector:
+
+- **Jaeger** — OTLP receiver on port 4318.
+- **Grafana Tempo** — OTLP receiver.
+- **Datadog Agent** — OTLP ingestion endpoint.
+- **AWS X-Ray** — Via ADOT collector with OTLP receiver.
+
+### Minimal Setup with Jaeger
+
+```bash
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+```
+
+Configure Hyperterse to export to `http://localhost:4318/v1/traces`, then view traces at `http://localhost:16686`.

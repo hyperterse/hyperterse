@@ -1,0 +1,227 @@
+---
+title: CLI Reference
+description: Complete command and flag reference for the Hyperterse CLI.
+---
+
+## Global Behavior
+
+The Hyperterse CLI is built with [Cobra](https://github.com/spf13/cobra). All commands load `.env` files from the working directory if present.
+
+```bash
+hyperterse [command] [flags]
+```
+
+### Version
+
+```bash
+hyperterse --version
+```
+
+Prints the binary version and exits.
+
+---
+
+## `hyperterse start`
+
+Start the runtime from a configuration source. Parses the config, compiles the project, bundles scripts, initializes connectors, and starts the HTTP/MCP server.
+
+```bash
+hyperterse start [path] [flags]
+```
+
+If `path` is provided positionally, it is used as the config file. Otherwise, the `-f` flag or default `.hyperterse` is used.
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--file` | `-f` | string | `.hyperterse` | Path to root configuration file. |
+| `--port` | `-p` | int | (from config or `8080`) | Override the server port. |
+| `--log-level` | | int | (from config or `3`) | Override the log level (1–4). |
+| `--verbose` | | bool | `false` | Set log level to 4 (debug). |
+| `--source` | | string | | Source directory override. |
+| `--watch` | | bool | `false` | Enable hot reload. Restarts the runtime on config or script file changes. |
+| `--log-tags` | | string | | Comma-separated list of component tags to include in log output. |
+| `--log-file` | | string | | Write log output to a file instead of stderr. |
+
+### Resolution Order
+
+**Port:** CLI `--port` → config `server.port` → env `PORT` → `8080`
+
+**Log level:** `--verbose` (sets 4) → `--log-level` → config `server.log_level` → `3`
+
+### Examples
+
+```bash
+hyperterse start -f .hyperterse
+hyperterse start --watch -f .hyperterse
+hyperterse start -f config.terse -p 9090 --verbose
+```
+
+---
+
+## `hyperterse serve`
+
+Start the runtime from a pre-built manifest. Loads `model.bin` and reconstructs the project from the serialized manifest without re-parsing source files.
+
+```bash
+hyperterse serve [manifest-or-dir] [flags]
+```
+
+If a directory is provided, the runtime looks for `model.bin` inside it. If a file is provided, it is loaded directly.
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--file` | `-f` | string | | Path to `model.bin` manifest file. |
+
+### Examples
+
+```bash
+hyperterse serve dist/
+hyperterse serve -f dist/model.bin
+hyperterse serve
+```
+
+When invoked without arguments, the runtime searches for `model.bin` in the current directory.
+
+---
+
+## `hyperterse build`
+
+Compile the project into a deployable output directory. Parses config, compiles the project, bundles all TypeScript scripts, copies the runtime binary, and writes the serialized manifest.
+
+```bash
+hyperterse build [path] [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--file` | `-f` | string | `.hyperterse` | Path to root configuration file. |
+| `--out` | `-o` | string | `dist` | Output directory for build artifacts. |
+| `--clean-dir` | | bool | `false` | Remove existing output directory before building. |
+
+### Output Structure
+
+```
+dist/
+├── hyperterse          # Runtime binary
+├── model.bin           # Serialized manifest
+└── build/
+    ├── vendor.js       # Shared dependency bundle
+    └── routes/
+        └── <name>/
+            ├── handler.js
+            ├── input_transform.js
+            └── output_transform.js
+```
+
+### Examples
+
+```bash
+hyperterse build -f .hyperterse -o dist
+hyperterse build -f .hyperterse -o release --clean-dir
+```
+
+---
+
+## `hyperterse validate`
+
+Validate the configuration and project structure without starting the runtime. Checks config schema compliance, adapter definitions, route validity, script resolution, and bundling feasibility.
+
+```bash
+hyperterse validate [path] [flags]
+```
+
+### Flags
+
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--file` | `-f` | string | `.hyperterse` | Path to root configuration file. |
+
+### Validation Checks
+
+- Root config schema compliance (name, version, server, build fields).
+- Adapter completeness (connector and connection_string required).
+- Route validity (each route has `use` or `scripts.handler`).
+- Adapter name uniqueness.
+- Input type correctness (valid primitive types).
+- Script file resolution (referenced files exist).
+- Bundle compilation (scripts compile without errors).
+
+### Exit Codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Validation passed. |
+| `1` | Validation failed. Errors are printed to stderr. |
+
+### Examples
+
+```bash
+hyperterse validate -f .hyperterse
+hyperterse validate -f my-project/config.terse
+```
+
+---
+
+## `hyperterse init`
+
+Scaffold a new Hyperterse project with starter files.
+
+```bash
+hyperterse init
+```
+
+### Created Files
+
+| Path | Content |
+|---|---|
+| `.hyperterse` | Root config with default name and server settings. |
+| `app/adapters/my-database.terse` | Placeholder adapter definition. |
+| `app/routes/health/config.terse` | Health check route configuration. |
+| `app/routes/health/handler.ts` | Health check handler script. |
+
+### Behavior
+
+- Creates files in the current working directory.
+- Does not overwrite existing files.
+
+---
+
+## `hyperterse upgrade`
+
+Upgrade the installed Hyperterse binary to a newer version.
+
+```bash
+hyperterse upgrade [flags]
+```
+
+### Flags
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `--prerelease` | bool | `false` | Include pre-release versions in upgrade candidates. |
+| `--major` | string | | Target a specific major version number or `next` for the next major. |
+
+### Examples
+
+```bash
+hyperterse upgrade
+hyperterse upgrade --prerelease
+hyperterse upgrade --major next
+hyperterse upgrade --major 3
+```
+
+---
+
+## `hyperterse completion`
+
+Generate shell completion scripts. This command is hidden from the default help output and is primarily used by the installer.
+
+```bash
+hyperterse completion [bash|zsh|fish|powershell]
+```

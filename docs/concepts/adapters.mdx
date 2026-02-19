@@ -1,0 +1,136 @@
+---
+title: Adapters
+description: Adapter configuration for database connectors including PostgreSQL, MySQL, MongoDB, and Redis.
+---
+
+## Overview
+
+An adapter defines a connection binding between the Hyperterse runtime and an external data system. Each adapter file in `app/adapters/` specifies the connector type, connection string, and optional driver-specific options.
+
+Adapters are resolved by name when a route references them via the `use` field. Multiple routes can share a single adapter.
+
+---
+
+## Adapter File Format
+
+Each `app/adapters/*.terse` file is a YAML document with the following structure:
+
+```yaml
+name: primary-db
+connector: postgres
+connection_string: "{{ env.DATABASE_URL }}"
+options:
+  sslmode: require
+  max_connections: "10"
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | No | Adapter identifier. Defaults to filename without extension. |
+| `connector` | string | Yes | Connector type. One of: `postgres`, `mysql`, `mongodb`, `redis`. |
+| `connection_string` | string | Yes | Connection URI. Supports `{{ env.VAR }}` placeholders. |
+| `options` | map[string, string] | No | Driver-specific key-value options. |
+
+---
+
+## Connector Reference
+
+### PostgreSQL
+
+```yaml
+connector: postgres
+connection_string: "postgresql://user:password@host:5432/database"
+options:
+  sslmode: require
+```
+
+The PostgreSQL connector uses `lib/pq`. Connection strings follow the standard `postgresql://` URI scheme. The `options` map accepts any parameter supported by the `pq` driver (e.g., `sslmode`, `connect_timeout`, `application_name`).
+
+Statements are executed as standard SQL. Results are returned as `[]map[string]any` with column names as keys.
+
+### MySQL
+
+```yaml
+connector: mysql
+connection_string: "user:password@tcp(host:3306)/database"
+```
+
+The MySQL connector uses `go-sql-driver/mysql`. Connection strings follow the DSN format: `user:password@tcp(host:port)/dbname?param=value`.
+
+### MongoDB
+
+```yaml
+connector: mongodb
+connection_string: "{{ env.MONGODB_URL }}"
+```
+
+The MongoDB connector uses the official `mongo-driver`. Connection strings follow the `mongodb://` or `mongodb+srv://` URI scheme.
+
+**Statement format:** MongoDB statements must be JSON command payloads rather than SQL. The connector executes them as MongoDB commands. Set `json_statements: true` in the connector configuration when applicable.
+
+### Redis
+
+```yaml
+connector: redis
+connection_string: "redis://localhost:6379/0"
+```
+
+The Redis connector uses `go-redis`. Connection strings follow the `redis://` URI scheme with optional database number.
+
+---
+
+## Environment Variable Substitution
+
+Connection strings support `{{ env.VAR_NAME }}` placeholders. These are resolved at runtime during connector initialization. If a referenced environment variable is not set, the runtime fails at startup with an explicit error identifying the missing variable.
+
+```yaml
+connection_string: "postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"
+```
+
+Store credentials in environment variables or a secrets manager. Do not commit plaintext credentials to configuration files.
+
+---
+
+## Connector Lifecycle
+
+1. **Initialization** — When the runtime starts, the `ConnectorManager` initializes all adapters referenced by at least one route. Initialization happens in parallel using `errgroup`. Each connector establishes its connection pool and performs a connectivity check.
+
+2. **Failure behavior** — If any connector fails to initialize (unreachable host, invalid credentials, network timeout), the runtime exits with a non-zero status. Partial startup is not supported.
+
+3. **Execution** — During tool execution, the executor resolves the target connector by adapter name and delegates the substituted statement to the connector's `Execute` method.
+
+4. **Shutdown** — On `SIGINT` or `SIGTERM`, all connectors are closed concurrently. The runtime waits for in-flight queries to complete before terminating connections.
+
+---
+
+## Naming Constraints
+
+- Adapter names must start with a letter (`a-z`, `A-Z`).
+- Subsequent characters may include letters, digits, hyphens, and underscores.
+- Names must be unique across the project.
+- The parser validator enforces these rules at compile time.
+
+---
+
+## Multiple Adapters
+
+A project can define any number of adapters. Different routes can reference different adapters:
+
+```
+app/adapters/
+  users-db.terse       # PostgreSQL for user data
+  analytics-db.terse   # MySQL for analytics
+  cache.terse          # Redis for caching
+```
+
+```yaml
+# app/routes/get-user/config.terse
+use: users-db
+statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
+```
+
+```yaml
+# app/routes/page-views/config.terse
+use: analytics-db
+statement: "SELECT count(*) as views FROM page_events WHERE page = {{ inputs.page }}"
+```

@@ -1,0 +1,174 @@
+---
+title: Execution Pipeline
+description: Step-by-step execution flow for tool invocations, including route resolution, authentication, input processing, execution, output processing, and error propagation.
+---
+
+## Pipeline Overview
+
+Every `tools/call` request passes through a deterministic pipeline. The pipeline is identical regardless of whether the route is DB-backed or script-backed — only the execution step differs.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  1. Route Resolution                                         │
+│  2. Authentication                                           │
+│  3. Input Transform (optional)                               │
+│  4. Execution (handler script OR connector query)            │
+│  5. Output Transform (optional)                              │
+│  6. Response Serialization                                   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+If any stage fails, execution halts immediately and an error response is returned. Subsequent stages are not executed.
+
+---
+
+## Stage 1: Route Resolution
+
+The MCP adapter matches the tool name from the `tools/call` request to a compiled route definition.
+
+- If a matching route is found, the pipeline proceeds.
+- If no route matches, a JSON-RPC error is returned with a "tool not found" message.
+
+Route lookup is O(1) via an in-memory map populated at startup.
+
+---
+
+## Stage 2: Authentication
+
+If the route defines an `auth` block, the configured plugin is invoked with the request context and policy parameters.
+
+**Behavior:**
+- The auth plugin receives the HTTP headers from the request context and the policy map from the route config.
+- If the plugin returns `nil`, authentication passes.
+- If the plugin returns an error, the pipeline halts and the error is returned to the caller.
+
+**No `auth` block:** If the route has no `auth` configuration, this stage is skipped entirely. The route is unauthenticated.
+
+---
+
+## Stage 3: Input Transform
+
+If `scripts.input_transform` is configured (or discovered by convention), the bundled `inputTransform` function is executed in the Goja VM.
+
+**Payload:**
+
+```json
+{
+  "inputs": { "user_id": 42 },
+  "route": "get-user"
+}
+```
+
+**Behavior:**
+- The function receives the original inputs after type conversion and default application.
+- The returned object replaces the inputs for all subsequent stages.
+- Throwing an error aborts the pipeline.
+
+**No input transform:** If no input transform script is configured, the original inputs pass through unchanged.
+
+---
+
+## Stage 4: Execution
+
+### Script-Backed Routes (Handler)
+
+When `scripts.handler` is configured, the bundled `handler` function is executed in the Goja VM.
+
+**Payload:**
+
+```json
+{
+  "inputs": { "city": "London" },
+  "route": "get-weather"
+}
+```
+
+The handler's return value becomes the execution result.
+
+### DB-Backed Routes (Connector)
+
+When `use` and `statement` are configured, the executor performs:
+
+1. **Input validation** — Validate all declared inputs against their type definitions. Missing required inputs and type mismatches produce validation errors.
+
+2. **Environment substitution** — Resolve `{{ env.VAR }}` placeholders in the statement. Missing environment variables produce execution errors.
+
+3. **Input substitution** — Replace `{{ inputs.field }}` placeholders with the (post-transform) input values. Substitution is textual — values are inserted as string representations directly into the statement.
+
+4. **Cache check** — If caching is enabled for this route, compute the cache key from the query name and the final substituted statement hash. On cache hit, return the cached result and skip connector execution.
+
+5. **Connector execution** — Delegate the final statement to the target connector's `Execute` method. The connector returns `[]map[string]any` (an array of row-as-map objects).
+
+6. **Cache store** — If caching is enabled and the result was not served from cache, store the result with the configured TTL.
+
+---
+
+## Stage 5: Output Transform
+
+If `scripts.output_transform` is configured (or discovered by convention), the bundled `outputTransform` function is executed in the Goja VM.
+
+**Payload:**
+
+```json
+{
+  "results": [{ "id": 42, "name": "Jane Doe", "email": "jane@example.com" }],
+  "route": "get-user"
+}
+```
+
+**Behavior:**
+- The function receives the raw execution result.
+- The returned value replaces the result for response serialization.
+- Throwing an error aborts the pipeline and returns an error response.
+
+**No output transform:** If no output transform script is configured, the raw execution result is used directly.
+
+---
+
+## Stage 6: Response Serialization
+
+The final result is JSON-encoded and wrapped in an MCP `content` block:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[{\"id\":42,\"name\":\"Jane Doe\",\"email\":\"jane@example.com\"}]"
+    }
+  ]
+}
+```
+
+---
+
+## Error Propagation
+
+Errors at any stage produce a JSON-RPC error response:
+
+| Stage | Error condition | Behavior |
+|---|---|---|
+| Route resolution | Tool name not found | JSON-RPC error, code `-32601` |
+| Authentication | Plugin returns error | JSON-RPC error, code `-32000` |
+| Input transform | Script throws | JSON-RPC error, code `-32000` |
+| Input validation | Missing required input or type mismatch | JSON-RPC error, code `-32000` |
+| Env substitution | Missing environment variable | JSON-RPC error, code `-32000` |
+| Connector execution | Query error (syntax, connection, timeout) | JSON-RPC error, code `-32000` |
+| Handler execution | Script throws | JSON-RPC error, code `-32000` |
+| Output transform | Script throws | JSON-RPC error, code `-32000` |
+
+Error messages from scripts and connectors are included in the response. Internal stack traces are logged at debug level but not exposed to callers.
+
+---
+
+## Observability
+
+Each pipeline execution is instrumented with OpenTelemetry tracing when observability is configured. Span attributes include:
+
+- Tool/query name
+- Execution stage
+- Cache hit/miss status
+- Connector type
+- Execution duration
+
+Sensitive values (connection strings, credentials) are redacted in trace attributes. See [Observability](/runtime/observability).

@@ -1,0 +1,177 @@
+---
+title: Adapter Configuration
+description: Complete field reference for app/adapters/*.terse adapter definition files, including per-connector options and connection string formats.
+---
+
+## Overview
+
+Each file in `app/adapters/` defines one adapter — a named binding between the Hyperterse runtime and an external data system. Adapter files are YAML documents with a fixed schema.
+
+---
+
+## Field Reference
+
+```yaml
+name: primary-db
+connector: postgres
+connection_string: "postgresql://user:pass@host:5432/db"
+options:
+  sslmode: require
+  max_connections: "10"
+```
+
+### `name`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | No |
+| **Default** | Filename without `.terse` extension |
+| **Pattern** | `^[a-zA-Z][a-zA-Z0-9_-]*$` |
+| **Description** | Adapter identifier. Referenced by routes via the `use` field. Must be unique across the project. |
+
+### `connector`
+
+| | |
+|---|---|
+| **Type** | string (enum) |
+| **Required** | Yes |
+| **Values** | `postgres`, `mysql`, `mongodb`, `redis` |
+| **Description** | Connector type that determines which database driver is used. |
+
+### `connection_string`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | Yes |
+| **Description** | Database connection URI. Supports `{{ env.VAR }}` placeholders resolved at runtime. |
+
+### `options`
+
+| | |
+|---|---|
+| **Type** | map[string, string] |
+| **Required** | No |
+| **Description** | Driver-specific key-value configuration options. All values are strings. |
+
+---
+
+## Connection String Formats
+
+### PostgreSQL
+
+```
+postgresql://user:password@host:port/database?param=value
+```
+
+Standard `lib/pq` DSN. Supports all `pq` connection parameters in the query string or in the `options` map.
+
+**Examples:**
+
+```yaml
+connection_string: "postgresql://admin:secret@db.internal:5432/production?sslmode=require"
+```
+
+```yaml
+connection_string: "{{ env.DATABASE_URL }}"
+```
+
+### MySQL
+
+```
+user:password@tcp(host:port)/database?param=value
+```
+
+Standard `go-sql-driver/mysql` DSN format.
+
+**Example:**
+
+```yaml
+connection_string: "{{ env.MYSQL_USER }}:{{ env.MYSQL_PASS }}@tcp({{ env.MYSQL_HOST }}:3306)/{{ env.MYSQL_DB }}"
+```
+
+### MongoDB
+
+```
+mongodb://user:password@host:port/database
+mongodb+srv://user:password@cluster.example.com/database
+```
+
+Standard MongoDB URI. Supports replica set URIs and SRV records.
+
+**Example:**
+
+```yaml
+connection_string: "{{ env.MONGODB_URL }}"
+```
+
+### Redis
+
+```
+redis://user:password@host:port/db_number
+redis://host:port/db_number
+```
+
+Standard `go-redis` URI. The database number is specified as the path component.
+
+**Example:**
+
+```yaml
+connection_string: "redis://{{ env.REDIS_HOST }}:6379/0"
+```
+
+---
+
+## Common Options
+
+### PostgreSQL Options
+
+| Key | Example | Description |
+|---|---|---|
+| `sslmode` | `require`, `disable`, `verify-full` | SSL connection mode. |
+| `connect_timeout` | `"10"` | Connection timeout in seconds. |
+| `application_name` | `"hyperterse"` | Application name reported to the server. |
+
+### MySQL Options
+
+Options are typically passed in the connection string query parameters. The `options` map can be used for additional driver configuration.
+
+### MongoDB Options
+
+MongoDB connection options are typically embedded in the connection string. When `json_statements` mode is needed, it is configured through connector-level settings.
+
+### Redis Options
+
+Redis connection options are typically embedded in the connection string (password, database number, TLS).
+
+---
+
+## Environment Variable Substitution
+
+Connection strings and option values support `{{ env.VAR_NAME }}` placeholders:
+
+```yaml
+connection_string: "postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"
+options:
+  sslmode: "{{ env.DB_SSL_MODE }}"
+```
+
+Placeholders are resolved at runtime during connector initialization. Missing environment variables cause a startup failure with an explicit error message identifying the unresolved variable.
+
+---
+
+## Lifecycle
+
+1. **Discovery** — The compiler scans `app/adapters/*.terse` at build/start time.
+2. **Parsing** — Each file is parsed into an `Adapter` protobuf message.
+3. **Validation** — Connector type and connection string presence are verified. Name uniqueness is enforced.
+4. **Initialization** — At runtime startup, each adapter referenced by at least one route is initialized through the `ConnectorManager`. Connections are established in parallel.
+5. **Execution** — Routes reference adapters by name. The executor resolves the connector and delegates statement execution.
+6. **Shutdown** — All connectors are closed concurrently on runtime termination.
+
+---
+
+## JSON Schema
+
+Editor validation is available through `schema/adapter.terse.schema.json`. Associate this schema with `**/adapters/*.terse` file patterns in your editor. See [Configuration Schemas](/reference/configuration-schemas).

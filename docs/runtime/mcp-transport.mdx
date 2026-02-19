@@ -1,0 +1,188 @@
+---
+title: MCP Transport
+description: MCP Streamable HTTP endpoint behavior, JSON-RPC protocol surface, request and response formats, CORS configuration, and error handling.
+---
+
+## Transport Model
+
+Hyperterse exposes tools through the MCP (Model Context Protocol) Streamable HTTP transport. The runtime registers a single MCP endpoint that handles both tool discovery and tool execution via JSON-RPC 2.0.
+
+| Endpoint | Methods | Purpose |
+|---|---|---|
+| `/mcp` | `GET`, `POST`, `DELETE` | MCP Streamable HTTP. Handles JSON-RPC requests for `tools/list` and `tools/call`. |
+| `/heartbeat` | `GET` | Health check. Returns `{"success": true}`. |
+
+All tool interaction routes through `/mcp`. There are no per-tool HTTP endpoints.
+
+---
+
+## Protocol: `tools/list`
+
+Returns the complete set of registered tools with their input schemas.
+
+### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/list",
+  "id": 1
+}
+```
+
+### Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "get-user",
+        "description": "Retrieve a user by their identifier",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "user_id": {
+              "type": "integer",
+              "description": "Primary key of the user record"
+            }
+          },
+          "required": ["user_id"]
+        }
+      }
+    ]
+  }
+}
+```
+
+### Schema Generation
+
+The `inputSchema` for each tool is generated from the route's `inputs` block:
+
+| Terse type | JSON Schema type |
+|---|---|
+| `string` | `"string"` |
+| `int` | `"integer"` |
+| `float` | `"number"` |
+| `boolean` | `"boolean"` |
+| `datetime` | `"string"` |
+
+Required inputs (non-optional, no default) appear in the `required` array. Optional inputs and inputs with defaults are omitted from `required`.
+
+---
+
+## Protocol: `tools/call`
+
+Executes a tool with the provided arguments.
+
+### Request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "get-user",
+    "arguments": {
+      "user_id": 42
+    }
+  },
+  "id": 2
+}
+```
+
+### Successful Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[{\"id\":42,\"name\":\"Jane Doe\",\"email\":\"jane@example.com\"}]"
+      }
+    ]
+  }
+}
+```
+
+The `content` array contains one text entry with the JSON-encoded result. For DB-backed routes, this is the serialized row set. For handler routes, this is the serialized return value from the handler function.
+
+### Error Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "error": {
+    "code": -32000,
+    "message": "execution failed: user_id must be a positive integer"
+  }
+}
+```
+
+Errors from auth failures, input validation, connector execution, and script exceptions are returned as JSON-RPC error objects. Internal stack traces are logged but not included in the response.
+
+---
+
+## Heartbeat
+
+The `/heartbeat` endpoint provides a minimal health check:
+
+```bash
+curl http://localhost:8080/heartbeat
+```
+
+```json
+{"success": true}
+```
+
+This endpoint bypasses the MCP handler and auth pipeline. It returns `200 OK` when the HTTP server is accepting connections, regardless of connector state.
+
+---
+
+## CORS
+
+The runtime applies CORS headers to all responses. The default configuration allows:
+
+- All origins (`*`)
+- Methods: `GET`, `POST`, `DELETE`, `OPTIONS`
+- Headers: `Content-Type`, `Authorization`, `X-API-Key`, `Mcp-Session-Id`
+
+CORS preflight (`OPTIONS`) requests are handled automatically.
+
+For production deployments behind a reverse proxy, configure CORS at the proxy layer and disable or restrict the built-in CORS to your domain.
+
+---
+
+## HTTP Headers in MCP Context
+
+When a `tools/call` request arrives via MCP HTTP transport, the HTTP request headers are extracted and made available to the execution pipeline. This enables:
+
+- **Auth plugins** to read `X-API-Key`, `Authorization`, or custom headers.
+- **Custom plugins** to implement header-based routing or tenant isolation.
+
+Headers are available through `framework.RequestHeadersFromContext(ctx)` in Go auth plugin implementations.
+
+---
+
+## Session Management
+
+The MCP Streamable HTTP transport supports session-based interaction via the `Mcp-Session-Id` header. The `DELETE /mcp` method terminates a session.
+
+For stateless tool invocation (the common case), sessions are not required. Each `POST /mcp` request with a `tools/call` method is independently executed.
+
+---
+
+## Protobuf Service Contracts
+
+The `runtime.proto` file defines two RPC services:
+
+- **QueryService** — `ExecuteQuery` (maps to `POST /query/{query_name}`). Defined but not registered by the current runtime.
+- **MCPService** — `ListTools` and `CallTool` (maps to MCP JSON-RPC methods). Active in the current runtime.
+
+The protobuf contracts serve as the canonical API specification. The runtime implements the MCP surface; direct HTTP query endpoints may be activated in future versions.

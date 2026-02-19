@@ -1,0 +1,183 @@
+---
+title: Root Configuration
+description: Complete field reference for the .hyperterse root configuration file.
+---
+
+## Overview
+
+The root configuration file (`.hyperterse` or any `.terse` file) provides service-level settings. It does not contain adapter or route definitions — those are discovered from the `app/` directory.
+
+---
+
+## Full Schema
+
+```yaml
+name: my-service
+version: 1.0.0
+
+server:
+  port: 8080
+  log_level: 3
+  queries:
+    cache:
+      enabled: true
+      ttl: 60
+
+build:
+  out: dist
+  clean_dir: false
+
+framework:
+  app_dir: app
+```
+
+---
+
+## Field Reference
+
+### `name`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | Yes |
+| **Pattern** | `^[a-z][a-z0-9_-]*$` |
+| **Description** | Service identifier. Used in logging, tracing, and manifest metadata. Must start with a lowercase letter. May contain lowercase letters, digits, hyphens, and underscores. |
+
+### `version`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Required** | No |
+| **Description** | Service version. Informational. Included in manifest metadata and startup logs. |
+
+---
+
+### `server`
+
+Server runtime configuration.
+
+#### `server.port`
+
+| | |
+|---|---|
+| **Type** | integer or string |
+| **Default** | `8080` |
+| **Resolution** | CLI `--port` → config → env `PORT` → `8080` |
+| **Description** | TCP port for the HTTP/MCP server. |
+
+#### `server.log_level`
+
+| | |
+|---|---|
+| **Type** | integer |
+| **Range** | 1–4 |
+| **Default** | `3` |
+| **Resolution** | `--verbose` (sets 4) → `--log-level` → config → `3` |
+| **Description** | Log verbosity. 1 = error, 2 = warn, 3 = info, 4 = debug. |
+
+#### `server.queries.cache.enabled`
+
+| | |
+|---|---|
+| **Type** | boolean |
+| **Default** | `false` |
+| **Description** | Enable in-memory query result caching globally. Routes can override this per-route. |
+
+#### `server.queries.cache.ttl`
+
+| | |
+|---|---|
+| **Type** | integer |
+| **Default** | `120` |
+| **Unit** | Seconds |
+| **Description** | Default time-to-live for cached query results. Routes can override this per-route. |
+
+---
+
+### `build`
+
+Build output configuration. Used by `hyperterse build`.
+
+#### `build.out`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Aliases** | `out_dir` |
+| **Default** | `dist` |
+| **Resolution** | CLI `--out` → config → `dist` |
+| **Description** | Output directory for build artifacts (binary, manifest, bundles). |
+
+#### `build.clean_dir`
+
+| | |
+|---|---|
+| **Type** | boolean |
+| **Default** | `false` |
+| **Description** | Whether to remove the output directory before building. |
+
+---
+
+### `framework`
+
+Framework-level directives.
+
+#### `framework.app_dir`
+
+| | |
+|---|---|
+| **Type** | string |
+| **Default** | `app` |
+| **Description** | Base directory for adapter and route discovery. Exposed in the JSON schema for forward compatibility. The current runtime discovers from `app/` relative to the root config path regardless of this setting. |
+
+---
+
+## Environment Variable Substitution
+
+String values in the root config and in adapter/route configs support `{{ env.VAR_NAME }}` placeholders. These are resolved at runtime:
+
+```yaml
+server:
+  port: "{{ env.PORT }}"
+```
+
+If the referenced environment variable is not set, the runtime fails at startup with an error identifying the missing variable.
+
+---
+
+## JSON Schema
+
+Editor validation is available through `schema/root.terse.schema.json`. Configure your editor to associate this schema with `.hyperterse` files. See [Configuration Schemas](/reference/configuration-schemas).
+
+---
+
+## Minimal Example
+
+```yaml
+name: my-service
+```
+
+This is a valid root config. All other fields use defaults: port 8080, log level 3, caching disabled.
+
+---
+
+## Full Example
+
+```yaml
+name: production-service
+version: 2.1.0
+
+server:
+  port: "{{ env.PORT }}"
+  log_level: 2
+  queries:
+    cache:
+      enabled: true
+      ttl: 300
+
+build:
+  out: release
+  clean_dir: true
+```

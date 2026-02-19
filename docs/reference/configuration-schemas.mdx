@@ -1,0 +1,101 @@
+---
+title: Configuration Schemas
+description: JSON Schema files for editor-time validation of .hyperterse and .terse configuration files.
+---
+
+## Overview
+
+Hyperterse ships three role-based JSON Schema files that provide editor-time validation, autocompletion, and documentation for `.hyperterse` and `.terse` configuration files.
+
+| Schema file | Target files | Purpose |
+|---|---|---|
+| `schema/root.terse.schema.json` | `.hyperterse`, root `.terse` files | Root service configuration |
+| `schema/adapter.terse.schema.json` | `app/adapters/*.terse` | Adapter definitions |
+| `schema/route.terse.schema.json` | `app/routes/*/config.terse` | Route/tool definitions |
+
+---
+
+## Schema Generation
+
+Schemas are generated from protobuf definitions to ensure consistency between the configuration model and editor validation:
+
+```bash
+bun run scripts/generate-schema.ts proto/connectors/connectors.proto proto/primitives/primitives.proto
+```
+
+Or via the Makefile:
+
+```bash
+make generate
+```
+
+The generator reads connector enum values from `connectors.proto` and primitive type enum values from `primitives.proto`, then emits JSON Schema files with the correct `enum` constraints.
+
+---
+
+## Editor Configuration
+
+### VS Code / Cursor
+
+Add the following to `.vscode/settings.json`:
+
+```json
+{
+  "yaml.schemas": {
+    "schema/root.terse.schema.json": "**/.hyperterse",
+    "schema/adapter.terse.schema.json": "**/adapters/*.terse",
+    "schema/route.terse.schema.json": "**/routes/**/config.terse"
+  }
+}
+```
+
+This requires the [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml) to be installed.
+
+### JetBrains IDEs
+
+Associate JSON Schema files via **Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings**. Add one mapping per schema with the appropriate file pattern.
+
+---
+
+## Schema Highlights
+
+### Root Schema (`root.terse.schema.json`)
+
+- `name` — Required. Pattern: `^[a-z][a-z0-9_-]*$`.
+- `version` — Optional string.
+- `server.port` — Integer or string.
+- `server.log_level` — Integer, range 1–4.
+- `server.queries.cache` — Object with `enabled` (boolean) and `ttl` (integer).
+- `build.out` / `build.out_dir` — String.
+- `build.clean_dir` — Boolean.
+- `framework.app_dir` — String.
+
+### Adapter Schema (`adapter.terse.schema.json`)
+
+- `connector` — Required. Enum: `postgres`, `redis`, `mysql`, `mongodb`.
+- `connection_string` — Required string.
+- `name` — Optional string.
+- `options` — Optional map of strings.
+
+### Route Schema (`route.terse.schema.json`)
+
+- `description` — Required string.
+- `use` — String or array of strings.
+- `statement` — String.
+- `inputs` — Map of typed input definitions (`type`, `description`, `optional`, `default`).
+- `data` — Map of typed output definitions (`type`, `description`, `optional`, `map_to`).
+- `scripts` — Object with `handler`, `input_transform`, `output_transform`.
+- `auth` — Object with `plugin` and `policy`.
+- `cache` — Object with `enabled` and `ttl`.
+- **Constraint:** Route must have `use` or `scripts.handler` (enforced via `allOf`).
+
+---
+
+## Keeping Schemas in Sync
+
+Per the project's configuration schema documentation rule: when any configuration shape changes, schema files and documentation must be updated in the same change. Specifically:
+
+1. Regenerate schema artifacts in `schema/`.
+2. Update field definitions in the reference documentation.
+3. Update `.vscode/settings.json` globs if file-role matching changed.
+4. Verify the PR includes current schema files.

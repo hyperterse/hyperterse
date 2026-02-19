@@ -1,5 +1,0 @@
-{
-  "title": "Methods",
-  "icon": "Wrench",
-  "pages": ["docker", "kubernetes", "bare-metal"]
-}
