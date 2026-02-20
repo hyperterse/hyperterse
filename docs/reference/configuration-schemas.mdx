@@ -1,17 +1,15 @@
 ---
 title: Configuration schemas
 description: JSON Schema files for editor-time validation of .hyperterse and .terse configuration files.
-icon: "brackets-curly"
 ---
 
 Hyperterse ships three role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
 
-| Schema file | Target files | Purpose |
-|---|---|---|
-| `schema/root.terse.schema.json` | `.hyperterse` | Root service configuration |
-| `schema/adapter.terse.schema.json` | `app/adapters/*.terse` | Adapter definitions |
-| `schema/route.terse.schema.json` | `app/routes/*/config.terse` | Route/tool definitions |
-
+| Schema file                        | Target files                | Purpose                    |
+| ---------------------------------- | --------------------------- | -------------------------- |
+| `schema/root.terse.schema.json`    | `.hyperterse`               | Root service configuration |
+| `schema/adapter.terse.schema.json` | `app/adapters/*.terse`      | Adapter definitions        |
+| `schema/route.terse.schema.json`   | `app/routes/*/config.terse` | Route/tool definitions     |
 
 ## Generation
 
@@ -22,7 +20,6 @@ make generate
 ```
 
 The generator reads connector and primitive type enums and emits JSON Schema files with the correct `enum` constraints.
-
 
 ## Editor setup
 
@@ -47,7 +44,6 @@ Requires the [YAML extension](https://marketplace.visualstudio.com/items?itemNam
 ### JetBrains IDEs
 
 **Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings.** Add one mapping per schema with the appropriate file pattern.
-
 
 ## Schema highlights
 
@@ -82,7 +78,6 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `auth` — `plugin`, `policy`.
 - `cache` — `enabled`, `ttl`.
 - **Constraint:** `use` or `scripts.handler` required (enforced via `allOf`).
-
 
 ## Keeping schemas in sync
 

@@ -1,13 +1,14 @@
 ---
 title: MongoDB
 description: Connect Hyperterse to MongoDB for document-backed MCP tools using native database commands.
-icon: "leaf"
 ---
 
 Hyperterse supports MongoDB as a document database connector. Statements are passed as native MongoDB database commands — the same syntax used by `db.runCommand()` in the MongoDB shell. This gives you access to any operation MongoDB supports: `find`, `aggregate`, `insert`, `update`, `delete`, and administrative commands.
 
 <Note>
-Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MongoDB instance (self-hosted or [MongoDB Atlas](https://www.mongodb.com/atlas)) and a connection string.
+  Hyperterse connects to your existing database. It does not create or manage
+  databases — you provide a running MongoDB instance (self-hosted or [MongoDB
+  Atlas](https://www.mongodb.com/atlas)) and a connection string.
 </Note>
 
 ## Adapter configuration
@@ -16,43 +17,52 @@ Create an adapter file in `app/adapters/`:
 
 ```yaml app/adapters/mongo-db.terse
 connector: mongodb
-connection_string: "{{ env.MONGODB_URL }}"
+connection_string: '{{ env.MONGODB_URL }}'
 options:
-  maxPoolSize: "50"
-  minPoolSize: "5"
+  maxPoolSize: '50'
+  minPoolSize: '5'
 ```
 
 The connection string uses the standard MongoDB URI format:
 
 <Tabs>
   <Tab title="Standard">
-    ```
-    mongodb://user:password@host:27017/database
-    ```
+    ``` mongodb://user:password@host:27017/database ```
   </Tab>
   <Tab title="Atlas / SRV">
-    ```
-    mongodb+srv://user:password@cluster.mongodb.net/database
-    ```
+    ``` mongodb+srv://user:password@cluster.mongodb.net/database ```
   </Tab>
 </Tabs>
 
 ### Connection options
 
-<ParamField body="maxPoolSize" type="string">
+<ParamField
+  body="maxPoolSize"
+  type="string"
+>
   Maximum number of connections in the pool.
 </ParamField>
 
-<ParamField body="minPoolSize" type="string">
+<ParamField
+  body="minPoolSize"
+  type="string"
+>
   Minimum number of idle connections maintained in the pool.
 </ParamField>
 
-<ParamField body="connectTimeoutMS" type="string">
+<ParamField
+  body="connectTimeoutMS"
+  type="string"
+>
   Timeout in milliseconds for establishing a new connection.
 </ParamField>
 
-<ParamField body="serverSelectionTimeoutMS" type="string">
-  Timeout in milliseconds for selecting a server from a replica set or sharded cluster.
+<ParamField
+  body="serverSelectionTimeoutMS"
+  type="string"
+>
+  Timeout in milliseconds for selecting a server from a replica set or sharded
+  cluster.
 </ParamField>
 
 ### Verify the connection
@@ -76,7 +86,7 @@ If the connection fails, the server exits immediately with a diagnostic message.
 MongoDB route statements are JSON objects with two required fields: `database` and `command`. The `command` field takes a raw MongoDB database command.
 
 ```yaml app/routes/find-users/config.terse
-description: "Find users by name"
+description: 'Find users by name'
 use: mongo-db
 statement: |
   {
@@ -90,26 +100,28 @@ statement: |
 inputs:
   name:
     type: string
-    description: "User name to search for"
+    description: 'User name to search for'
 auth:
   plugin: allow_all
 ```
 
 <Warning>
-The command name (e.g., `"find"`, `"insert"`, `"aggregate"`) **must be the first key** inside the `command` object. MongoDB rejects commands where the operation name is not the first field.
+  The command name (e.g., `"find"`, `"insert"`, `"aggregate"`) **must be the
+  first key** inside the `command` object. MongoDB rejects commands where the
+  operation name is not the first field.
 </Warning>
 
 ### Statement format
 
-| Field | Description |
-|---|---|
-| `database` | The MongoDB database to run the command against. |
-| `command` | A raw MongoDB [database command](https://www.mongodb.com/docs/manual/reference/command/) object. |
+| Field      | Description                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------ |
+| `database` | The MongoDB database to run the command against.                                                 |
+| `command`  | A raw MongoDB [database command](https://www.mongodb.com/docs/manual/reference/command/) object. |
 
 ### Aggregation example
 
 ```yaml app/routes/sales-summary/config.terse
-description: "Aggregate sales by product category"
+description: 'Aggregate sales by product category'
 use: mongo-db
 statement: |
   {
@@ -127,7 +139,7 @@ statement: |
 inputs:
   year:
     type: int
-    description: "Calendar year to aggregate"
+    description: 'Calendar year to aggregate'
 auth:
   plugin: allow_all
 ```

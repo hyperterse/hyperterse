@@ -1,13 +1,14 @@
 ---
 title: Redis
 description: Connect Hyperterse to Redis for key-value, caching, and data structure operations.
-icon: "key"
 ---
 
 Hyperterse supports Redis as a connector for key-value operations, caching lookups, session retrieval, rate limit checks, and working with Redis data structures (hashes, lists, sets, sorted sets). Statements are standard Redis commands executed directly against the server.
 
 <Note>
-Hyperterse connects to your existing Redis instance. It does not create or manage databases — you provide a running Redis server (self-hosted, AWS ElastiCache, Upstash, etc.) and a connection string.
+  Hyperterse connects to your existing Redis instance. It does not create or
+  manage databases — you provide a running Redis server (self-hosted, AWS
+  ElastiCache, Upstash, etc.) and a connection string.
 </Note>
 
 ## Adapter configuration
@@ -16,43 +17,40 @@ Create an adapter file in `app/adapters/`:
 
 ```yaml app/adapters/cache.terse
 connector: redis
-connection_string: "{{ env.REDIS_URL }}"
+connection_string: '{{ env.REDIS_URL }}'
 options:
-  pool_size: "10"
+  pool_size: '10'
 ```
 
 The connection string uses the standard Redis URI format:
 
 <Tabs>
-  <Tab title="Standard">
-    ```
-    redis://user:password@host:port/db_number
-    ```
-  </Tab>
+  <Tab title="Standard">``` redis://user:password@host:port/db_number ```</Tab>
   <Tab title="TLS (cloud providers)">
-    ```
-    rediss://user:password@host:port/db_number
-    ```
-    Note the double `s` in `rediss://` for TLS-encrypted connections.
+    ``` rediss://user:password@host:port/db_number ``` Note the double `s` in
+    `rediss://` for TLS-encrypted connections.
   </Tab>
 </Tabs>
 
 ### Connection options
 
-<ParamField body="pool_size" type="string">
+<ParamField
+  body="pool_size"
+  type="string"
+>
   Maximum number of connections in the pool.
 </ParamField>
 
 For password-protected instances, include the password in the URI:
 
 ```yaml
-connection_string: "redis://:password@localhost:6379/0"
+connection_string: 'redis://:password@localhost:6379/0'
 ```
 
 For TLS-enabled cloud providers, use the `rediss://` scheme:
 
 ```yaml
-connection_string: "rediss://:password@host:6379/0"
+connection_string: 'rediss://:password@host:6379/0'
 ```
 
 ### Verify the connection
@@ -76,13 +74,13 @@ If the connection fails, the server exits immediately with a diagnostic message.
 Redis route statements contain the Redis command to execute. Use `{{ inputs.field }}` placeholders for dynamic values.
 
 ```yaml app/routes/get-cached-value/config.terse
-description: "Retrieve a cached value by key"
+description: 'Retrieve a cached value by key'
 use: cache
-statement: "GET {{ inputs.key }}"
+statement: 'GET {{ inputs.key }}'
 inputs:
   key:
     type: string
-    description: "Cache key"
+    description: 'Cache key'
 auth:
   plugin: allow_all
 ```
@@ -100,6 +98,7 @@ Redis commands return results in JSON format. Multiple values are returned as ar
     # SET with expiry
     statement: "SET {{ inputs.key }} {{ inputs.value }} EX {{ inputs.ttl }}"
     ```
+
   </Tab>
   <Tab title="Hashes">
     ```yaml
@@ -109,6 +108,7 @@ Redis commands return results in JSON format. Multiple values are returned as ar
     # Get a specific field
     statement: "HGET {{ inputs.key }} {{ inputs.field }}"
     ```
+
   </Tab>
   <Tab title="Lists">
     ```yaml

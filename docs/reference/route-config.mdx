@@ -1,7 +1,6 @@
 ---
-title: Route configuration
-description: Complete field reference for app/routes/*/config.terse route definition files.
-icon: "route"
+title: Route
+description: Complete field reference route definition files.
 ---
 
 Each `app/routes/*/config.terse` defines one MCP tool — its execution strategy, inputs, outputs, scripts, authentication, and caching behavior.
@@ -10,7 +9,7 @@ Each `app/routes/*/config.terse` defines one MCP tool — its execution strategy
 
 ```yaml app/routes/get-user-profile/config.terse
 name: get-user-profile
-description: "Retrieve a user profile by primary key"
+description: 'Retrieve a user profile by primary key'
 use: primary-db
 statement: |
   SELECT id, name, email, created_at
@@ -19,7 +18,7 @@ statement: |
 inputs:
   user_id:
     type: int
-    description: "User primary key"
+    description: 'User primary key'
 data:
   id:
     type: int
@@ -30,28 +29,32 @@ data:
   created_at:
     type: datetime
 scripts:
-  input_transform: "./validate-input.ts"
-  output_transform: "./format-output.ts"
+  input_transform: './validate-input.ts'
+  output_transform: './format-output.ts'
 auth:
   plugin: api_key
   policy:
-    value: "{{ env.API_KEY }}"
+    value: '{{ env.API_KEY }}'
 cache:
   enabled: true
   ttl: 120
 ```
-
 
 ## Field reference
 
 <ParamField body="name" type="string">
   MCP tool name. Must be unique across all routes.
 
-  **Default:** directory name (e.g., `get-user` from `app/routes/get-user/`).
+**Default:** directory name (e.g., `get-user` from `app/routes/get-user/`).
+
 </ParamField>
 
-<ParamField body="description" type="string">
-  Human-readable tool description. Exposed in the `tools/list` MCP response. Strongly recommended for agent discoverability.
+<ParamField
+  body="description"
+  type="string"
+>
+  Human-readable tool description. Exposed in the `tools/list` MCP response.
+  Strongly recommended for agent discoverability.
 </ParamField>
 
 <ParamField body="use" type="string | string[]">
@@ -65,12 +68,13 @@ cache:
 <ParamField body="statement" type="string">
   SQL query or database command. Supports `{{ env.VAR }}` and `{{ inputs.field }}` placeholders. Use YAML multiline syntax (`|`) for readability.
 
-  ```yaml
-  statement: |
-    SELECT id, name, email
-    FROM users
-    WHERE id = {{ inputs.user_id }}
-  ```
+```yaml
+statement: |
+  SELECT id, name, email
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+```
+
 </ParamField>
 
 <ParamField body="inputs" type="object">
@@ -92,6 +96,7 @@ cache:
     <ParamField body="default" type="string">
       Default value when the caller omits this input. Always a string; converted to the declared type at runtime.
     </ParamField>
+
   </Expandable>
 </ParamField>
 
@@ -114,6 +119,7 @@ cache:
     <ParamField body="map_to" type="string">
       Source column name if different from the key. Use when your database column name does not match the desired output field name.
     </ParamField>
+
   </Expandable>
 </ParamField>
 
@@ -132,6 +138,7 @@ cache:
     <ParamField body="output_transform" type="string">
       Output transform script path. Runs after statement execution. Receives raw results and returns modified results.
     </ParamField>
+
   </Expandable>
 
   <Tip>
@@ -157,6 +164,7 @@ cache:
           value: "{{ env.API_KEY }}"
       ```
     </ParamField>
+
   </Expandable>
 </ParamField>
 
@@ -171,9 +179,9 @@ cache:
     <ParamField body="ttl" type="integer">
       Cache TTL in seconds for this route. Inherits from `server.queries.cache.ttl` if not set.
     </ParamField>
+
   </Expandable>
 </ParamField>
-
 
 ## Validity rules
 
@@ -183,9 +191,9 @@ A route is valid when at least one of these conditions is met:
 2. `scripts.handler` is defined (script-backed route).
 
 <Warning>
-Routes with neither `use` nor `scripts.handler` are rejected during validation.
+  Routes with neither `use` nor `scripts.handler` are rejected during
+  validation.
 </Warning>
-
 
 ## JSON Schema
 

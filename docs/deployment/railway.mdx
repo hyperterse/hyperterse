@@ -1,7 +1,6 @@
 ---
 title: Railway
 description: Deploy Hyperterse on Railway with zero infrastructure management.
-icon: "train"
 ---
 
 Railway is the fastest path from build artifact to running server. It detects your Dockerfile, provisions infrastructure, and gives you a public URL — all in a single deploy command.
@@ -29,6 +28,7 @@ Railway is the fastest path from build artifact to running server. It detects yo
     <Note>
       Adjust the Dockerfile to match your project structure. The key requirement is that the `dist/` directory containing the build artifact is available at runtime.
     </Note>
+
   </Step>
   <Step title="Install the Railway CLI">
     ```bash
@@ -43,6 +43,7 @@ Railway is the fastest path from build artifact to running server. It detects yo
     ```
 
     Railway detects the Dockerfile, builds the image, and deploys it.
+
   </Step>
   <Step title="Set environment variables">
     ```bash
@@ -50,6 +51,7 @@ Railway is the fastest path from build artifact to running server. It detects yo
     ```
 
     Or configure variables in the Railway dashboard under your service's settings.
+
   </Step>
   <Step title="Expose the service">
     In the Railway dashboard, go to your service's **Settings** and generate a public domain. Your Hyperterse MCP endpoint will be available at `https://<your-domain>/mcp`.
@@ -70,7 +72,7 @@ Reference the injected variable in your `.terse` configuration:
 adapters:
   main:
     connector: postgresql
-    connection_string: "{{ env.DATABASE_URL }}"
+    connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 ## Custom domains

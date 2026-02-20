@@ -1,7 +1,6 @@
 ---
 title: Caching
 description: In-memory query result caching, cache key derivation, TTL, and override behavior.
-icon: "bolt"
 ---
 
 Hyperterse includes an executor-level in-memory cache. The cache stores query results keyed by the combination of query name and substituted statement, eliminating redundant connector execution for identical requests.
@@ -17,7 +16,6 @@ cache_key = hash(query_name + substituted_statement)
 ```
 
 The same query with different input values produces different cache entries. Identical inputs for the same query produce a cache hit.
-
 
 ## Configuration
 
@@ -35,10 +33,10 @@ server:
       ttl: 60
 ```
 
-| Field | Type | Default | Description |
-|---|---|---|---|
+| Field     | Type    | Default | Description                                |
+| --------- | ------- | ------- | ------------------------------------------ |
 | `enabled` | boolean | `false` | Whether caching is active for all queries. |
-| `ttl` | integer | `120` | Time-to-live in seconds. |
+| `ttl`     | integer | `120`   | Time-to-live in seconds.                   |
 
 ### Per-route override
 
@@ -59,7 +57,6 @@ cache:
 2. Global server config.
 3. Framework defaults (`enabled: false`, `ttl: 120`).
 
-
 ## Behavior
 
 The cache operates as a read-through layer in front of connectors and handler scripts.
@@ -79,30 +76,29 @@ The cache operates as a read-through layer in front of connectors and handler sc
 
 There is no API for manual cache invalidation. Entries are evicted only by TTL or capacity pressure. For immediate invalidation, disable caching on affected routes and manage cache externally (e.g., through a Redis adapter with handler logic).
 
-
 ## Characteristics
 
-| Property | Value |
-|---|---|
-| Scope | Process-local. Not shared between instances. |
-| Storage | In-memory. No persistence across restarts. |
-| Thread safety | Concurrent-safe. Reads and writes do not block execution. |
+| Property      | Value                                                          |
+| ------------- | -------------------------------------------------------------- |
+| Scope         | Process-local. Not shared between instances.                   |
+| Storage       | In-memory. No persistence across restarts.                     |
+| Thread safety | Concurrent-safe. Reads and writes do not block execution.      |
 | Serialization | Results are cloned on store and retrieval to prevent mutation. |
-| Distributed | None. Each instance maintains its own cache. |
-
+| Distributed   | None. Each instance maintains its own cache.                   |
 
 ## When to enable caching
 
 **Enable for:**
+
 - Read-heavy tools with stable data (reference tables, configuration lookups).
 - Expensive queries where staleness within the TTL window is acceptable.
 - High-frequency tools where connector load reduction matters.
 
 **Disable for:**
+
 - Write operations or tools that must return real-time data.
 - Highly variable inputs where cache fill exceeds hit rate.
 - Tools where result freshness is critical for correctness.
-
 
 ## Monitoring
 

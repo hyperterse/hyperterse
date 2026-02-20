@@ -1,14 +1,16 @@
 ---
 title: Cloudflare
 description: Put Hyperterse behind Cloudflare for edge security, caching, and DDoS protection.
-icon: "cloudflare"
-iconType: "brands"
 ---
 
 Cloudflare acts as a network layer in front of your Hyperterse deployment. It provides DDoS protection, edge caching, Web Application Firewall (WAF), and automatic SSL — regardless of where your Hyperterse server runs.
 
 <Note>
-  Hyperterse is a long-running server process, not a serverless function. Deploy it on a container platform ([AWS](/deployment/aws), [GCP](/deployment/gcp), [Azure](/deployment/azure), [Railway](/deployment/railway), [DigitalOcean](/deployment/digital-ocean)) or [bare metal](/deployment/bare-metal), then put Cloudflare in front of it.
+  Hyperterse is a long-running server process, not a serverless function. Deploy
+  it on a container platform ([AWS](/deployment/aws), [GCP](/deployment/gcp),
+  [Azure](/deployment/azure), [Railway](/deployment/railway),
+  [DigitalOcean](/deployment/digital-ocean)) or [bare
+  metal](/deployment/bare-metal), then put Cloudflare in front of it.
 </Note>
 
 ## Cloudflare Tunnel
@@ -26,6 +28,7 @@ Cloudflare Tunnel creates a secure, outbound-only connection from your server to
     chmod +x cloudflared-linux-amd64
     sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared
     ```
+
   </Step>
   <Step title="Create and configure the tunnel">
     ```bash
@@ -45,6 +48,7 @@ Cloudflare Tunnel creates a secure, outbound-only connection from your server to
         service: http://localhost:8080
       - service: http_status:404
     ```
+
   </Step>
   <Step title="Run the tunnel">
     ```bash
@@ -67,6 +71,7 @@ Cloudflare Tunnel creates a secure, outbound-only connection from your server to
     [Install]
     WantedBy=multi-user.target
     ```
+
   </Step>
   <Step title="Configure DNS">
     In the Cloudflare dashboard, create a CNAME record pointing `api.example.com` to `<tunnel-id>.cfargotunnel.com` with proxy enabled.

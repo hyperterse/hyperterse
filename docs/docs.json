@@ -8,31 +8,42 @@
   },
   "favicon": "/assets/favicon.svg",
   "theme": "mint",
+  "font": {
+    "family": "Inter"
+  },
+  "icons": {
+    "library": "tabler"
+  },
   "colors": {
-    "primary": "#0F766E",
-    "light": "#14B8A6",
-    "dark": "#115E59"
+    "primary": "#0D4A36",
+    "light": "#86efac",
+    "dark": "#0D4A36"
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/hyperterse",
+      "github": "https://github.com/hyperterse/hyperterse",
+      "bluesky": "https://bsky.app/profile/hyperterse.com"
+    }
   },
   "navigation": {
     "tabs": [
       {
         "tab": "Guides",
+        "icon": "book",
         "groups": [
           {
-            "group": "Overview",
-            "pages": [
-              "introduction"
-            ]
-          },
-          {
             "group": "Getting started",
+            "icon": "home",
             "pages": [
+              "introduction",
               "getting-started/installation",
               "getting-started/quickstart"
             ]
           },
           {
             "group": "Core concepts",
+            "icon": "brain",
             "pages": [
               "concepts/project-structure",
               "concepts/adapters",
@@ -43,6 +54,7 @@
           },
           {
             "group": "Runtime",
+            "icon": "run",
             "pages": [
               "runtime/mcp-transport",
               "runtime/execution-pipeline",
@@ -52,6 +64,7 @@
           },
           {
             "group": "Databases",
+            "icon": "database",
             "pages": [
               "databases/postgresql",
               "databases/mysql",
@@ -61,10 +74,12 @@
           },
           {
             "group": "Deployment",
+            "icon": "rocket",
             "pages": [
               "deployment/overview",
               {
                 "group": "Methods",
+                "icon": "server",
                 "pages": [
                   "deployment/docker",
                   "deployment/kubernetes",
@@ -73,6 +88,7 @@
               },
               {
                 "group": "Providers",
+                "icon": "cloud",
                 "pages": [
                   "deployment/aws",
                   "deployment/gcp",
@@ -87,30 +103,29 @@
           },
           {
             "group": "Security",
-            "pages": [
-              "security/input-safety",
-              "security/production-hardening"
-            ]
+            "icon": "shield-half",
+            "pages": ["security/input-safety", "security/production-hardening"]
           },
           {
             "group": "Migration",
-            "pages": [
-              "migration/v1-to-v2"
-            ]
+            "icon": "arrow-right",
+            "pages": ["migration/v1-to-v2"]
           }
         ]
       },
       {
         "tab": "Reference",
+        "icon": "terminal",
+        "pages": ["reference/cli"],
         "groups": [
           {
             "group": "CLI",
-            "pages": [
-              "reference/cli"
-            ]
+            "icon": "terminal",
+            "pages": ["reference/cli"]
           },
           {
             "group": "Configuration",
+            "icon": "braces",
             "pages": [
               "reference/root-config",
               "reference/adapter-config",

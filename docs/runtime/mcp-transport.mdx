@@ -1,18 +1,16 @@
 ---
 title: MCP transport
 description: Streamable HTTP endpoint, JSON-RPC protocol surface, request formats, CORS, and session management.
-icon: "network-wired"
 ---
 
 Hyperterse is an MCP server. All tool interaction — discovery and execution — goes through a single endpoint using the MCP Streamable HTTP transport over JSON-RPC 2.0. There are no per-tool REST endpoints, no GraphQL layer, and no custom protocol. The transport is the protocol, and the protocol is MCP.
 
 ## Endpoints
 
-| Endpoint | Methods | Purpose |
-|---|---|---|
-| `/mcp` | `GET`, `POST`, `DELETE` | MCP Streamable HTTP. Handles `tools/list`, `tools/call`, and session lifecycle. |
-| `/heartbeat` | `GET` | Returns `{"success": true}` when the server is accepting connections. |
-
+| Endpoint     | Methods                 | Purpose                                                                         |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------- |
+| `/mcp`       | `GET`, `POST`, `DELETE` | MCP Streamable HTTP. Handles `tools/list`, `tools/call`, and session lifecycle. |
+| `/heartbeat` | `GET`                   | Returns `{"success": true}` when the server is accepting connections.           |
 
 ## `tools/list`
 
@@ -60,15 +58,14 @@ Returns all registered tools with their input schemas.
 Input schemas are generated from the route's `inputs` block:
 
 | `.terse` type | JSON Schema type |
-|---|---|
-| `string` | `"string"` |
-| `int` | `"integer"` |
-| `float` | `"number"` |
-| `boolean` | `"boolean"` |
-| `datetime` | `"string"` |
+| ------------- | ---------------- |
+| `string`      | `"string"`       |
+| `int`         | `"integer"`      |
+| `float`       | `"number"`       |
+| `boolean`     | `"boolean"`      |
+| `datetime`    | `"string"`       |
 
 Required inputs (non-optional, no default) appear in the `required` array.
-
 
 ## `tools/call`
 
@@ -124,7 +121,6 @@ The `content` array contains one text entry with JSON-encoded results. For DB-ba
 
 Errors from auth failures, input validation, connector execution, and script exceptions are returned as JSON-RPC error objects. Stack traces are logged but not exposed.
 
-
 ## Heartbeat
 
 ```bash
@@ -132,11 +128,10 @@ curl http://localhost:8080/heartbeat
 ```
 
 ```json
-{"success": true}
+{ "success": true }
 ```
 
 The heartbeat bypasses the MCP handler and auth pipeline. It returns `200 OK` when the HTTP server is accepting connections, regardless of connector health.
-
 
 ## CORS
 
@@ -148,18 +143,15 @@ The runtime applies CORS headers to all responses:
 
 Preflight (`OPTIONS`) requests are handled automatically. For production deployments behind a reverse proxy, configure CORS at the proxy layer and restrict the built-in policy to your domain.
 
-
 ## HTTP headers in the execution context
 
 HTTP request headers from `tools/call` requests are forwarded into the execution pipeline. Auth plugins access them through `framework.RequestHeadersFromContext(ctx)`. This makes `X-API-Key`, `Authorization`, and any custom headers available for authentication decisions.
-
 
 ## Session management
 
 The MCP Streamable HTTP transport supports session-based interaction via the `Mcp-Session-Id` header. `DELETE /mcp` terminates a session.
 
 For stateless tool invocation — the common case — sessions are not required. Each `POST /mcp` with a `tools/call` method is independently executed.
-
 
 ## Internal service contracts
 

@@ -1,7 +1,6 @@
 ---
 title: Kubernetes
 description: Deploy Hyperterse on Kubernetes with health probes, resource limits, and secrets management.
-icon: "dharmachakra"
 ---
 
 Hyperterse is a stateless, single-binary server — a natural fit for Kubernetes deployments. Each pod runs one instance of `hyperterse serve` from the pre-built artifact image.
@@ -53,11 +52,11 @@ spec:
             periodSeconds: 5
           resources:
             requests:
-              memory: "64Mi"
-              cpu: "100m"
+              memory: '64Mi'
+              cpu: '100m'
             limits:
-              memory: "256Mi"
-              cpu: "500m"
+              memory: '256Mi'
+              cpu: '500m'
           securityContext:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
@@ -102,7 +101,7 @@ metadata:
   name: db-credentials
 type: Opaque
 stringData:
-  url: "postgresql://user:password@db-host:5432/app"
+  url: 'postgresql://user:password@db-host:5432/app'
 ```
 
 ## Scaling

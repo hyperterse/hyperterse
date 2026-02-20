@@ -1,8 +1,6 @@
 ---
 title: DigitalOcean
 description: Deploy Hyperterse on DigitalOcean using App Platform or Droplets.
-icon: "digital-ocean"
-iconType: "brands"
 ---
 
 DigitalOcean offers two deployment paths for Hyperterse: **App Platform** for managed container hosting, and **Droplets** for full server control. App Platform is recommended for most teams.
@@ -26,6 +24,7 @@ App Platform is DigitalOcean's managed platform-as-a-service. It builds, deploys
     docker build -t registry.digitalocean.com/hyperterse/server:latest .
     docker push registry.digitalocean.com/hyperterse/server:latest
     ```
+
   </Step>
   <Step title="Create the app">
     Create an app spec file:
@@ -58,11 +57,14 @@ App Platform is DigitalOcean's managed platform-as-a-service. It builds, deploys
     ```bash
     doctl apps create --spec app-spec.yaml
     ```
+
   </Step>
 </Steps>
 
 <Tip>
-  App Platform can provision a managed PostgreSQL database as part of the app spec. The connection string is automatically injected as an environment variable.
+  App Platform can provision a managed PostgreSQL database as part of the app
+  spec. The connection string is automatically injected as an environment
+  variable.
 </Tip>
 
 ## Droplet deployment
@@ -93,6 +95,7 @@ For full server control, deploy to a Droplet and manage the process directly. Th
     Environment=DATABASE_URL=postgresql://user:pass@host:5432/db
     ExecStart=/opt/hyperterse/hyperterse serve
     ```
+
   </Step>
 </Steps>
 

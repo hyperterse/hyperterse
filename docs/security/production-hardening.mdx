@@ -1,7 +1,6 @@
 ---
 title: Production hardening
 description: Security measures, deployment configuration, and hardening for production environments.
-icon: "shield-halved"
 ---
 
 This page covers security beyond input validation: network security, authentication enforcement, logging hygiene, container security, and deployment architecture.
@@ -18,10 +17,11 @@ Auth is per-route. There is no global middleware. Every route accessing sensitiv
 auth:
   plugin: api_key
   policy:
-    value: "{{ env.ROUTE_API_KEY }}"
+    value: '{{ env.ROUTE_API_KEY }}'
 ```
 
 **Audit checklist:**
+
 - Review all `config.terse` files for missing `auth` blocks.
 - `allow_all` should only appear on health checks and intentionally public tools.
 - `hyperterse validate` confirms structural correctness; manually verify auth presence.
@@ -33,7 +33,6 @@ API keys and tokens are resolved at startup. Rotation requires a restart. For ze
 1. Update the secret in your secrets manager.
 2. Trigger a rolling restart.
 3. Verify the old key is rejected after all instances restart.
-
 
 ## Network security
 
@@ -63,7 +62,6 @@ The runtime applies permissive CORS by default. For production:
 - Restrict outbound to database hosts and external APIs used by handlers.
 - Block direct internet access to the runtime port.
 
-
 ## Logging hygiene
 
 Logs are the first place an attacker looks after a breach. Keep them clean.
@@ -82,7 +80,6 @@ Debug-level logging may include substituted statements, input values, and execut
 ### Log routing
 
 Use `--log-file` for file-based collection by aggregation systems. Review handler scripts for accidental credential logging via `console.log`.
-
 
 ## Container security
 
@@ -127,7 +124,6 @@ securityContext:
   readOnlyRootFilesystem: true
 ```
 
-
 ## Secrets management
 
 Credentials must never appear in configuration files, logs, or version control.
@@ -137,7 +133,7 @@ Credentials must never appear in configuration files, logs, or version control.
 All credentials must come from environment variables:
 
 ```yaml
-connection_string: "{{ env.DATABASE_URL }}"
+connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 ### Kubernetes secrets
@@ -155,7 +151,6 @@ env:
 
 Use a sidecar or init container to fetch from AWS Secrets Manager, Vault, etc. Signal restarts on rotation. Do not mount secrets as files — Hyperterse reads environment variables.
 
-
 ## Rate limiting
 
 No built-in rate limiting. Implement at the infrastructure layer:
@@ -165,7 +160,6 @@ No built-in rate limiting. Implement at the infrastructure layer:
 - **Cloud provider** — Cloud Armor, AWS WAF, Azure Front Door.
 
 Apply to `/mcp`, which handles all tool invocations.
-
 
 ## Health checks
 
@@ -185,13 +179,12 @@ For full-system readiness, create a tool that queries each adapter:
 
 ```yaml
 # app/routes/readiness/config.terse
-description: "Readiness check"
+description: 'Readiness check'
 use: primary-db
-statement: "SELECT 1"
+statement: 'SELECT 1'
 auth:
   plugin: allow_all
 ```
-
 
 ## Deployment checklist
 

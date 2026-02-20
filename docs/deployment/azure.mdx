@@ -1,8 +1,6 @@
 ---
 title: Azure
 description: Deploy Hyperterse on Microsoft Azure using Container Apps.
-icon: "microsoft"
-iconType: "brands"
 ---
 
 Azure Container Apps is the recommended way to deploy Hyperterse on Azure. It provides a fully managed serverless container platform with automatic scaling, built-in HTTPS, and integration with Azure services.
@@ -32,6 +30,7 @@ az provider register --namespace Microsoft.OperationalInsights
     az acr create --name hyperterseregistry --resource-group hyperterse-rg --sku Basic
     az acr login --name hyperterseregistry
     ```
+
   </Step>
   <Step title="Build and push the container image">
     Use the [Docker deployment patterns](/deployment/docker) to create your Dockerfile. Then push to Azure Container Registry:
@@ -40,6 +39,7 @@ az provider register --namespace Microsoft.OperationalInsights
     docker build -t hyperterseregistry.azurecr.io/hyperterse:latest .
     docker push hyperterseregistry.azurecr.io/hyperterse:latest
     ```
+
   </Step>
   <Step title="Create the Container Apps environment">
     ```bash

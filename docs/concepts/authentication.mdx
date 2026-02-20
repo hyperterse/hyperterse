@@ -1,7 +1,6 @@
 ---
 title: Authentication
 description: Route-level authentication with built-in and custom plugins.
-icon: "lock"
 ---
 
 Authentication in Hyperterse is route-scoped and plugin-based. Each route declares which plugin to use and supplies policy parameters. The auth check runs as the second stage of the execution pipeline — after route resolution, before input transforms or execution.
@@ -16,7 +15,7 @@ Add an `auth` block to any route config:
 auth:
   plugin: api_key
   policy:
-    value: "{{ env.API_KEY }}"
+    value: '{{ env.API_KEY }}'
 ```
 
 The `plugin` field selects the auth strategy. The `policy` map passes plugin-specific parameters — typically credentials or validation rules.
@@ -38,13 +37,16 @@ auth:
 auth:
   plugin: api_key
   policy:
-    value: "{{ env.MY_SECRET_KEY }}"
+    value: '{{ env.MY_SECRET_KEY }}'
 ```
 
 ## Auth flow
 
 <Frame caption="Authentication decision flow for each tool invocation">
-  <img src="/assets/diagrams/auth-flow.svg" alt="Authentication decision flow: check for auth block, resolve plugin, execute authorization, continue or reject" />
+  <img
+    src="/assets/diagrams/auth-flow.svg"
+    alt="Authentication decision flow: check for auth block, resolve plugin, execute authorization, continue or reject"
+  />
 </Frame>
 
 When a tool is invoked, the runtime checks whether the matched route has an `auth` block. If present, the configured plugin is resolved and executed with the request context and policy map. A successful check allows the pipeline to continue. An error halts the pipeline immediately and returns an authentication error.
@@ -57,8 +59,8 @@ You can register custom auth plugins to implement strategies like JWT validation
 auth:
   plugin: jwt_bearer
   policy:
-    issuer: "https://auth.example.com"
-    audience: "my-service"
+    issuer: 'https://auth.example.com'
+    audience: 'my-service'
 ```
 
 A plugin receives the request headers (extracted from the HTTP transport) and the policy map from the route config. Return success to authorize, or an error to reject.

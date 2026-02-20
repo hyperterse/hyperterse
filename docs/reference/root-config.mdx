@@ -1,7 +1,6 @@
 ---
-title: Root configuration
+title: Root
 description: Complete field reference for the .hyperterse root configuration file.
-icon: "gear"
 ---
 
 The root configuration file (`.hyperterse`) defines service-level settings. It does not contain adapter or route definitions — those are discovered from the `app/` directory.
@@ -28,15 +27,23 @@ framework:
   app_dir: app
 ```
 
-
 ## Field reference
 
-<ParamField body="name" type="string" required>
-  Service identifier. Used in logging, tracing, and manifest metadata. Must match `^[a-z][a-z0-9_-]*$`.
+<ParamField
+  body="name"
+  type="string"
+  required
+>
+  Service identifier. Used in logging, tracing, and manifest metadata. Must
+  match `^[a-z][a-z0-9_-]*$`.
 </ParamField>
 
-<ParamField body="version" type="string">
-  Service version. Informational. Included in manifest metadata and startup logs.
+<ParamField
+  body="version"
+  type="string"
+>
+  Service version. Informational. Included in manifest metadata and startup
+  logs.
 </ParamField>
 
 <ParamField body="server" type="object">
@@ -74,6 +81,7 @@ framework:
         </ParamField>
       </Expandable>
     </ParamField>
+
   </Expandable>
 </ParamField>
 
@@ -90,6 +98,7 @@ framework:
     <ParamField body="clean_dir" type="boolean" default="false">
       Remove output directory before building.
     </ParamField>
+
   </Expandable>
 </ParamField>
 
@@ -103,25 +112,23 @@ framework:
   </Expandable>
 </ParamField>
 
-
 ## Environment variable substitution
 
 String values support `{{ env.VAR_NAME }}` placeholders, resolved at runtime:
 
 ```yaml
 server:
-  port: "{{ env.PORT }}"
+  port: '{{ env.PORT }}'
 ```
 
 <Warning>
-Missing variables cause a startup failure. Verify all referenced variables are set before deploying.
+  Missing variables cause a startup failure. Verify all referenced variables are
+  set before deploying.
 </Warning>
-
 
 ## JSON Schema
 
 Editor validation: `schema/root.terse.schema.json`. See [Configuration schemas](/reference/configuration-schemas).
-
 
 ## Examples
 
@@ -132,6 +139,7 @@ Editor validation: `schema/root.terse.schema.json`. See [Configuration schemas](
     ```
 
     All other fields use defaults: port `8080`, log level `3`, caching disabled.
+
   </Tab>
   <Tab title="Production">
     ```yaml .hyperterse
@@ -150,5 +158,6 @@ Editor validation: `schema/root.terse.schema.json`. See [Configuration schemas](
       out: release
       clean_dir: true
     ```
+
   </Tab>
 </Tabs>

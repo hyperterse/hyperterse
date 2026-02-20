@@ -1,7 +1,6 @@
 ---
 title: Scripts
 description: TypeScript handlers and transforms that extend tool behavior beyond configuration.
-icon: "code"
 ---
 
 Scripts extend tool behavior beyond what configuration can express. A handler script replaces database execution entirely. Transform scripts modify inputs before execution and results after. All three are TypeScript, bundled at compile time, and executed inside an embedded sandboxed runtime with no external dependencies.
@@ -10,24 +9,27 @@ Scripts extend tool behavior beyond what configuration can express. A handler sc
 
 There are three hooks, each corresponding to a stage in the execution pipeline:
 
-| Hook | Export | Purpose |
-|---|---|---|
-| Handler | `handler(payload)` | Replaces DB execution entirely |
-| Input transform | `inputTransform(payload)` | Pre-process arguments before execution |
-| Output transform | `outputTransform(payload)` | Post-process results before returning |
+| Hook             | Export                     | Purpose                                |
+| ---------------- | -------------------------- | -------------------------------------- |
+| Handler          | `handler(payload)`         | Replaces DB execution entirely         |
+| Input transform  | `inputTransform(payload)`  | Pre-process arguments before execution |
+| Output transform | `outputTransform(payload)` | Post-process results before returning  |
 
 ## Handler
 
 A handler replaces adapter-based execution. When `scripts.handler` is configured, no `use` or `statement` is needed. The return value becomes the tool's result payload.
 
 ```typescript
-export function handler(payload: { inputs: Record<string, any>; route: string }) {
-  const { inputs } = payload;
+export function handler(payload: {
+  inputs: Record<string, any>
+  route: string
+}) {
+  const { inputs } = payload
   return {
-    location: inputs.city || "unknown",
+    location: inputs.city || 'unknown',
     temperature_c: 22.5,
-    conditions: "partly cloudy",
-  };
+    conditions: 'partly cloudy',
+  }
 }
 ```
 
@@ -36,11 +38,17 @@ export function handler(payload: { inputs: Record<string, any>; route: string })
 An input transform pre-processes arguments before they reach the executor or handler. Use it for validation, normalization, or rejection. The returned object replaces the original inputs for all subsequent pipeline stages. Throwing an error aborts execution.
 
 ```typescript
-export function inputTransform(payload: { inputs: Record<string, any>; route: string }) {
-  if (typeof payload.inputs.user_id !== "number" || payload.inputs.user_id <= 0) {
-    throw new Error("user_id must be a positive integer");
+export function inputTransform(payload: {
+  inputs: Record<string, any>
+  route: string
+}) {
+  if (
+    typeof payload.inputs.user_id !== 'number' ||
+    payload.inputs.user_id <= 0
+  ) {
+    throw new Error('user_id must be a positive integer')
   }
-  return { ...payload.inputs, user_id: Math.floor(payload.inputs.user_id) };
+  return { ...payload.inputs, user_id: Math.floor(payload.inputs.user_id) }
 }
 ```
 
@@ -54,7 +62,7 @@ export function outputTransform(payload: { results: any[]; route: string }) {
     id: row.id,
     name: row.name,
     created_at_iso: new Date(row.created_at).toISOString(),
-  }));
+  }))
 }
 ```
 
@@ -72,8 +80,8 @@ Scripts cannot access the host filesystem, spawn processes, or open network sock
 If your scripts import external packages, add a `package.json` at the project root. The bundler resolves packages from `node_modules/`, compiles shared dependencies into a single `vendor.js`, and rewrites route bundles to reference it. The deployed artifact has no dependency on `node_modules/`.
 
 ```typescript
-import dayjs from "dayjs";
-import { v4 as uuidv4 } from "uuid";
+import dayjs from 'dayjs'
+import { v4 as uuidv4 } from 'uuid'
 ```
 
 ## Error handling

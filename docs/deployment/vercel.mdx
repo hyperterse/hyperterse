@@ -1,13 +1,17 @@
 ---
 title: Vercel
 description: Connect a Vercel-hosted frontend to a Hyperterse MCP server.
-icon: "triangle"
 ---
 
 Vercel excels at hosting frontends and serverless functions. For Hyperterse — a long-running server process — the recommended architecture is to deploy Hyperterse on a container platform and connect your Vercel frontend to it through API routes.
 
 <Note>
-  Hyperterse requires a persistent server process. Deploy it on [Railway](/deployment/railway), [AWS](/deployment/aws), [GCP](/deployment/gcp), [Azure](/deployment/azure), [DigitalOcean](/deployment/digital-ocean), or [bare metal](/deployment/bare-metal), then configure your Vercel project to communicate with it.
+  Hyperterse requires a persistent server process. Deploy it on
+  [Railway](/deployment/railway), [AWS](/deployment/aws),
+  [GCP](/deployment/gcp), [Azure](/deployment/azure),
+  [DigitalOcean](/deployment/digital-ocean), or [bare
+  metal](/deployment/bare-metal), then configure your Vercel project to
+  communicate with it.
 </Note>
 
 ## Architecture
@@ -27,6 +31,7 @@ Browser → Vercel Edge → API Route → Hyperterse Server → Database
     ```
     HYPERTERSE_URL=https://your-hyperterse-deployment.example.com
     ```
+
   </Step>
   <Step title="Create an API route">
     Forward MCP requests from your frontend to the Hyperterse server:
@@ -48,6 +53,7 @@ Browser → Vercel Edge → API Route → Hyperterse Server → Database
       return NextResponse.json(data, { status: response.status });
     }
     ```
+
   </Step>
   <Step title="Deploy">
     Push to your connected Git repository, or deploy manually:
@@ -55,6 +61,7 @@ Browser → Vercel Edge → API Route → Hyperterse Server → Database
     ```bash
     vercel --prod
     ```
+
   </Step>
 </Steps>
 

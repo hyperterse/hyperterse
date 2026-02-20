@@ -1,7 +1,6 @@
 ---
 title: Bare metal
 description: Deploy Hyperterse directly on servers without containers or orchestrators.
-icon: "server"
 ---
 
 For environments where containers are not an option, you can deploy the Hyperterse build artifact directly on a server. The artifact is a self-contained directory — copy it to the target machine, set your environment variables, and start the process.
@@ -52,7 +51,8 @@ sudo systemctl start hyperterse
 ```
 
 <Tip>
-Store credentials in the `EnvironmentFile` (`.env`) with restrictive permissions (`chmod 600`). Do not embed them in the unit file.
+  Store credentials in the `EnvironmentFile` (`.env`) with restrictive
+  permissions (`chmod 600`). Do not embed them in the unit file.
 </Tip>
 
 ## Reverse proxy

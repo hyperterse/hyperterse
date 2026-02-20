@@ -1,7 +1,6 @@
 ---
-title: CLI reference
+title: Command line reference
 description: Complete command and flag reference for the Hyperterse CLI.
-icon: "terminal"
 ---
 
 All commands load `.env` files from the working directory when present.
@@ -10,10 +9,12 @@ All commands load `.env` files from the working directory when present.
 hyperterse [command] [flags]
 ```
 
-<ParamField body="--version" type="boolean">
+<ParamField
+  body="--version"
+  type="boolean"
+>
   Print the installed version and exit.
 </ParamField>
-
 
 ## `hyperterse start`
 
@@ -30,36 +31,56 @@ Without arguments, loads `.hyperterse` from the current directory. A positional 
 <ParamField body="--port" type="string" default="">
   Server port. Overrides config and `PORT` env var.
 
-  **Short:** `-p`
+**Short:** `-p`
 
-  **Resolution order:** `--port` → `server.port` → `PORT` env → `8080`
+**Resolution order:** `--port` → `server.port` → `PORT` env → `8080`
+
 </ParamField>
 
 <ParamField body="--log-level" type="integer" default="0">
   Log verbosity. `1` = error, `2` = warn, `3` = info, `4` = debug. Overrides config.
 
-  **Resolution order:** `--verbose` (4) → `--log-level` → `server.log_level` → `3`
+**Resolution order:** `--verbose` (4) → `--log-level` → `server.log_level` → `3`
+
 </ParamField>
 
-<ParamField body="--verbose" type="boolean" default="false">
+<ParamField
+  body="--verbose"
+  type="boolean"
+  default="false"
+>
   Sets log level to `4` (debug). Overrides `--log-level`.
 </ParamField>
 
 <ParamField body="--source" type="string" default="">
   Configuration as an inline YAML string instead of reading from a file.
 
-  **Short:** `-s`
+**Short:** `-s`
+
 </ParamField>
 
-<ParamField body="--watch" type="boolean" default="false">
-  Hot-reload on `.terse` and `.ts` file changes. Recompiles and restarts automatically.
+<ParamField
+  body="--watch"
+  type="boolean"
+  default="false"
+>
+  Hot-reload on `.terse` and `.ts` file changes. Recompiles and restarts
+  automatically.
 </ParamField>
 
-<ParamField body="--log-tags" type="string" default="">
+<ParamField
+  body="--log-tags"
+  type="string"
+  default=""
+>
   Comma-separated tag filter. Prefix a tag with `-` to exclude it.
 </ParamField>
 
-<ParamField body="--log-file" type="boolean" default="false">
+<ParamField
+  body="--log-file"
+  type="boolean"
+  default="false"
+>
   Stream logs to `/tmp/.hyperterse/logs/` in addition to stdout.
 </ParamField>
 
@@ -71,7 +92,6 @@ hyperterse start --watch
 hyperterse start path/to/project
 hyperterse start -p 9090 --verbose
 ```
-
 
 ## `hyperterse serve`
 
@@ -88,22 +108,39 @@ Without arguments, searches for `model.bin` in the current directory. A position
 <ParamField body="--port" type="string" default="">
   Server port. Overrides the value embedded in the manifest and `PORT` env var.
 
-  **Short:** `-p`
+**Short:** `-p`
+
 </ParamField>
 
-<ParamField body="--log-level" type="integer" default="0">
+<ParamField
+  body="--log-level"
+  type="integer"
+  default="0"
+>
   Log verbosity. Overrides the value embedded in the manifest.
 </ParamField>
 
-<ParamField body="--verbose" type="boolean" default="false">
+<ParamField
+  body="--verbose"
+  type="boolean"
+  default="false"
+>
   Sets log level to `4` (debug).
 </ParamField>
 
-<ParamField body="--log-tags" type="string" default="">
+<ParamField
+  body="--log-tags"
+  type="string"
+  default=""
+>
   Comma-separated tag filter.
 </ParamField>
 
-<ParamField body="--log-file" type="boolean" default="false">
+<ParamField
+  body="--log-file"
+  type="boolean"
+  default="false"
+>
   Stream logs to file.
 </ParamField>
 
@@ -113,7 +150,6 @@ Without arguments, searches for `model.bin` in the current directory. A position
 hyperterse serve dist/
 hyperterse serve
 ```
-
 
 ## `hyperterse build`
 
@@ -130,10 +166,15 @@ Without arguments, loads `.hyperterse` from the current directory.
 <ParamField body="--out" type="string" default="dist">
   Output directory for build artifacts.
 
-  **Short:** `-o`
+**Short:** `-o`
+
 </ParamField>
 
-<ParamField body="--clean-dir" type="boolean" default="false">
+<ParamField
+  body="--clean-dir"
+  type="boolean"
+  default="false"
+>
   Remove the output directory before building.
 </ParamField>
 
@@ -160,7 +201,6 @@ hyperterse build -o release --clean-dir
 hyperterse build path/to/project -o dist
 ```
 
-
 ## `hyperterse validate`
 
 Check configuration and project structure without starting the runtime.
@@ -174,7 +214,8 @@ hyperterse validate [path] [flags]
 <ParamField body="--source" type="string" default="">
   Configuration as an inline YAML string instead of reading from a file.
 
-  **Short:** `-s`
+**Short:** `-s`
+
 </ParamField>
 
 ### Checks
@@ -189,10 +230,10 @@ hyperterse validate [path] [flags]
 
 ### Exit codes
 
-| Code | Meaning |
-|---|---|
-| `0` | Validation passed |
-| `1` | Validation failed — errors printed to stderr |
+| Code | Meaning                                      |
+| ---- | -------------------------------------------- |
+| `0`  | Validation passed                            |
+| `1`  | Validation failed — errors printed to stderr |
 
 ### Examples
 
@@ -200,7 +241,6 @@ hyperterse validate [path] [flags]
 hyperterse validate
 hyperterse validate path/to/project
 ```
-
 
 ## `hyperterse init`
 
@@ -212,17 +252,14 @@ hyperterse init
 
 ### Created files
 
-| Path | Content |
-|---|---|
-| `.hyperterse` | Root config with defaults |
-| `app/adapters/my-database.terse` | Placeholder adapter |
-| `app/routes/health/config.terse` | Health check route |
-| `app/routes/health/handler.ts` | Health check handler |
+| Path                             | Content                   |
+| -------------------------------- | ------------------------- |
+| `.hyperterse`                    | Root config with defaults |
+| `app/adapters/my-database.terse` | Placeholder adapter       |
+| `app/routes/health/config.terse` | Health check route        |
+| `app/routes/health/handler.ts`   | Health check handler      |
 
-<Note>
-Does not overwrite existing files.
-</Note>
-
+<Note>Does not overwrite existing files.</Note>
 
 ## `hyperterse upgrade`
 
@@ -234,11 +271,18 @@ hyperterse upgrade [flags]
 
 ### Flags
 
-<ParamField body="--prerelease" type="boolean" default="false">
+<ParamField
+  body="--prerelease"
+  type="boolean"
+  default="false"
+>
   Include pre-release versions in the upgrade check.
 </ParamField>
 
-<ParamField body="--major" type="string">
+<ParamField
+  body="--major"
+  type="string"
+>
   Target a specific major version number, or `next` for the latest major.
 </ParamField>
 
@@ -250,7 +294,6 @@ hyperterse upgrade --prerelease
 hyperterse upgrade --major next
 hyperterse upgrade --major 3
 ```
-
 
 ## `hyperterse completion`
 

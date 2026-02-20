@@ -1,7 +1,6 @@
 ---
-title: Deployment overview
+title: Overview
 description: Build artifacts, serve from pre-compiled output, and deploy to any environment.
-icon: "cloud-arrow-up"
 ---
 
 Hyperterse separates compilation from execution. You build once in a trusted environment, then deploy the resulting artifact anywhere. The artifact contains everything the server needs to run — no source files, no build tools, no package manager.
@@ -26,15 +25,16 @@ hyperterse build path/to/project -o dist
 
 The output directory contains:
 
-| Artifact | Description |
-|---|---|
-| `hyperterse` | Runtime binary |
-| `model.bin` | Serialized manifest (adapters, routes, config) |
-| `build/vendor.js` | Shared dependency bundle (if routes import npm packages) |
-| `build/routes/<name>/*.js` | Per-route script bundles |
+| Artifact                   | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| `hyperterse`               | Runtime binary                                           |
+| `model.bin`                | Serialized manifest (adapters, routes, config)           |
+| `build/vendor.js`          | Shared dependency bundle (if routes import npm packages) |
+| `build/routes/<name>/*.js` | Per-route script bundles                                 |
 
 <Tip>
-Always run `hyperterse validate` before building. The build command also validates, but catching errors early keeps your CI pipeline fast.
+  Always run `hyperterse validate` before building. The build command also
+  validates, but catching errors early keeps your CI pipeline fast.
 </Tip>
 
 ## Serve
@@ -56,7 +56,10 @@ hyperterse serve dist/model.bin
 ## Deployment workflow
 
 <Frame caption="Validate once, build once, deploy the artifact">
-  <img src="/assets/diagrams/deployment-workflow.svg" alt="Deployment workflow: validate, build, test locally, ship artifact, serve" />
+  <img
+    src="/assets/diagrams/deployment-workflow.svg"
+    alt="Deployment workflow: validate, build, test locally, ship artifact, serve"
+  />
 </Frame>
 
 The principle is: **build once, deploy the artifact.** Do not rebuild in the target environment.
@@ -72,7 +75,8 @@ The principle is: **build once, deploy the artifact.** Do not rebuild in the tar
     Run `hyperterse serve dist/` to verify the artifact works before shipping.
   </Step>
   <Step title="Ship">
-    Package the `dist/` directory into your deployment target — a container image, a tarball, or a direct copy.
+    Package the `dist/` directory into your deployment target — a container
+    image, a tarball, or a direct copy.
   </Step>
 </Steps>
 
@@ -124,13 +128,25 @@ jobs:
 Choose a deployment method based on your infrastructure:
 
 <CardGroup cols={3}>
-  <Card title="Docker" icon="docker" href="/deployment/docker">
+  <Card
+    title="Docker"
+    icon="docker"
+    href="/deployment/docker"
+  >
     Container images for portable deployment
   </Card>
-  <Card title="Kubernetes" icon="dharmachakra" href="/deployment/kubernetes">
+  <Card
+    title="Kubernetes"
+    icon="dharmachakra"
+    href="/deployment/kubernetes"
+  >
     Orchestrated deployment at scale
   </Card>
-  <Card title="Bare metal" icon="server" href="/deployment/bare-metal">
+  <Card
+    title="Bare metal"
+    icon="server"
+    href="/deployment/bare-metal"
+  >
     Direct binary deployment on servers
   </Card>
 </CardGroup>
@@ -138,25 +154,53 @@ Choose a deployment method based on your infrastructure:
 Or deploy to a specific cloud provider:
 
 <CardGroup cols={4}>
-  <Card title="AWS" icon="aws" href="/deployment/aws">
+  <Card
+    title="AWS"
+    icon="aws"
+    href="/deployment/aws"
+  >
     ECS Fargate
   </Card>
-  <Card title="Google Cloud" icon="google" href="/deployment/gcp">
+  <Card
+    title="Google Cloud"
+    icon="google"
+    href="/deployment/gcp"
+  >
     Cloud Run
   </Card>
-  <Card title="Azure" icon="microsoft" href="/deployment/azure">
+  <Card
+    title="Azure"
+    icon="microsoft"
+    href="/deployment/azure"
+  >
     Container Apps
   </Card>
-  <Card title="Railway" icon="train" href="/deployment/railway">
+  <Card
+    title="Railway"
+    icon="train"
+    href="/deployment/railway"
+  >
     Managed containers
   </Card>
-  <Card title="DigitalOcean" icon="droplet" href="/deployment/digital-ocean">
+  <Card
+    title="DigitalOcean"
+    icon="droplet"
+    href="/deployment/digital-ocean"
+  >
     App Platform
   </Card>
-  <Card title="Cloudflare" icon="cloudflare" href="/deployment/cloudflare">
+  <Card
+    title="Cloudflare"
+    icon="cloudflare"
+    href="/deployment/cloudflare"
+  >
     Edge security layer
   </Card>
-  <Card title="Vercel" icon="v" href="/deployment/vercel">
+  <Card
+    title="Vercel"
+    icon="v"
+    href="/deployment/vercel"
+  >
     Frontend proxy
   </Card>
 </CardGroup>

@@ -1,8 +1,6 @@
 ---
 title: Docker
 description: Container deployment patterns for Hyperterse — multi-stage builds, pre-built artifacts, and minimal images.
-icon: "docker"
-iconType: "brands"
 ---
 
 Containerizing Hyperterse gives you reproducible, portable deployments. The build artifact is a static binary with no external dependencies, so your final image can be extremely small — even `scratch` works.
@@ -60,7 +58,9 @@ ENTRYPOINT ["/hyperterse", "serve"]
 This produces the smallest possible image — just the binary and the manifest.
 
 <Warning>
-Scratch images have no shell, no package manager, and no debugging tools. Use them for production deployments where you have external observability in place. For troubleshooting, use the Alpine-based image.
+  Scratch images have no shell, no package manager, and no debugging tools. Use
+  them for production deployments where you have external observability in
+  place. For troubleshooting, use the Alpine-based image.
 </Warning>
 
 ## Docker Compose
@@ -72,7 +72,7 @@ services:
   hyperterse:
     build: .
     ports:
-      - "8080:8080"
+      - '8080:8080'
     env_file: .env
     depends_on:
       db:
@@ -85,7 +85,7 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: secret
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ['CMD-SHELL', 'pg_isready']
       interval: 5s
       timeout: 3s
 ```

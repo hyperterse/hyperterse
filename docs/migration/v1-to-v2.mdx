@@ -1,25 +1,23 @@
 ---
-title: V1 to V2 migration
+title: v1 to v2 migration
 description: Migration guide from Hyperterse v1 inline configuration to v2 filesystem-based MCP framework.
-icon: "arrow-right"
 ---
 
 Hyperterse v2 is a breaking redesign. The framework shifts from a single-file query gateway to a compiled, filesystem-routed MCP framework.
 
 ## What changed
 
-| Aspect | V1 | V2 |
-|---|---|---|
+| Aspect        | V1                                                        | V2                                                                 |
+| ------------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
 | Configuration | Single `.hyperterse` with inline `adapters` and `queries` | Root config + `app/adapters/*.terse` + `app/routes/*/config.terse` |
-| Routing | Query name from config keys | Filesystem: each route directory = one tool |
-| Scripts | None | TypeScript handlers, input/output transforms |
-| Auth | None | Per-route pluggable auth |
-| Transport | HTTP query endpoints | MCP Streamable HTTP (`/mcp`) |
-| Build | Runtime interprets config directly | `build` → `model.bin` → `serve` |
-| Bundling | None | Scripts bundled + vendor deduplication |
-| Caching | Global only | Global + per-route override |
-| Observability | Basic logging | OpenTelemetry tracing + metrics + structured logging |
-
+| Routing       | Query name from config keys                               | Filesystem: each route directory = one tool                        |
+| Scripts       | None                                                      | TypeScript handlers, input/output transforms                       |
+| Auth          | None                                                      | Per-route pluggable auth                                           |
+| Transport     | HTTP query endpoints                                      | MCP Streamable HTTP (`/mcp`)                                       |
+| Build         | Runtime interprets config directly                        | `build` → `model.bin` → `serve`                                    |
+| Bundling      | None                                                      | Scripts bundled + vendor deduplication                             |
+| Caching       | Global only                                               | Global + per-route override                                        |
+| Observability | Basic logging                                             | OpenTelemetry tracing + metrics + structured logging               |
 
 ## Migration steps
 
@@ -44,11 +42,11 @@ server:
 adapters:
   main_db:
     connector: postgres
-    connection_string: "{{ env.DATABASE_URL }}"
+    connection_string: '{{ env.DATABASE_URL }}'
 queries:
   get-user:
     use: main_db
-    statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
+    statement: 'SELECT * FROM users WHERE id = {{ inputs.user_id }}'
     inputs:
       user_id:
         type: int
@@ -76,7 +74,7 @@ For each v1 `adapters` entry, create `app/adapters/<name>.terse`:
 
 ```yaml
 connector: postgres
-connection_string: "{{ env.DATABASE_URL }}"
+connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 V1 used underscores (`main_db`). V2 uses the filename (`main-db`). Update route `use` references, or add an explicit `name` field to preserve the old identifier:
@@ -84,7 +82,7 @@ V1 used underscores (`main_db`). V2 uses the filename (`main-db`). Update route 
 ```yaml
 name: main_db
 connector: postgres
-connection_string: "{{ env.DATABASE_URL }}"
+connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 ### Extract routes
@@ -94,13 +92,13 @@ For each v1 `queries` entry, create `app/routes/<name>/config.terse`:
 **`app/routes/get-user/config.terse`:**
 
 ```yaml
-description: "Get user by id"
+description: 'Get user by id'
 use: main-db
-statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
+statement: 'SELECT * FROM users WHERE id = {{ inputs.user_id }}'
 inputs:
   user_id:
     type: int
-    description: "User primary key"
+    description: 'User primary key'
 auth:
   plugin: allow_all
 ```
@@ -121,8 +119,8 @@ If queries need validation or formatting that v1 handled client-side:
 
 ```yaml
 scripts:
-  input_transform: "./validate.ts"
-  output_transform: "./format.ts"
+  input_transform: './validate.ts'
+  output_transform: './format.ts'
 ```
 
 ### Install dependencies
@@ -147,12 +145,12 @@ hyperterse validate
 
 Common issues:
 
-| Error | Resolution |
-|---|---|
-| Route has neither `use` nor `scripts.handler` | Add adapter reference or handler. |
-| Adapter name not found | Verify `use` matches filename or explicit `name`. |
-| Unknown connector type | Use `postgres`, `mysql`, `mongodb`, or `redis`. |
-| Script file not found | Verify paths are relative to route directory. |
+| Error                                         | Resolution                                        |
+| --------------------------------------------- | ------------------------------------------------- |
+| Route has neither `use` nor `scripts.handler` | Add adapter reference or handler.                 |
+| Adapter name not found                        | Verify `use` matches filename or explicit `name`. |
+| Unknown connector type                        | Use `postgres`, `mysql`, `mongodb`, or `redis`.   |
+| Script file not found                         | Verify paths are relative to route directory.     |
 
 ### Test
 
@@ -202,7 +200,6 @@ curl -X POST http://localhost:8080/mcp \
   }'
 ```
 
-
 ## Directory structure comparison
 
 **V1:**
@@ -230,14 +227,13 @@ my-api/
         config.terse
 ```
 
-
 ## Breaking changes
 
-| Change | Impact | Action |
-|---|---|---|
-| Inline `adapters` removed | Config will not parse | Extract to `app/adapters/*.terse` |
-| Inline `queries` removed | Config will not parse | Extract to `app/routes/*/config.terse` |
-| `/query/{name}` removed | HTTP clients break | Migrate to MCP `tools/call` |
-| Auth now per-route | Routes unauthenticated by default | Add `auth` blocks |
-| DSL parser deprecated | Text-format blocks unsupported | Convert to YAML |
-| Build step introduced | Direct interpretation replaced | Add `build` + `serve` to pipeline |
+| Change                    | Impact                            | Action                                 |
+| ------------------------- | --------------------------------- | -------------------------------------- |
+| Inline `adapters` removed | Config will not parse             | Extract to `app/adapters/*.terse`      |
+| Inline `queries` removed  | Config will not parse             | Extract to `app/routes/*/config.terse` |
+| `/query/{name}` removed   | HTTP clients break                | Migrate to MCP `tools/call`            |
+| Auth now per-route        | Routes unauthenticated by default | Add `auth` blocks                      |
+| DSL parser deprecated     | Text-format blocks unsupported    | Convert to YAML                        |
+| Build step introduced     | Direct interpretation replaced    | Add `build` + `serve` to pipeline      |

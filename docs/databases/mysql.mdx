@@ -1,13 +1,13 @@
 ---
 title: MySQL
 description: Connect Hyperterse to MySQL for SQL-backed MCP tools with connection pooling and charset configuration.
-icon: "database"
 ---
 
 Hyperterse supports MySQL with connection pooling, character set configuration, and parameterized query execution. All standard SQL features — joins, aggregations, subqueries, JSON functions, and window functions — work as expected in route statements.
 
 <Note>
-Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MySQL instance and a connection string.
+  Hyperterse connects to your existing database. It does not create or manage
+  databases — you provide a running MySQL instance and a connection string.
 </Note>
 
 ## Adapter configuration
@@ -16,10 +16,10 @@ Create an adapter file in `app/adapters/`:
 
 ```yaml app/adapters/mysql-db.terse
 connector: mysql
-connection_string: "{{ env.MYSQL_URL }}"
+connection_string: '{{ env.MYSQL_URL }}'
 options:
   charset: utf8mb4
-  max_connections: "10"
+  max_connections: '10'
 ```
 
 The connection string uses the MySQL DSN format:
@@ -29,16 +29,24 @@ user:password@tcp(host:port)/database?param=value
 ```
 
 <Note>
-MySQL DSN format differs from PostgreSQL URI format. The host and port are wrapped in `tcp(...)`.
+  MySQL DSN format differs from PostgreSQL URI format. The host and port are
+  wrapped in `tcp(...)`.
 </Note>
 
 ### Connection options
 
-<ParamField body="charset" type="string">
-  Character set for the connection. Use `utf8mb4` for full Unicode support including emoji.
+<ParamField
+  body="charset"
+  type="string"
+>
+  Character set for the connection. Use `utf8mb4` for full Unicode support
+  including emoji.
 </ParamField>
 
-<ParamField body="max_connections" type="string">
+<ParamField
+  body="max_connections"
+  type="string"
+>
   Maximum number of connections in the pool.
 </ParamField>
 
@@ -47,17 +55,17 @@ MySQL DSN format differs from PostgreSQL URI format. The host and port are wrapp
 Fine-tune behavior through query parameters on the connection string:
 
 ```yaml
-connection_string: "user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC&timeout=10s"
+connection_string: 'user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&loc=UTC&timeout=10s'
 ```
 
-| Parameter | Example | Purpose |
-|---|---|---|
-| `charset` | `utf8mb4` | Connection character set |
-| `parseTime` | `true` | Parse `DATE` and `DATETIME` into time values |
-| `loc` | `UTC` | Timezone for parsed datetimes |
-| `timeout` | `10s` | Connection timeout |
-| `readTimeout` | `30s` | I/O read timeout |
-| `writeTimeout` | `30s` | I/O write timeout |
+| Parameter      | Example   | Purpose                                      |
+| -------------- | --------- | -------------------------------------------- |
+| `charset`      | `utf8mb4` | Connection character set                     |
+| `parseTime`    | `true`    | Parse `DATE` and `DATETIME` into time values |
+| `loc`          | `UTC`     | Timezone for parsed datetimes                |
+| `timeout`      | `10s`     | Connection timeout                           |
+| `readTimeout`  | `30s`     | I/O read timeout                             |
+| `writeTimeout` | `30s`     | I/O write timeout                            |
 
 ### Recommended permissions
 
@@ -95,7 +103,7 @@ If the connection fails, the server exits immediately with a diagnostic message.
 MySQL routes execute standard SQL through the adapter. Use `{{ inputs.field }}` placeholders for parameterized values.
 
 ```yaml app/routes/get-product/config.terse
-description: "Retrieve a product by its identifier"
+description: 'Retrieve a product by its identifier'
 use: main-db
 statement: |
   SELECT id, name, price, description
@@ -104,7 +112,7 @@ statement: |
 inputs:
   product_id:
     type: int
-    description: "Product ID"
+    description: 'Product ID'
 auth:
   plugin: allow_all
 ```
@@ -117,12 +125,12 @@ Configure separate adapters for primary and replica databases:
 
 ```yaml app/adapters/primary.terse
 connector: mysql
-connection_string: "{{ env.PRIMARY_DB_URL }}"
+connection_string: '{{ env.PRIMARY_DB_URL }}'
 ```
 
 ```yaml app/adapters/replica.terse
 connector: mysql
-connection_string: "{{ env.REPLICA_DB_URL }}"
+connection_string: '{{ env.REPLICA_DB_URL }}'
 ```
 
 Route read-only tools to the replica adapter.

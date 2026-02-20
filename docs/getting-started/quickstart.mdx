@@ -1,7 +1,6 @@
 ---
 title: Quickstart
 description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
-icon: "rocket"
 ---
 
 This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a health check tool and a database-backed query tool responding to `tools/call` requests.
@@ -27,7 +26,6 @@ app/
 
 `.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/routes/health/` is a script-backed tool with a TypeScript handler.
 
-
 ## Review the root configuration
 
 Open `.hyperterse`:
@@ -43,7 +41,6 @@ server:
 
 This is the entire root config. Adapters and routes live in the `app/` directory — the root config handles service-level settings only.
 
-
 ## Start the server
 
 ```bash
@@ -58,7 +55,6 @@ For automatic restarts on file changes during development:
 hyperterse start --watch
 ```
 
-
 ## Verify the server is running
 
 ```bash
@@ -66,11 +62,10 @@ curl http://localhost:8080/heartbeat
 ```
 
 ```json
-{"success": true}
+{ "success": true }
 ```
 
 The `/heartbeat` endpoint confirms the HTTP server is accepting connections. It does not check connector health.
-
 
 ## List registered tools
 
@@ -85,7 +80,6 @@ curl -s -X POST http://localhost:8080/mcp \
 ```
 
 The response contains a `tools` array with one entry per compiled route. Each tool includes its name, description, and a JSON Schema describing its input parameters.
-
 
 ## Call a tool
 
@@ -107,7 +101,6 @@ curl -s -X POST http://localhost:8080/mcp \
 
 The tool's output appears in the `content` field as a JSON-encoded text payload.
 
-
 ## Add a database-backed tool
 
 The scaffolded project includes a placeholder adapter. Connect it to a real database and create a query tool.
@@ -118,7 +111,7 @@ Edit `app/adapters/my-database.terse`:
 
 ```yaml
 connector: postgres
-connection_string: "{{ env.DATABASE_URL }}"
+connection_string: '{{ env.DATABASE_URL }}'
 ```
 
 Set the environment variable:
@@ -132,7 +125,7 @@ export DATABASE_URL="postgresql://user:pass@localhost:5432/mydb"
 Create `app/routes/list-users/config.terse`:
 
 ```yaml
-description: "List all users with optional limit"
+description: 'List all users with optional limit'
 use: my-database
 statement: |
   SELECT id, name, email
@@ -141,8 +134,8 @@ statement: |
 inputs:
   limit:
     type: int
-    description: "Maximum number of rows to return"
-    default: "10"
+    description: 'Maximum number of rows to return'
+    default: '10'
 auth:
   plugin: allow_all
 ```
@@ -167,7 +160,6 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
-
 ## Validate before deploying
 
 ```bash
@@ -175,7 +167,6 @@ hyperterse validate
 ```
 
 Validation catches errors before they reach production: missing adapter fields, invalid input types, unresolvable script paths, and bundle compilation failures. A zero exit code means the project is structurally sound.
-
 
 ## Next steps
 

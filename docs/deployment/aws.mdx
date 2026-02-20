@@ -1,8 +1,6 @@
 ---
 title: AWS
 description: Deploy Hyperterse on Amazon Web Services using ECS Fargate.
-icon: "aws"
-iconType: "brands"
 ---
 
 ECS Fargate is the recommended way to deploy Hyperterse on AWS. It runs containers without managing servers, provides auto-scaling, and integrates natively with Secrets Manager, CloudWatch, and Application Load Balancers.
@@ -25,6 +23,7 @@ You need the [AWS CLI](https://aws.amazon.com/cli/) configured with credentials 
     ```bash
     docker build -t hyperterse .
     ```
+
   </Step>
   <Step title="Push to ECR">
     Create a repository and push the image:
@@ -38,6 +37,7 @@ You need the [AWS CLI](https://aws.amazon.com/cli/) configured with credentials 
     docker tag hyperterse:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
     docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/hyperterse:latest
     ```
+
   </Step>
   <Step title="Store credentials in Secrets Manager">
     ```bash
@@ -85,6 +85,7 @@ You need the [AWS CLI](https://aws.amazon.com/cli/) configured with credentials 
     ```bash
     aws ecs register-task-definition --cli-input-json file://task-definition.json
     ```
+
   </Step>
   <Step title="Create the ECS service">
     ```bash
@@ -98,6 +99,7 @@ You need the [AWS CLI](https://aws.amazon.com/cli/) configured with credentials 
       --launch-type FARGATE \
       --network-configuration "awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=ENABLED}"
     ```
+
   </Step>
 </Steps>
 

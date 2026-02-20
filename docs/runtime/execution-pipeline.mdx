@@ -1,22 +1,22 @@
 ---
 title: Execution pipeline
 description: Deterministic execution flow for tool invocations from route resolution through response serialization.
-icon: "list-check"
 ---
 
 Every `tools/call` request passes through a deterministic pipeline. The stages are identical for DB-backed and script-backed routes — only the execution step differs. If any stage fails, execution halts immediately and an error response is returned.
 
 <Frame caption="Every tool invocation passes through the same deterministic pipeline">
-  <img src="/assets/diagrams/execution-pipeline.svg" alt="Execution pipeline: route resolution, auth, input transform, execution, output transform, response" />
+  <img
+    src="/assets/diagrams/execution-pipeline.svg"
+    alt="Execution pipeline: route resolution, auth, input transform, execution, output transform, response"
+  />
 </Frame>
-
 
 ## Route resolution
 
 The runtime matches the tool name from the `tools/call` request to a compiled route definition. Lookup is O(1) via an in-memory map populated at startup.
 
 If no route matches, a JSON-RPC error is returned with code `-32601`.
-
 
 ## Authentication
 
@@ -25,7 +25,6 @@ If the route defines an `auth` block, the configured plugin is invoked with the 
 - Plugin returns `nil`: authentication passes, pipeline continues.
 - Plugin returns an error: pipeline halts, error returned to caller.
 - No `auth` block: stage is skipped entirely.
-
 
 ## Input transform
 
@@ -43,7 +42,6 @@ If `scripts.input_transform` is configured or discovered by convention, the `inp
 The returned object replaces the inputs for all subsequent stages. Throwing an error aborts the pipeline.
 
 If no input transform is configured, inputs pass through unchanged.
-
 
 ## Execution
 
@@ -64,7 +62,6 @@ When `use` and `statement` are configured, the executor runs six substeps:
 5. **Connector execution.** Delegate the statement to the connector's `Execute` method. Returns `[]map[string]any`.
 6. **Cache store.** On miss, store the result with the configured TTL.
 
-
 ## Output transform
 
 If `scripts.output_transform` is configured or discovered by convention, the `outputTransform` function executes in the embedded runtime.
@@ -82,7 +79,6 @@ The returned value replaces the result for response serialization. Throwing an e
 
 If no output transform is configured, the raw result is used directly.
 
-
 ## Response serialization
 
 The final result is JSON-encoded and wrapped in an MCP content block:
@@ -98,22 +94,20 @@ The final result is JSON-encoded and wrapped in an MCP content block:
 }
 ```
 
-
 ## Error propagation
 
-| Stage | Error condition | JSON-RPC code |
-|---|---|---|
-| Route resolution | Tool name not found | `-32601` |
-| Authentication | Plugin returns error | `-32000` |
-| Input transform | Script throws | `-32000` |
-| Input validation | Missing input or type mismatch | `-32000` |
-| Env substitution | Missing variable | `-32000` |
-| Connector execution | Query error | `-32000` |
-| Handler execution | Script throws | `-32000` |
-| Output transform | Script throws | `-32000` |
+| Stage               | Error condition                | JSON-RPC code |
+| ------------------- | ------------------------------ | ------------- |
+| Route resolution    | Tool name not found            | `-32601`      |
+| Authentication      | Plugin returns error           | `-32000`      |
+| Input transform     | Script throws                  | `-32000`      |
+| Input validation    | Missing input or type mismatch | `-32000`      |
+| Env substitution    | Missing variable               | `-32000`      |
+| Connector execution | Query error                    | `-32000`      |
+| Handler execution   | Script throws                  | `-32000`      |
+| Output transform    | Script throws                  | `-32000`      |
 
 Error messages from scripts and connectors are included in the response. Stack traces are logged at debug level but not exposed to callers.
-
 
 ## Observability hooks
 

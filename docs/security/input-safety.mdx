@@ -1,7 +1,6 @@
 ---
 title: Input safety
 description: Statement substitution model, security implications, and defensive patterns.
-icon: "filter"
 ---
 
 Hyperterse uses textual substitution for `{{ inputs.field }}` placeholders. Before a statement reaches the connector driver, the executor performs two passes:
@@ -18,18 +17,17 @@ The resulting statement is a complete string passed to the connector's `Execute`
 - Statement safety depends on query design and input validation.
 - This is functionally equivalent to string interpolation — it does not provide prepared-statement injection protection.
 
-
 ## Built-in protections
 
 The runtime validates and sanitizes inputs before they reach connectors or scripts.
 
 ### Input type validation
 
-| Check | Behavior |
-|---|---|
-| Required inputs | Missing required inputs produce an error before execution. |
-| Type conversion | Values are converted to the declared type. Invalid conversions produce a type error. |
-| Default application | Omitted optional inputs with defaults receive the default value. |
+| Check               | Behavior                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| Required inputs     | Missing required inputs produce an error before execution.                           |
+| Type conversion     | Values are converted to the declared type. Invalid conversions produce a type error. |
+| Default application | Omitted optional inputs with defaults receive the default value.                     |
 
 Type validation constrains the value space: an `int` input only accepts numbers, a `boolean` only accepts `true`/`false`. This eliminates injection risk for non-string types.
 
@@ -44,13 +42,11 @@ Type validation constrains the value space: an `int` input only accepts numbers,
 - Route-level auth runs before any input processing.
 - Auth failures halt the pipeline immediately.
 
-
 ## What the framework does not protect against
 
 - **SQL injection via string inputs.** A `string`-typed input has no content restriction. Malicious SQL can be injected through string placeholders.
 - **Statement manipulation via crafted values.** Any input that contributes to statement structure (not just data values) is an injection vector.
 - **Business logic abuse.** Negative IDs, excessive limits, and semantically invalid values are not caught by type validation.
-
 
 ## Defensive patterns
 
@@ -73,14 +69,20 @@ inputs:
 For `string`-typed inputs, validate format in an input transform:
 
 ```typescript
-export function inputTransform(payload: { inputs: Record<string, any>; route: string }) {
-  const { email } = payload.inputs;
+export function inputTransform(payload: {
+  inputs: Record<string, any>
+  route: string
+}) {
+  const { email } = payload.inputs
 
-  if (typeof email !== "string" || !email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)) {
-    throw new Error("Invalid email format");
+  if (
+    typeof email !== 'string' ||
+    !email.match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)
+  ) {
+    throw new Error('Invalid email format')
   }
 
-  return payload.inputs;
+  return payload.inputs
 }
 ```
 
@@ -101,11 +103,14 @@ statement: "SELECT * FROM {{ inputs.table_name }}"
 When a query needs dynamic structure, implement it as a handler with explicit sanitization:
 
 ```typescript
-export async function handler(payload: { inputs: Record<string, any>; route: string }) {
-  const { user_id, fields } = payload.inputs;
+export async function handler(payload: {
+  inputs: Record<string, any>
+  route: string
+}) {
+  const { user_id, fields } = payload.inputs
 
-  const allowedFields = ["id", "name", "email", "created_at"];
-  const selectedFields = fields.filter((f: string) => allowedFields.includes(f));
+  const allowedFields = ['id', 'name', 'email', 'created_at']
+  const selectedFields = fields.filter((f: string) => allowedFields.includes(f))
   // Construct query with validated field list
 }
 ```
@@ -114,21 +119,19 @@ export async function handler(payload: { inputs: Record<string, any>; route: str
 
 Place the runtime behind an API gateway or reverse proxy with rate limiting, request size limits, IP access control, and TLS termination.
 
-
 ## Environment variable safety
 
 `{{ env.VAR }}` values are substituted without sanitization. If a variable contains SQL-significant characters and is used in a statement, the same injection risk applies.
 
 Missing variables fail execution rather than defaulting to empty strings.
 
-
 ## Responsibility matrix
 
-| Layer | Protection | Responsibility |
-|---|---|---|
-| Input type validation | Type conversion and required checks | Framework (automatic) |
-| Credential isolation | Connection strings hidden from callers | Framework (automatic) |
-| Auth enforcement | Pre-execution access control | Framework (configured per-route) |
-| String input sanitization | Content validation and format enforcement | Developer (input transforms) |
-| Statement safety | Avoiding structural injection | Developer (query design) |
-| Network security | TLS, rate limiting, access control | Operator (infrastructure) |
+| Layer                     | Protection                                | Responsibility                   |
+| ------------------------- | ----------------------------------------- | -------------------------------- |
+| Input type validation     | Type conversion and required checks       | Framework (automatic)            |
+| Credential isolation      | Connection strings hidden from callers    | Framework (automatic)            |
+| Auth enforcement          | Pre-execution access control              | Framework (configured per-route) |
+| String input sanitization | Content validation and format enforcement | Developer (input transforms)     |
+| Statement safety          | Avoiding structural injection             | Developer (query design)         |
+| Network security          | TLS, rate limiting, access control        | Operator (infrastructure)        |

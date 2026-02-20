@@ -1,7 +1,6 @@
 ---
-title: Adapter configuration
-description: Complete field reference for app/adapters/*.terse adapter definition files.
-icon: "plug"
+title: Adapter
+description: Complete field reference for adapter definition files.
 ---
 
 Each file in `app/adapters/` defines one adapter — a named binding between the runtime and a database. Adapter files are YAML documents with a fixed schema.
@@ -11,45 +10,47 @@ Each file in `app/adapters/` defines one adapter — a named binding between the
 ```yaml app/adapters/primary-db.terse
 name: primary-db
 connector: postgres
-connection_string: "postgresql://user:pass@host:5432/db"
+connection_string: 'postgresql://user:pass@host:5432/db'
 options:
   sslmode: require
-  max_connections: "10"
+  max_connections: '10'
 ```
-
 
 ## Field reference
 
 <ParamField body="name" type="string">
   Adapter identifier, referenced by routes via `use`. Must be unique across all adapters. Must match `^[a-zA-Z][a-zA-Z0-9_-]*$`.
 
-  **Default:** filename without the `.terse` extension (e.g., `primary-db` from `primary-db.terse`).
+**Default:** filename without the `.terse` extension (e.g., `primary-db` from `primary-db.terse`).
+
 </ParamField>
 
 <ParamField body="connector" type="string" required>
   Connector type. Determines which database driver to use.
 
-  **Allowed values:** `postgres`, `mysql`, `mongodb`, `redis`
+**Allowed values:** `postgres`, `mysql`, `mongodb`, `redis`
+
 </ParamField>
 
 <ParamField body="connection_string" type="string" required>
   Database connection URI. Supports `{{ env.VAR }}` placeholders for secrets.
 
-  ```yaml
-  connection_string: "postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"
-  ```
+```yaml
+connection_string: 'postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}'
+```
+
 </ParamField>
 
 <ParamField body="options" type="object">
   Driver-specific key-value options. All values must be strings.
 
-  ```yaml
-  options:
-    sslmode: "require"
-    connect_timeout: "10"
-  ```
-</ParamField>
+```yaml
+options:
+  sslmode: 'require'
+  connect_timeout: '10'
+```
 
+</ParamField>
 
 ## Connection string formats
 
@@ -68,6 +69,7 @@ options:
     | `sslmode` | `require`, `disable`, `verify-full` | SSL mode |
     | `connect_timeout` | `"10"` | Timeout in seconds |
     | `application_name` | `"hyperterse"` | Name reported to server |
+
   </Tab>
   <Tab title="MySQL">
     ```
@@ -75,6 +77,7 @@ options:
     ```
 
     Standard MySQL DSN. Options are typically passed as query parameters in the connection string.
+
   </Tab>
   <Tab title="MongoDB">
     ```
@@ -83,6 +86,7 @@ options:
     ```
 
     Standard MongoDB URI. Supports replica sets and SRV records. Options are embedded in the connection string.
+
   </Tab>
   <Tab title="Redis">
     ```
@@ -90,9 +94,9 @@ options:
     ```
 
     Standard Redis URI. Database number as path component. TLS, password, and other options are embedded in the URI.
+
   </Tab>
 </Tabs>
-
 
 ## Lifecycle
 
@@ -101,10 +105,12 @@ options:
     The compiler scans `app/adapters/*.terse` for adapter definitions.
   </Step>
   <Step title="Validation">
-    Connector type, connection string presence, and name uniqueness are verified at compile time.
+    Connector type, connection string presence, and name uniqueness are verified
+    at compile time.
   </Step>
   <Step title="Initialization">
-    At startup, all referenced adapters initialize their connections in parallel.
+    At startup, all referenced adapters initialize their connections in
+    parallel.
   </Step>
   <Step title="Execution">
     Routes resolve adapters by name when executing statements.
@@ -115,9 +121,9 @@ options:
 </Steps>
 
 <Warning>
-If any adapter fails to connect during initialization, the server does not start.
+  If any adapter fails to connect during initialization, the server does not
+  start.
 </Warning>
-
 
 ## JSON Schema
 

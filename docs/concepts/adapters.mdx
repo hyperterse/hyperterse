@@ -1,7 +1,6 @@
 ---
 title: Adapters
 description: Named database connections that routes reference for query execution.
-icon: "plug"
 ---
 
 An adapter is a named binding between the Hyperterse runtime and a database. You define the connector type and connection string in a `.terse` file under `app/adapters/`, and routes reference adapters by name through the `use` field. The framework handles connection pooling, health checks, and graceful shutdown.
@@ -13,7 +12,7 @@ Each adapter file declares a connector type and a connection string:
 ```yaml
 name: primary-db
 connector: postgres
-connection_string: "{{ env.DATABASE_URL }}"
+connection_string: '{{ env.DATABASE_URL }}'
 options:
   sslmode: require
 ```
@@ -25,16 +24,32 @@ The `connector` field selects the database engine. The `connection_string` accep
 Hyperterse ships with four built-in connectors:
 
 <CardGroup cols={2}>
-  <Card title="PostgreSQL" icon="database" href="/databases/postgresql">
+  <Card
+    title="PostgreSQL"
+    icon="database"
+    href="/databases/postgresql"
+  >
     SQL queries via `postgresql://` connection strings.
   </Card>
-  <Card title="MySQL" icon="database" href="/databases/mysql">
+  <Card
+    title="MySQL"
+    icon="database"
+    href="/databases/mysql"
+  >
     SQL queries via DSN-format connection strings.
   </Card>
-  <Card title="MongoDB" icon="leaf" href="/databases/mongodb">
+  <Card
+    title="MongoDB"
+    icon="leaf"
+    href="/databases/mongodb"
+  >
     JSON command payloads via `mongodb://` connection strings.
   </Card>
-  <Card title="Redis" icon="bolt" href="/databases/redis">
+  <Card
+    title="Redis"
+    icon="bolt"
+    href="/databases/redis"
+  >
     Key-value operations via `redis://` connection strings.
   </Card>
 </CardGroup>
@@ -46,7 +61,7 @@ Routes point to an adapter by name:
 ```yaml
 # app/routes/get-user/config.terse
 use: primary-db
-statement: "SELECT * FROM users WHERE id = {{ inputs.user_id }}"
+statement: 'SELECT * FROM users WHERE id = {{ inputs.user_id }}'
 ```
 
 A project can define multiple adapters, and different routes can reference different ones:

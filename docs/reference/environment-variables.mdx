@@ -1,7 +1,6 @@
 ---
 title: Environment variables
 description: Environment variables used by the runtime, CLI, and configuration substitution system.
-icon: "key"
 ---
 
 ## Configuration substitution
@@ -10,13 +9,13 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 
 ### Supported locations
 
-| Config location | Example |
-|---|---|
+| Config location             | Example                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
 | Adapter `connection_string` | `"postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"` |
-| Adapter `options` values | `sslmode: "{{ env.DB_SSL_MODE }}"` |
-| Route `statement` | `"SELECT * FROM {{ env.TABLE_PREFIX }}_users WHERE id = {{ inputs.user_id }}"` |
-| Route `auth.policy` values | `value: "{{ env.API_KEY }}"` |
-| Root config `server.port` | `port: "{{ env.PORT }}"` |
+| Adapter `options` values    | `sslmode: "{{ env.DB_SSL_MODE }}"`                                                            |
+| Route `statement`           | `"SELECT * FROM {{ env.TABLE_PREFIX }}_users WHERE id = {{ inputs.user_id }}"`                |
+| Route `auth.policy` values  | `value: "{{ env.API_KEY }}"`                                                                  |
+| Root config `server.port`   | `port: "{{ env.PORT }}"`                                                                      |
 
 ### Resolution behavior
 
@@ -25,27 +24,28 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 - Placeholders are not recursive — a variable whose value contains `{{ env.OTHER }}` is not expanded further.
 - The `.env` file in the working directory is loaded before command execution.
 
-
 ## Runtime variables
 
 <ParamField body="PORT" type="integer" default="8080">
   Fallback port when not set via CLI flag or config.
 
-  **Precedence:** `--port` flag → `server.port` config → `PORT` env → `8080`
+**Precedence:** `--port` flag → `server.port` config → `PORT` env → `8080`
+
 </ParamField>
 
 <ParamField body="HYPERTERSE_API_KEY" type="string">
   Fallback API key for the `api_key` auth plugin when `auth.policy.value` is not set on a route.
 
-  **Precedence:** `auth.policy.value` config → `HYPERTERSE_API_KEY` env
+**Precedence:** `auth.policy.value` config → `HYPERTERSE_API_KEY` env
+
 </ParamField>
 
 <ParamField body="HYPERTERSE_LOG_TAGS" type="string">
   Comma-separated log tag filter. Limits which subsystem tags appear in output.
 
-  **Precedence:** `--log-tags` flag → `HYPERTERSE_LOG_TAGS` env
-</ParamField>
+**Precedence:** `--log-tags` flag → `HYPERTERSE_LOG_TAGS` env
 
+</ParamField>
 
 ## `.env` file
 
@@ -58,14 +58,14 @@ PORT=9090
 ```
 
 <Note>
-Shell-set environment variables take precedence over `.env` values. The file provides defaults, not overrides.
+  Shell-set environment variables take precedence over `.env` values. The file
+  provides defaults, not overrides.
 </Note>
-
 
 ## Security guidance
 
 <Warning>
-**Do not commit `.env` to version control.** Add it to `.gitignore`.
+  **Do not commit `.env` to version control.** Add it to `.gitignore`.
 </Warning>
 
 - **Use `{{ env.VAR }}` for all credentials.** Connection strings, API keys, and tokens must reference environment variables — never hardcode secrets in `.terse` files.
