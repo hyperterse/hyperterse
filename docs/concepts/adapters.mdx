@@ -1,6 +1,7 @@
 ---
 title: Adapters
 description: Named database connections that routes reference for query execution.
+icon: "plug"
 ---
 
 An adapter is a named binding between the Hyperterse runtime and a database. You define the connector type and connection string in a `.terse` file under `app/adapters/`, and routes reference adapters by name through the `use` field. The framework handles connection pooling, health checks, and graceful shutdown.

@@ -42,15 +42,6 @@
             ]
           },
           {
-            "group": "Databases",
-            "pages": [
-              "databases/postgresql",
-              "databases/mysql",
-              "databases/mongodb",
-              "databases/redis"
-            ]
-          },
-          {
             "group": "Runtime",
             "pages": [
               "runtime/mcp-transport",
@@ -60,10 +51,12 @@
             ]
           },
           {
-            "group": "Security",
+            "group": "Databases",
             "pages": [
-              "security/input-safety",
-              "security/production-hardening"
+              "databases/postgresql",
+              "databases/mysql",
+              "databases/mongodb",
+              "databases/redis"
             ]
           },
           {
@@ -90,6 +83,13 @@
                   "deployment/vercel"
                 ]
               }
+            ]
+          },
+          {
+            "group": "Security",
+            "pages": [
+              "security/input-safety",
+              "security/production-hardening"
             ]
           },
           {

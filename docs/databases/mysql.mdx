@@ -1,9 +1,14 @@
 ---
 title: MySQL
 description: Connect Hyperterse to MySQL for SQL-backed MCP tools with connection pooling and charset configuration.
+icon: "database"
 ---
 
 Hyperterse supports MySQL with connection pooling, character set configuration, and parameterized query execution. All standard SQL features — joins, aggregations, subqueries, JSON functions, and window functions — work as expected in route statements.
+
+<Note>
+Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MySQL instance and a connection string.
+</Note>
 
 ## Adapter configuration
 
@@ -53,10 +58,6 @@ connection_string: "user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=true&l
 | `timeout` | `10s` | Connection timeout |
 | `readTimeout` | `30s` | I/O read timeout |
 | `writeTimeout` | `30s` | I/O write timeout |
-
-<Note>
-Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MySQL instance and a connection string.
-</Note>
 
 ### Recommended permissions
 

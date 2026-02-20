@@ -1,6 +1,7 @@
 ---
 title: Execution pipeline
 description: Deterministic execution flow for tool invocations from route resolution through response serialization.
+icon: "list-check"
 ---
 
 Every `tools/call` request passes through a deterministic pipeline. The stages are identical for DB-backed and script-backed routes — only the execution step differs. If any stage fails, execution halts immediately and an error response is returned.

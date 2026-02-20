@@ -1,9 +1,14 @@
 ---
 title: Redis
 description: Connect Hyperterse to Redis for key-value, caching, and data structure operations.
+icon: "key"
 ---
 
 Hyperterse supports Redis as a connector for key-value operations, caching lookups, session retrieval, rate limit checks, and working with Redis data structures (hashes, lists, sets, sorted sets). Statements are standard Redis commands executed directly against the server.
+
+<Note>
+Hyperterse connects to your existing Redis instance. It does not create or manage databases — you provide a running Redis server (self-hosted, AWS ElastiCache, Upstash, etc.) and a connection string.
+</Note>
 
 ## Adapter configuration
 
@@ -37,10 +42,6 @@ The connection string uses the standard Redis URI format:
 <ParamField body="pool_size" type="string">
   Maximum number of connections in the pool.
 </ParamField>
-
-<Note>
-Hyperterse connects to your existing Redis instance. It does not create or manage databases — you provide a running Redis server (self-hosted, AWS ElastiCache, Upstash, etc.) and a connection string.
-</Note>
 
 For password-protected instances, include the password in the URI:
 

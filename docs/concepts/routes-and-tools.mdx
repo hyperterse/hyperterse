@@ -1,6 +1,7 @@
 ---
 title: Routes and tools
 description: How routes define MCP tools, input schemas, and execution strategies.
+icon: "route"
 ---
 
 A route is the central abstraction in Hyperterse. Each `app/routes/*/config.terse` file defines exactly one MCP tool — its name, description, execution strategy, input schema, authentication policy, and caching behavior. When the server starts, every valid route is registered as a callable tool in the MCP `tools/list` response.

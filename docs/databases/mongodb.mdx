@@ -1,9 +1,14 @@
 ---
 title: MongoDB
 description: Connect Hyperterse to MongoDB for document-backed MCP tools using native database commands.
+icon: "leaf"
 ---
 
 Hyperterse supports MongoDB as a document database connector. Statements are passed as native MongoDB database commands — the same syntax used by `db.runCommand()` in the MongoDB shell. This gives you access to any operation MongoDB supports: `find`, `aggregate`, `insert`, `update`, `delete`, and administrative commands.
+
+<Note>
+Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MongoDB instance (self-hosted or [MongoDB Atlas](https://www.mongodb.com/atlas)) and a connection string.
+</Note>
 
 ## Adapter configuration
 
@@ -49,10 +54,6 @@ The connection string uses the standard MongoDB URI format:
 <ParamField body="serverSelectionTimeoutMS" type="string">
   Timeout in milliseconds for selecting a server from a replica set or sharded cluster.
 </ParamField>
-
-<Note>
-Hyperterse connects to your existing database. It does not create or manage databases — you provide a running MongoDB instance (self-hosted or [MongoDB Atlas](https://www.mongodb.com/atlas)) and a connection string.
-</Note>
 
 ### Verify the connection
 

@@ -1,9 +1,14 @@
 ---
 title: PostgreSQL
 description: Connect Hyperterse to PostgreSQL for SQL-backed MCP tools with connection pooling and SSL.
+icon: "database"
 ---
 
 PostgreSQL is the most common connector for Hyperterse deployments. It supports all standard SQL features — joins, aggregations, window functions, JSON operations, full-text search, and advanced data types — with connection pooling, SSL/TLS, and parameterized query execution built in.
+
+<Note>
+Hyperterse connects to your existing database. It does not create or manage databases — you provide a running PostgreSQL instance and a connection string.
+</Note>
 
 ## Adapter configuration
 
@@ -52,10 +57,6 @@ Pass driver-level settings through the `options` map. All values must be strings
 <Warning>
 Never use `sslmode: disable` with cloud-hosted databases or production environments. Connection traffic is unencrypted.
 </Warning>
-
-<Note>
-Hyperterse connects to your existing database. It does not create or manage databases — you provide a running PostgreSQL instance and a connection string.
-</Note>
 
 ### Recommended permissions
 
