@@ -41,8 +41,8 @@ This scaffolds:
 
 - `.hyperterse`
 - `app/adapters/my-database.terse`
-- `app/tools/health/config.terse`
-- `app/tools/health/handler.ts`
+- `app/tools/hello-world/config.terse`
+- `app/tools/hello-world/user-data-mapper.ts`
 
 ### Run
 

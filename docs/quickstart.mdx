@@ -3,7 +3,7 @@ title: Quickstart
 description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
 ---
 
-This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a health check tool and a database-backed query tool responding to `tools/call` requests.
+This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a database-backed hello-world tool responding to `tools/call` requests.
 
 ## Scaffold a project
 
@@ -19,12 +19,12 @@ app/
   adapters/
     my-database.terse
   tools/
-    health/
+    hello-world/
       config.terse
-      handler.ts
+      user-data-mapper.ts
 ```
 
-`.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/tools/health/` is a script-backed tool with a TypeScript handler.
+`.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/tools/hello-world/` contains a DB-backed tool and its TypeScript output mapper.
 
 ## Review the root configuration
 
@@ -81,29 +81,30 @@ curl -s -X POST http://localhost:8080/mcp \
 
 The response contains a `tools` array with one entry per compiled tool. Each tool includes its name, description, and a JSON Schema describing its input parameters.
 
-## Call a tool
+## Inspect the scaffolded tool
 
-Invoke the `health` tool:
+Open `app/tools/hello-world/config.terse`:
 
-```bash
-curl -s -X POST http://localhost:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/call",
-    "params": {
-      "name": "health",
-      "arguments": {}
-    },
-    "id": 2
-  }' | jq
+```yaml
+description: "Hello world tool"
+use: my-database
+statement: |
+  SELECT first_name FROM users WHERE id = {{ inputs.userId }}
+inputs:
+  userId:
+    type: int
+    description: "User ID provided by the agent."
+scripts:
+  output_transform: "user-data-mapper.ts"
+auth:
+  plugin: allow_all
 ```
 
-The tool's output appears in the `content` field as a JSON-encoded text payload.
+This tool uses the `my-database` adapter, queries a user's first name from Postgres, and formats the response through `user-data-mapper.ts`.
 
-## Add a database-backed tool
+## Configure the adapter and test hello-world
 
-The scaffolded project includes a placeholder adapter. Connect it to a real database and create a query tool.
+The scaffolded project includes a placeholder adapter. Point it to a real database with a `users` table.
 
 ### Configure the adapter
 
@@ -120,31 +121,9 @@ Set the environment variable:
 export DATABASE_URL="postgresql://user:pass@localhost:5432/mydb"
 ```
 
-### Create a tool
-
-Create `app/tools/list-users/config.terse`:
-
-```yaml
-description: 'List all users with optional limit'
-use: my-database
-statement: |
-  SELECT id, name, email
-  FROM users
-  LIMIT {{ inputs.limit }}
-inputs:
-  limit:
-    type: int
-    description: 'Maximum number of rows to return'
-    default: '10'
-auth:
-  plugin: allow_all
-```
-
-This defines an MCP tool called `list-users`. It executes a SQL statement through the `my-database` adapter, accepts a `limit` input with a default of 10, and uses the `allow_all` auth plugin (no authentication enforced).
-
 ### Test the tool
 
-Restart the server (or let `--watch` pick up the change), then call the tool:
+Restart the server (or let `--watch` pick up the change), then call the scaffolded tool:
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -153,8 +132,8 @@ curl -s -X POST http://localhost:8080/mcp \
     "jsonrpc": "2.0",
     "method": "tools/call",
     "params": {
-      "name": "list-users",
-      "arguments": { "limit": 5 }
+      "name": "hello-world",
+      "arguments": { "userId": 1 }
     },
     "id": 3
   }' | jq
