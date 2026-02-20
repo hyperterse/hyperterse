@@ -32,9 +32,9 @@ message ExportConfig {
   bool clean_dir = 2; // Clean output directory before exporting (default: false)
 }
 
-message RouteBundleManifest {
+message ToolBundleManifest {
   string tool_name = 1; // Query/tool name
-  string route_path = 2; // Original filesystem route path
+  string tool_path = 2; // Original filesystem tool path
   string handler_bundle = 3; // Bundled JS path for handler
   string input_transform_bundle = 4; // Bundled JS path for input transform
   string output_transform_bundle = 5; // Bundled JS path for output transform
@@ -44,7 +44,7 @@ message RouteBundleManifest {
 
 message FrameworkManifest {
   string vendor_bundle = 1; // Bundled vendor.js path
-  repeated RouteBundleManifest routes = 2; // Route metadata required at runtime
+  repeated ToolBundleManifest tools = 2; // Tool metadata required at runtime
 }
 
 // Top-level container for the DSL

@@ -55,7 +55,7 @@ Returns all registered tools with their input schemas.
 
 ### Schema generation
 
-Input schemas are generated from the route's `inputs` block:
+Input schemas are generated from the tool's `inputs` block:
 
 | `.terse` type | JSON Schema type |
 | ------------- | ---------------- |
@@ -104,7 +104,7 @@ Executes a tool with the provided arguments.
 }
 ```
 
-The `content` array contains one text entry with JSON-encoded results. For DB-backed routes, this is the serialized row set. For handler routes, this is the serialized return value.
+The `content` array contains one text entry with JSON-encoded results. For DB-backed tools, this is the serialized row set. For handler tools, this is the serialized return value.
 
 **Error response:**
 

@@ -3,7 +3,7 @@ title: Project structure
 description: Filesystem conventions and directory layout for Hyperterse projects.
 ---
 
-Hyperterse uses the filesystem as the source of truth. You define database connections in adapter files and tools in route directories. File names become identifiers. The framework discovers everything from the directory structure — you never register adapters or tools manually.
+Hyperterse uses the filesystem as the source of truth. You define database connections in adapter files and tools in tool directories. File names become identifiers. The framework discovers everything from the directory structure — you never register adapters or tools manually.
 
 ## Directory layout
 
@@ -17,19 +17,19 @@ project-root/
 │   ├── adapters/
 │   │   ├── primary-db.terse           # Adapter: PostgreSQL
 │   │   └── cache-store.terse          # Adapter: Redis
-│   └── routes/
+│   └── tools/
 │       ├── get-user/
-│       │   ├── config.terse           # Route configuration
+│       │   ├── config.terse           # Tool configuration
 │       │   ├── input-validator.ts     # Input transform script
 │       │   └── data-mapper.ts         # Output transform script
 │       └── get-weather/
-│           ├── config.terse           # Route configuration
+│           ├── config.terse           # Tool configuration
 │           └── handler.ts             # Custom handler script
 ```
 
 ## Root configuration
 
-The `.hyperterse` file contains service-level settings: name, version, server port, log level, cache defaults, and build options. It does not contain adapter or route definitions — those live in `app/`.
+The `.hyperterse` file contains service-level settings: name, version, server port, log level, cache defaults, and build options. It does not contain adapter or tool definitions — those live in `app/`.
 
 When you run `hyperterse start` or `hyperterse build` without arguments, the CLI looks for `.hyperterse` in the current directory. See [Root configuration reference](/reference/root-config) for the complete field specification.
 
@@ -39,20 +39,20 @@ The compiler scans `app/adapters/*.terse` at build time. Each file defines exact
 
 See [Adapters](/concepts/adapters) for how adapters work, and [Adapter configuration reference](/reference/adapter-config) for the field specification.
 
-## Route discovery
+## Tool discovery
 
-The compiler scans `app/routes/*/config.terse` at build time. Each `config.terse` file defines one MCP tool. The directory name becomes the tool name, unless the file explicitly sets a `name` field.
+The compiler scans `app/tools/*/config.terse` at build time. Each `config.terse` file defines one MCP tool. The directory name becomes the tool name, unless the file explicitly sets a `name` field.
 
-Every route must define either a database connection (`use`) or a handler script (`scripts.handler`). Routes with neither are rejected during validation.
+Every tool must define either a database connection (`use`) or a handler script (`scripts.handler`). Tools with neither are rejected during validation.
 
-See [Routes and tools](/concepts/routes-and-tools) for execution models, and [Route configuration reference](/reference/route-config) for the field specification.
+See [Tools](/concepts/tools) for execution models, and [Tool configuration reference](/reference/tool-config) for the field specification.
 
 ## Script resolution
 
-Script paths in route configs are resolved relative to the route directory. You can declare them explicitly, or rely on convention-based discovery where files matching naming patterns (like `*handler*.ts`) are automatically picked up.
+Script paths in tool configs are resolved relative to the tool directory. You can declare them explicitly, or rely on convention-based discovery where files matching naming patterns (like `*handler*.ts`) are automatically picked up.
 
 See [Scripts](/concepts/scripts) for the full script model.
 
 ## Vendor dependencies
 
-If your route scripts import npm packages, add a `package.json` at the project root and install your dependencies. At build time, the bundler resolves external imports, deduplicates shared packages into a single `vendor.js`, and rewrites route bundles to reference it. The deployed artifact has no dependency on `node_modules/`.
+If your tool scripts import npm packages, add a `package.json` at the project root and install your dependencies. At build time, the bundler resolves external imports, deduplicates shared packages into a single `vendor.js`, and rewrites tool bundles to reference it. The deployed artifact has no dependency on `node_modules/`.

@@ -321,7 +321,7 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		if err := framework.ValidateModel(model, project); err != nil {
 			return nil, err
 		}
-		if err := framework.BundleRoutes(project); err != nil {
+		if err := framework.BundleTools(project); err != nil {
 			return nil, err
 		}
 	} else {

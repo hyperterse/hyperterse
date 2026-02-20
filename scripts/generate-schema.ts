@@ -198,7 +198,7 @@ const rootSchema = {
       properties: {
         app_dir: {
           type: "string" as const,
-          description: "Base application directory used for route/adapters discovery.",
+          description: "Base application directory used for tool/adapters discovery.",
           minLength: 1,
         },
       },
@@ -249,12 +249,12 @@ const adapterSchema = {
   additionalProperties: false,
 };
 
-const routeSchema = {
+const toolSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
-  $id: `${schemaBaseURL}/route.terse.schema.json`,
-  title: "HyperterseRouteConfig",
+  $id: `${schemaBaseURL}/tool.terse.schema.json`,
+  title: "HyperterseToolConfig",
   description:
-    "Schema for route-level `.terse` files. This schema validates route configuration regardless of folder naming convention.",
+    "Schema for tool-level `.terse` files. This schema validates tool configuration regardless of folder naming convention.",
   type: "object" as const,
   properties: {
     name: {
@@ -269,7 +269,7 @@ const routeSchema = {
       minLength: 1,
     },
     use: {
-      description: "Adapter binding for DB-backed route tools.",
+      description: "Adapter binding for DB-backed tools.",
       oneOf: [
         { type: "string" as const, minLength: 1 },
         {
@@ -281,16 +281,16 @@ const routeSchema = {
     },
     statement: {
       type: "string" as const,
-      description: "Statement for DB-backed route tools.",
+      description: "Statement for DB-backed tools.",
       minLength: 1,
     },
     scripts: {
       type: "object" as const,
-      description: "Optional script hooks for route behavior.",
+      description: "Optional script hooks for tool behavior.",
       properties: {
         handler: {
           type: "string" as const,
-          description: "Custom route handler script path.",
+          description: "Custom tool handler script path.",
           minLength: 1,
         },
         input_transform: {
@@ -308,7 +308,7 @@ const routeSchema = {
     },
     auth: {
       type: "object" as const,
-      description: "Optional route auth plugin configuration.",
+      description: "Optional tool auth plugin configuration.",
       properties: {
         plugin: { type: "string" as const, minLength: 1 },
         policy: {
@@ -364,7 +364,7 @@ const routeSchema = {
 const outputs = [
   { fileName: "root.terse.schema.json", schema: rootSchema },
   { fileName: "adapter.terse.schema.json", schema: adapterSchema },
-  { fileName: "route.terse.schema.json", schema: routeSchema },
+  { fileName: "tool.terse.schema.json", schema: toolSchema },
 ];
 
 for (const output of outputs) {

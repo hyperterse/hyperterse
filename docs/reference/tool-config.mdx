@@ -1,13 +1,13 @@
 ---
-title: Route
-description: Complete field reference route definition files.
+title: Tool
+description: Complete field reference for tool definition files.
 ---
 
-Each `app/routes/*/config.terse` defines one MCP tool — its execution strategy, inputs, outputs, scripts, authentication, and caching behavior.
+Each `app/tools/*/config.terse` defines one MCP tool — its execution strategy, inputs, outputs, scripts, authentication, and caching behavior.
 
 ## Full schema
 
-```yaml app/routes/get-user-profile/config.terse
+```yaml app/tools/get-user-profile/config.terse
 name: get-user-profile
 description: 'Retrieve a user profile by primary key'
 use: primary-db
@@ -43,9 +43,9 @@ cache:
 ## Field reference
 
 <ParamField body="name" type="string">
-  MCP tool name. Must be unique across all routes.
+  MCP tool name. Must be unique across all tools.
 
-**Default:** directory name (e.g., `get-user` from `app/routes/get-user/`).
+**Default:** directory name (e.g., `get-user` from `app/tools/get-user/`).
 
 </ParamField>
 
@@ -61,7 +61,7 @@ cache:
   Adapter name(s) for statement execution. References adapter identifiers defined in `app/adapters/`.
 
   <Warning>
-  Required if `scripts.handler` is not set. A route must have either `use` or `scripts.handler` (or both).
+  Required if `scripts.handler` is not set. A tool must have either `use` or `scripts.handler` (or both).
   </Warning>
 </ParamField>
 
@@ -124,7 +124,7 @@ statement: |
 </ParamField>
 
 <ParamField body="scripts" type="object">
-  Script paths for custom logic. All paths are relative to the route directory.
+  Script paths for custom logic. All paths are relative to the tool directory.
 
   <Expandable title="properties">
     <ParamField body="handler" type="string">
@@ -147,7 +147,7 @@ statement: |
 </ParamField>
 
 <ParamField body="auth" type="object">
-  Route-level authentication. Omitting this block entirely makes the route unauthenticated.
+  Tool-level authentication. Omitting this block entirely makes the tool unauthenticated.
 
   <Expandable title="properties">
     <ParamField body="plugin" type="string" required>
@@ -169,15 +169,15 @@ statement: |
 </ParamField>
 
 <ParamField body="cache" type="object">
-  Per-route cache settings. Overrides the global cache configuration from `.hyperterse`.
+  Per-tool cache settings. Overrides the global cache configuration from `.hyperterse`.
 
   <Expandable title="properties">
     <ParamField body="enabled" type="boolean">
-      Whether caching is active for this route. Inherits from `server.queries.cache.enabled` if not set.
+      Whether caching is active for this tool. Inherits from `server.queries.cache.enabled` if not set.
     </ParamField>
 
     <ParamField body="ttl" type="integer">
-      Cache TTL in seconds for this route. Inherits from `server.queries.cache.ttl` if not set.
+      Cache TTL in seconds for this tool. Inherits from `server.queries.cache.ttl` if not set.
     </ParamField>
 
   </Expandable>
@@ -185,16 +185,16 @@ statement: |
 
 ## Validity rules
 
-A route is valid when at least one of these conditions is met:
+A tool is valid when at least one of these conditions is met:
 
-1. `use` is defined (database-backed route).
-2. `scripts.handler` is defined (script-backed route).
+1. `use` is defined (database-backed tool).
+2. `scripts.handler` is defined (script-backed tool).
 
 <Warning>
-  Routes with neither `use` nor `scripts.handler` are rejected during
+  Tools with neither `use` nor `scripts.handler` are rejected during
   validation.
 </Warning>
 
 ## JSON Schema
 
-Editor validation: `schema/route.terse.schema.json`. Associate with `**/routes/**/config.terse`. See [Configuration schemas](/reference/configuration-schemas).
+Editor validation: `schema/tool.terse.schema.json`. Associate with `**/tools/**/config.terse`. See [Configuration schemas](/reference/configuration-schemas).

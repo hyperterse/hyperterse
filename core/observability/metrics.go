@@ -74,11 +74,11 @@ func initInstruments() {
 	})
 }
 
-func RecordHTTPRequest(ctx context.Context, method, route string, status int, durationMS float64) {
+func RecordHTTPRequest(ctx context.Context, method, endpoint string, status int, durationMS float64) {
 	initInstruments()
 	attrs := metric.WithAttributes(
 		attribute.String(AttrHTTPMethod, method),
-		attribute.String(AttrHTTPRoute, route),
+		attribute.String(AttrHTTPEndpoint, endpoint),
 		attribute.Int(AttrHTTPStatusCode, status),
 	)
 	m.httpRequestsTotal.Add(ctx, 1, attrs)

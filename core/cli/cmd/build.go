@@ -71,8 +71,8 @@ func buildBundle(cmd *cobra.Command, args []string) error {
 		defer os.RemoveAll(tempBuildRoot)
 
 		project.BuildDir = filepath.Join(tempBuildRoot, "build")
-		if err := framework.BundleRoutes(project); err != nil {
-			return log.Errorf("error bundling route scripts: %w", err)
+		if err := framework.BundleTools(project); err != nil {
+			return log.Errorf("error bundling tool scripts: %w", err)
 		}
 		bundledBuildDir = project.BuildDir
 	}
@@ -210,15 +210,15 @@ func rebaseProjectBundlePaths(project *framework.Project, fromBuildDir, toBuildD
 	}
 	project.BuildDir = toBuildDir
 	project.VendorBundle = rebasePathInBuild(project.VendorBundle, fromBuildDir, toBuildDir)
-	for _, route := range project.Routes {
-		if route == nil {
+	for _, tool := range project.Tools {
+		if tool == nil {
 			continue
 		}
-		route.Scripts.Handler = rebasePathInBuild(route.Scripts.Handler, fromBuildDir, toBuildDir)
-		route.Scripts.InputTransform = rebasePathInBuild(route.Scripts.InputTransform, fromBuildDir, toBuildDir)
-		route.Scripts.OutputTransform = rebasePathInBuild(route.Scripts.OutputTransform, fromBuildDir, toBuildDir)
-		for kind, bundlePath := range route.BundleOutputs {
-			route.BundleOutputs[kind] = rebasePathInBuild(bundlePath, fromBuildDir, toBuildDir)
+		tool.Scripts.Handler = rebasePathInBuild(tool.Scripts.Handler, fromBuildDir, toBuildDir)
+		tool.Scripts.InputTransform = rebasePathInBuild(tool.Scripts.InputTransform, fromBuildDir, toBuildDir)
+		tool.Scripts.OutputTransform = rebasePathInBuild(tool.Scripts.OutputTransform, fromBuildDir, toBuildDir)
+		for kind, bundlePath := range tool.BundleOutputs {
+			tool.BundleOutputs[kind] = rebasePathInBuild(bundlePath, fromBuildDir, toBuildDir)
 		}
 	}
 }

@@ -1,26 +1,26 @@
 ---
 title: Execution pipeline
-description: Deterministic execution flow for tool invocations from route resolution through response serialization.
+description: Deterministic execution flow for tool invocations from tool resolution through response serialization.
 ---
 
-Every `tools/call` request passes through a deterministic pipeline. The stages are identical for DB-backed and script-backed routes — only the execution step differs. If any stage fails, execution halts immediately and an error response is returned.
+Every `tools/call` request passes through a deterministic pipeline. The stages are identical for DB-backed and script-backed tools — only the execution step differs. If any stage fails, execution halts immediately and an error response is returned.
 
 <Frame caption="Every tool invocation passes through the same deterministic pipeline">
   <img
     src="/assets/diagrams/execution-pipeline.svg"
-    alt="Execution pipeline: route resolution, auth, input transform, execution, output transform, response"
+    alt="Execution pipeline: tool resolution, auth, input transform, execution, output transform, response"
   />
 </Frame>
 
-## Route resolution
+## Tool resolution
 
-The runtime matches the tool name from the `tools/call` request to a compiled route definition. Lookup is O(1) via an in-memory map populated at startup.
+The runtime matches the tool name from the `tools/call` request to a compiled tool definition. Lookup is O(1) via an in-memory map populated at startup.
 
-If no route matches, a JSON-RPC error is returned with code `-32601`.
+If no tool matches, a JSON-RPC error is returned with code `-32601`.
 
 ## Authentication
 
-If the route defines an `auth` block, the configured plugin is invoked with the request context and policy parameters.
+If the tool defines an `auth` block, the configured plugin is invoked with the request context and policy parameters.
 
 - Plugin returns `nil`: authentication passes, pipeline continues.
 - Plugin returns an error: pipeline halts, error returned to caller.
@@ -35,7 +35,7 @@ If `scripts.input_transform` is configured or discovered by convention, the `inp
 ```json
 {
   "inputs": { "user_id": 42 },
-  "route": "get-user"
+  "tool": "get-user"
 }
 ```
 
@@ -45,13 +45,13 @@ If no input transform is configured, inputs pass through unchanged.
 
 ## Execution
 
-The execution stage branches based on the route's configuration. Only one path runs per invocation.
+The execution stage branches based on the tool's configuration. Only one path runs per invocation.
 
-### Script-backed routes
+### Script-backed tools
 
 When `scripts.handler` is configured, the `handler` function executes in the embedded runtime. The return value becomes the execution result.
 
-### DB-backed routes
+### DB-backed tools
 
 When `use` and `statement` are configured, the executor runs six substeps:
 
@@ -71,7 +71,7 @@ If `scripts.output_transform` is configured or discovered by convention, the `ou
 ```json
 {
   "results": [{ "id": 42, "name": "Jane Doe", "email": "jane@example.com" }],
-  "route": "get-user"
+  "tool": "get-user"
 }
 ```
 
@@ -98,7 +98,7 @@ The final result is JSON-encoded and wrapped in an MCP content block:
 
 | Stage               | Error condition                | JSON-RPC code |
 | ------------------- | ------------------------------ | ------------- |
-| Route resolution    | Tool name not found            | `-32601`      |
+| Tool resolution     | Tool name not found            | `-32601`      |
 | Authentication      | Plugin returns error           | `-32000`      |
 | Input transform     | Script throws                  | `-32000`      |
 | Input validation    | Missing input or type mismatch | `-32000`      |

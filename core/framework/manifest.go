@@ -11,7 +11,7 @@ import (
 )
 
 // BuildManifestModel clones the compiled model and embeds framework runtime metadata
-// (route bundle references, auth policy hooks, and vendor bundle path) so the
+// (tool bundle references, auth policy hooks, and vendor bundle path) so the
 // runtime can start directly from the manifest without reparsing app sources.
 func BuildManifestModel(model *hyperterse.Model, project *Project, manifestDir string) (*hyperterse.Model, error) {
 	if model == nil {
@@ -29,30 +29,30 @@ func BuildManifestModel(model *hyperterse.Model, project *Project, manifestDir s
 		VendorBundle: toManifestPath(manifestDir, project.VendorBundle),
 	}
 
-	toolNames := make([]string, 0, len(project.Routes))
-	for toolName := range project.Routes {
+	toolNames := make([]string, 0, len(project.Tools))
+	for toolName := range project.Tools {
 		toolNames = append(toolNames, toolName)
 	}
 	sort.Strings(toolNames)
 
 	for _, toolName := range toolNames {
-		route := project.Routes[toolName]
-		if route == nil {
+		tool := project.Tools[toolName]
+		if tool == nil {
 			continue
 		}
 
-		handlerPath := firstNonEmpty(route.BundleOutputs["handler"], route.Scripts.Handler)
-		inputPath := firstNonEmpty(route.BundleOutputs["input_transform"], route.Scripts.InputTransform)
-		outputPath := firstNonEmpty(route.BundleOutputs["output_transform"], route.Scripts.OutputTransform)
+		handlerPath := firstNonEmpty(tool.BundleOutputs["handler"], tool.Scripts.Handler)
+		inputPath := firstNonEmpty(tool.BundleOutputs["input_transform"], tool.Scripts.InputTransform)
+		outputPath := firstNonEmpty(tool.BundleOutputs["output_transform"], tool.Scripts.OutputTransform)
 
-		manifest.Routes = append(manifest.Routes, &hyperterse.RouteBundleManifest{
-			ToolName:              route.ToolName,
-			RoutePath:             route.RoutePath,
+		manifest.Tools = append(manifest.Tools, &hyperterse.ToolBundleManifest{
+			ToolName:              tool.ToolName,
+			ToolPath:              tool.ToolPath,
 			HandlerBundle:         toManifestPath(manifestDir, handlerPath),
 			InputTransformBundle:  toManifestPath(manifestDir, inputPath),
 			OutputTransformBundle: toManifestPath(manifestDir, outputPath),
-			AuthPlugin:            route.Auth.Plugin,
-			AuthPolicy:            copyStringMap(route.Auth.Policy),
+			AuthPlugin:            tool.Auth.Plugin,
+			AuthPolicy:            copyStringMap(tool.Auth.Policy),
 		})
 	}
 
@@ -61,7 +61,7 @@ func BuildManifestModel(model *hyperterse.Model, project *Project, manifestDir s
 }
 
 // ProjectFromManifestModel reconstructs minimal framework project metadata from a
-// compiled model manifest. The returned project contains routes with prebuilt JS
+// compiled model manifest. The returned project contains tools with prebuilt JS
 // bundle references and is ready for runtime execution.
 func ProjectFromManifestModel(model *hyperterse.Model, manifestPath string) (*Project, error) {
 	if model == nil {
@@ -82,7 +82,7 @@ func ProjectFromManifestModel(model *hyperterse.Model, manifestPath string) (*Pr
 		BaseDir:      manifestDir,
 		BuildDir:     buildDir,
 		VendorBundle: vendorPath,
-		Routes:       map[string]*Route{},
+		Tools:        map[string]*Tool{},
 	}
 
 	queryByName := make(map[string]*hyperterse.Query, len(model.Queries))
@@ -92,48 +92,48 @@ func ProjectFromManifestModel(model *hyperterse.Model, manifestPath string) (*Pr
 		}
 	}
 
-	for _, routeManifest := range frameworkManifest.GetRoutes() {
-		if routeManifest == nil {
+	for _, toolManifest := range frameworkManifest.GetTools() {
+		if toolManifest == nil {
 			continue
 		}
-		query, ok := queryByName[routeManifest.GetToolName()]
+		query, ok := queryByName[toolManifest.GetToolName()]
 		if !ok {
-			return nil, fmt.Errorf("manifest route %q does not match any compiled query", routeManifest.GetToolName())
+			return nil, fmt.Errorf("manifest tool %q does not match any compiled query", toolManifest.GetToolName())
 		}
 
-		handlerPath := resolveManifestPath(manifestDir, routeManifest.GetHandlerBundle())
-		inputPath := resolveManifestPath(manifestDir, routeManifest.GetInputTransformBundle())
-		outputPath := resolveManifestPath(manifestDir, routeManifest.GetOutputTransformBundle())
+		handlerPath := resolveManifestPath(manifestDir, toolManifest.GetHandlerBundle())
+		inputPath := resolveManifestPath(manifestDir, toolManifest.GetInputTransformBundle())
+		outputPath := resolveManifestPath(manifestDir, toolManifest.GetOutputTransformBundle())
 
-		route := &Route{
-			ToolName:  routeManifest.GetToolName(),
-			RoutePath: firstNonEmpty(routeManifest.GetRoutePath(), routeManifest.GetToolName()),
-			Query:     query,
-			Scripts: RouteScripts{
+		tool := &Tool{
+			ToolName: toolManifest.GetToolName(),
+			ToolPath: firstNonEmpty(toolManifest.GetToolPath(), toolManifest.GetToolName()),
+			Query:    query,
+			Scripts: ToolScripts{
 				Handler:         handlerPath,
 				InputTransform:  inputPath,
 				OutputTransform: outputPath,
 			},
-			Auth: RouteAuth{
-				Plugin: routeManifest.GetAuthPlugin(),
-				Policy: copyStringMap(routeManifest.GetAuthPolicy()),
+			Auth: ToolAuth{
+				Plugin: toolManifest.GetAuthPlugin(),
+				Policy: copyStringMap(toolManifest.GetAuthPolicy()),
 			},
 			BundleOutputs: map[string]string{},
 		}
 		if handlerPath != "" {
-			route.BundleOutputs["handler"] = handlerPath
+			tool.BundleOutputs["handler"] = handlerPath
 		}
 		if inputPath != "" {
-			route.BundleOutputs["input_transform"] = inputPath
+			tool.BundleOutputs["input_transform"] = inputPath
 		}
 		if outputPath != "" {
-			route.BundleOutputs["output_transform"] = outputPath
+			tool.BundleOutputs["output_transform"] = outputPath
 		}
 
-		project.Routes[route.ToolName] = route
+		project.Tools[tool.ToolName] = tool
 	}
 
-	if len(project.Routes) == 0 {
+	if len(project.Tools) == 0 {
 		return nil, nil
 	}
 	return project, nil

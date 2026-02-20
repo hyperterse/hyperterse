@@ -23,14 +23,14 @@ func requestHeadersFromContext(ctx context.Context) http.Header {
 	return headers
 }
 
-// AuthRequest is passed into plugins for route-level authorization.
+// AuthRequest is passed into plugins for tool-level authorization.
 type AuthRequest struct {
-	Route  *Route
+	Tool   *Tool
 	Policy map[string]string
 	Header http.Header
 }
 
-// AuthPlugin authorizes access to a route invocation.
+// AuthPlugin authorizes access to a tool invocation.
 type AuthPlugin interface {
 	Name() string
 	Authorize(ctx context.Context, req AuthRequest) error
@@ -77,17 +77,17 @@ func (r *AuthRegistry) Get(name string) (AuthPlugin, bool) {
 	return p, ok
 }
 
-func (r *AuthRegistry) Authorize(ctx context.Context, route *Route) error {
-	if route == nil || route.Auth.Plugin == "" {
+func (r *AuthRegistry) Authorize(ctx context.Context, tool *Tool) error {
+	if tool == nil || tool.Auth.Plugin == "" {
 		return nil
 	}
-	plugin, ok := r.Get(route.Auth.Plugin)
+	plugin, ok := r.Get(tool.Auth.Plugin)
 	if !ok {
-		return fmt.Errorf("auth plugin '%s' is not registered", route.Auth.Plugin)
+		return fmt.Errorf("auth plugin '%s' is not registered", tool.Auth.Plugin)
 	}
 	return plugin.Authorize(ctx, AuthRequest{
-		Route:  route,
-		Policy: route.Auth.Policy,
+		Tool:   tool,
+		Policy: tool.Auth.Policy,
 		Header: requestHeadersFromContext(ctx),
 	})
 }

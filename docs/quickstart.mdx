@@ -18,13 +18,13 @@ This generates the starter structure:
 app/
   adapters/
     my-database.terse
-  routes/
+  tools/
     health/
       config.terse
       handler.ts
 ```
 
-`.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/routes/health/` is a script-backed tool with a TypeScript handler.
+`.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/tools/health/` is a script-backed tool with a TypeScript handler.
 
 ## Review the root configuration
 
@@ -39,7 +39,7 @@ server:
 
 `name` identifies the service. `server.port` sets the TCP port. `server.log_level` controls verbosity: 1 = error, 2 = warn, 3 = info, 4 = debug.
 
-This is the entire root config. Adapters and routes live in the `app/` directory — the root config handles service-level settings only.
+This is the entire root config. Adapters and tools live in the `app/` directory — the root config handles service-level settings only.
 
 ## Start the server
 
@@ -47,7 +47,7 @@ This is the entire root config. Adapters and routes live in the `app/` directory
 hyperterse start
 ```
 
-The CLI loads `.hyperterse` from the current directory, discovers adapters and routes under `app/`, compiles tool definitions, bundles any TypeScript scripts, and starts the MCP server.
+The CLI loads `.hyperterse` from the current directory, discovers adapters and tools under `app/`, compiles tool definitions, bundles any TypeScript scripts, and starts the MCP server.
 
 For automatic restarts on file changes during development:
 
@@ -79,7 +79,7 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
-The response contains a `tools` array with one entry per compiled route. Each tool includes its name, description, and a JSON Schema describing its input parameters.
+The response contains a `tools` array with one entry per compiled tool. Each tool includes its name, description, and a JSON Schema describing its input parameters.
 
 ## Call a tool
 
@@ -120,9 +120,9 @@ Set the environment variable:
 export DATABASE_URL="postgresql://user:pass@localhost:5432/mydb"
 ```
 
-### Create a route
+### Create a tool
 
-Create `app/routes/list-users/config.terse`:
+Create `app/tools/list-users/config.terse`:
 
 ```yaml
 description: 'List all users with optional limit'
@@ -172,6 +172,6 @@ Validation catches errors before they reach production: missing adapter fields, 
 
 - [Project structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
 - [Adapters](/concepts/adapters) — Connector configuration for each supported database.
-- [Routes and tools](/concepts/routes-and-tools) — DB-backed and script-backed tool definitions.
+- [Tools](/concepts/tools) — DB-backed and script-backed tool definitions.
 - [Scripts](/concepts/scripts) — TypeScript handler and transform contracts.
 - [CLI reference](/reference/cli) — Complete command and flag documentation.

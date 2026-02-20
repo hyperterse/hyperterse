@@ -186,7 +186,7 @@ dist/
 ├── model.bin           # Serialized manifest
 └── build/
     ├── vendor.js       # Shared dependency bundle
-    └── routes/
+    └── tools/
         └── <name>/
             ├── handler.js
             ├── input_transform.js
@@ -222,7 +222,7 @@ hyperterse validate [path] [flags]
 
 - Root config schema compliance
 - Adapter completeness (`connector` and `connection_string` required)
-- Route validity (`use` or `scripts.handler` present)
+- Tool validity (`use` or `scripts.handler` present)
 - Adapter name uniqueness
 - Input type correctness
 - Script file resolution
@@ -256,8 +256,8 @@ hyperterse init
 | -------------------------------- | ------------------------- |
 | `.hyperterse`                    | Root config with defaults |
 | `app/adapters/my-database.terse` | Placeholder adapter       |
-| `app/routes/health/config.terse` | Health check route        |
-| `app/routes/health/handler.ts`   | Health check handler      |
+| `app/tools/health/config.terse`  | Health check tool         |
+| `app/tools/health/handler.ts`    | Health check handler      |
 
 <Note>Does not overwrite existing files.</Note>
 

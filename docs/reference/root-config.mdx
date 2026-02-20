@@ -3,7 +3,7 @@ title: Root
 description: Complete field reference for the .hyperterse root configuration file.
 ---
 
-The root configuration file (`.hyperterse`) defines service-level settings. It does not contain adapter or route definitions — those are discovered from the `app/` directory.
+The root configuration file (`.hyperterse`) defines service-level settings. It does not contain adapter or tool definitions — those are discovered from the `app/` directory.
 
 ## Full schema
 
@@ -71,11 +71,11 @@ framework:
 
           <Expandable title="properties">
             <ParamField body="enabled" type="boolean" default="false">
-              Enable in-memory query result caching globally. Individual routes can override this.
+              Enable in-memory query result caching globally. Individual tools can override this.
             </ParamField>
 
             <ParamField body="ttl" type="integer" default="120">
-              Default TTL in seconds for cached query results. Individual routes can override this.
+              Default TTL in seconds for cached query results. Individual tools can override this.
             </ParamField>
           </Expandable>
         </ParamField>
@@ -107,7 +107,7 @@ framework:
 
   <Expandable title="properties">
     <ParamField body="app_dir" type="string" default="app">
-      Base directory for adapter and route discovery. Relative to the root config path.
+      Base directory for adapter and tool discovery. Relative to the root config path.
     </ParamField>
   </Expandable>
 </ParamField>

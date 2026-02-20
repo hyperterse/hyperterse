@@ -1,61 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" fill="none">
-  <style>
-    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    .step { rx: 6; stroke-width: 1.5; }
-    .step-label { font-size: 12px; font-weight: 600; }
-    .step-cmd { font-size: 10px; font-family: 'SF Mono', 'Fira Code', monospace; }
-    .arrow { stroke: #14B8A6; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
-    .phase-label { font-size: 10px; fill: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-  </style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 620" fill="none">
   <defs>
-    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#14B8A6"/>
+    <marker id="a" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+      <path d="M0 0L5 2L0 4" fill="none" stroke="#555" stroke-width="1"/>
     </marker>
   </defs>
 
-  <!-- Phase labels -->
-  <text x="200" y="20" class="phase-label" text-anchor="middle">CI / Local</text>
-  <text x="580" y="20" class="phase-label" text-anchor="middle">Target environment</text>
+  <rect width="800" height="620" fill="#0A0A0A"/>
 
-  <!-- Divider -->
-  <line x1="420" y1="10" x2="420" y2="170" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="4 4"/>
+  <g font-family="Inter, system-ui, sans-serif">
 
-  <!-- Step 1: Validate -->
-  <rect x="30" y="40" width="140" height="55" class="step" fill="#FFF7ED" stroke="#F59E0B"/>
-  <text x="100" y="62" class="step-label" fill="#92400E" text-anchor="middle">Validate</text>
-  <text x="100" y="82" class="step-cmd" fill="#A16207" text-anchor="middle">hyperterse validate</text>
+    <!-- Vertical connectors -->
+    <g fill="none" stroke="#555" stroke-width="1" marker-end="url(#a)">
+      <line x1="400" y1="118" x2="400" y2="148"/>
+      <line x1="400" y1="218" x2="400" y2="248"/>
+      <line x1="400" y1="318" x2="400" y2="348"/>
+      <line x1="400" y1="418" x2="400" y2="448"/>
+    </g>
 
-  <line x1="170" y1="67" x2="195" y2="67" class="arrow"/>
+    <!-- 1. Validate -->
+    <rect x="240" y="48" width="320" height="70" rx="8" fill="#111" stroke="#222"/>
+    <text x="268" y="82" fill="#E0E0E0" font-size="17" font-weight="600">Validate</text>
+    <text x="268" y="102" fill="#666" font-size="12">Check configuration structure and policy</text>
 
-  <!-- Step 2: Build -->
-  <rect x="195" y="40" width="140" height="55" class="step" fill="#F0FDFA" stroke="#0F766E"/>
-  <text x="265" y="62" class="step-label" fill="#115E59" text-anchor="middle">Build</text>
-  <text x="265" y="82" class="step-cmd" fill="#0F766E" text-anchor="middle">hyperterse build -o dist</text>
+    <!-- 2. Build -->
+    <rect x="240" y="148" width="320" height="70" rx="8" fill="#111" stroke="#222"/>
+    <text x="268" y="182" fill="#E0E0E0" font-size="17" font-weight="600">Build</text>
+    <text x="268" y="202" fill="#666" font-size="12">Produce a single immutable artifact</text>
 
-  <line x1="335" y1="67" x2="360" y2="67" class="arrow"/>
+    <!-- 3. Verify -->
+    <rect x="240" y="248" width="320" height="70" rx="8" fill="#111" stroke="#1A3D2E"/>
+    <rect x="240" y="248" width="3" height="70" rx="1.5" fill="#2F7659"/>
+    <text x="268" y="282" fill="#E0E0E0" font-size="17" font-weight="600">Verify</text>
+    <text x="268" y="302" fill="#666" font-size="12">Test the exact artifact before release</text>
 
-  <!-- Step 3: Artifact -->
-  <rect x="360" y="40" width="60" height="55" class="step" fill="#115E59" stroke="#0F766E"/>
-  <text x="390" y="62" class="step-label" fill="#CCFBF1" text-anchor="middle">dist/</text>
-  <text x="390" y="78" font-size="9" fill="#99F6E4" text-anchor="middle">model.bin</text>
-  <text x="390" y="88" font-size="9" fill="#99F6E4" text-anchor="middle">binary</text>
+    <!-- 4. Promote -->
+    <rect x="240" y="348" width="320" height="70" rx="8" fill="#111" stroke="#222"/>
+    <text x="268" y="382" fill="#E0E0E0" font-size="17" font-weight="600">Promote</text>
+    <text x="268" y="402" fill="#666" font-size="12">Move the unchanged package to production</text>
 
-  <line x1="420" y1="67" x2="460" y2="67" class="arrow"/>
+    <!-- 5. Serve -->
+    <rect x="240" y="448" width="320" height="70" rx="8" fill="#111" stroke="#1A3D2E"/>
+    <rect x="240" y="448" width="3" height="70" rx="1.5" fill="#2F7659"/>
+    <text x="268" y="482" fill="#E0E0E0" font-size="17" font-weight="600">Serve</text>
+    <text x="268" y="502" fill="#666" font-size="12">Start the server from the trusted artifact</text>
 
-  <!-- Step 4: Deploy -->
-  <rect x="460" y="40" width="120" height="55" class="step" fill="#F0FDF4" stroke="#22C55E"/>
-  <text x="520" y="62" class="step-label" fill="#166534" text-anchor="middle">Deploy artifact</text>
-  <text x="520" y="82" font-size="10" fill="#15803D" text-anchor="middle">Ship dist/ as-is</text>
+    <!-- Footer note -->
+    <line x1="240" y1="560" x2="560" y2="560" stroke="#1A1A1A"/>
+    <text x="400" y="590" fill="#555" font-size="12" text-anchor="middle">The same artifact moves through every stage — no rebuilds</text>
 
-  <line x1="580" y1="67" x2="605" y2="67" class="arrow"/>
-
-  <!-- Step 5: Serve -->
-  <rect x="605" y="40" width="100" height="55" class="step" fill="#0F766E" stroke="#0F766E"/>
-  <text x="655" y="62" class="step-label" fill="#FFFFFF" text-anchor="middle">Serve</text>
-  <text x="655" y="82" class="step-cmd" fill="#CCFBF1" text-anchor="middle">./hyperterse serve</text>
-
-  <!-- Annotation -->
-  <rect x="30" y="120" width="370" height="40" rx="6" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
-  <text x="215" y="138" font-size="11" fill="#374151" font-weight="500" text-anchor="middle">Build once. Validate before building. Never rebuild on target.</text>
-  <text x="215" y="152" font-size="11" fill="#6B7280" text-anchor="middle">Source files are not needed in the deployment artifact.</text>
+  </g>
 </svg>

@@ -106,9 +106,9 @@ If the connection fails, the server exits immediately with a diagnostic message.
 
 ## Usage
 
-PostgreSQL routes execute standard SQL through the adapter. Use `{{ inputs.field }}` placeholders for parameterized values — they are never interpolated as raw SQL.
+PostgreSQL tools execute standard SQL through the adapter. Use `{{ inputs.field }}` placeholders for parameterized values — they are never interpolated as raw SQL.
 
-```yaml app/routes/get-user/config.terse
+```yaml app/tools/get-user/config.terse
 description: 'Retrieve a user by their identifier'
 use: main-db
 statement: |
@@ -139,7 +139,7 @@ connector: postgres
 connection_string: '{{ env.REPLICA_DB_URL }}'
 ```
 
-Route read-only tools to the replica adapter and write tools to the primary.
+Send read-only tools to the replica adapter and write tools to the primary.
 
 ## Troubleshooting
 

@@ -3,20 +3,20 @@ title: v1 to v2 migration
 description: Migration guide from Hyperterse v1 inline configuration to v2 filesystem-based MCP framework.
 ---
 
-Hyperterse v2 is a breaking redesign. The framework shifts from a single-file query gateway to a compiled, filesystem-routed MCP framework.
+Hyperterse v2 is a breaking redesign. The framework shifts from a single-file query gateway to a compiled, filesystem-based MCP framework.
 
 ## What changed
 
 | Aspect        | V1                                                        | V2                                                                 |
 | ------------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
-| Configuration | Single `.hyperterse` with inline `adapters` and `queries` | Root config + `app/adapters/*.terse` + `app/routes/*/config.terse` |
-| Routing       | Query name from config keys                               | Filesystem: each route directory = one tool                        |
+| Configuration | Single `.hyperterse` with inline `adapters` and `queries` | Root config + `app/adapters/*.terse` + `app/tools/*/config.terse` |
+| Tool mapping  | Query name from config keys                               | Filesystem: each tool directory = one tool                         |
 | Scripts       | None                                                      | TypeScript handlers, input/output transforms                       |
-| Auth          | None                                                      | Per-route pluggable auth                                           |
+| Auth          | None                                                      | Per-tool pluggable auth                                            |
 | Transport     | HTTP query endpoints                                      | MCP Streamable HTTP (`/mcp`)                                       |
 | Build         | Runtime interprets config directly                        | `build` → `model.bin` → `serve`                                    |
 | Bundling      | None                                                      | Scripts bundled + vendor deduplication                             |
-| Caching       | Global only                                               | Global + per-route override                                        |
+| Caching       | Global only                                               | Global + per-tool override                                         |
 | Observability | Basic logging                                             | OpenTelemetry tracing + metrics + structured logging               |
 
 ## Migration steps
@@ -77,7 +77,7 @@ connector: postgres
 connection_string: '{{ env.DATABASE_URL }}'
 ```
 
-V1 used underscores (`main_db`). V2 uses the filename (`main-db`). Update route `use` references, or add an explicit `name` field to preserve the old identifier:
+V1 used underscores (`main_db`). V2 uses the filename (`main-db`). Update tool `use` references, or add an explicit `name` field to preserve the old identifier:
 
 ```yaml
 name: main_db
@@ -85,11 +85,11 @@ connector: postgres
 connection_string: '{{ env.DATABASE_URL }}'
 ```
 
-### Extract routes
+### Extract tools
 
-For each v1 `queries` entry, create `app/routes/<name>/config.terse`:
+For each v1 `queries` entry, create `app/tools/<name>/config.terse`:
 
-**`app/routes/get-user/config.terse`:**
+**`app/tools/get-user/config.terse`:**
 
 ```yaml
 description: 'Get user by id'
@@ -105,13 +105,13 @@ auth:
 
 ### Add authentication
 
-V1 had no auth. V2 requires explicit auth per route:
+V1 had no auth. V2 requires explicit auth per tool:
 
 - `allow_all` for public/health tools.
 - `api_key` for key-protected tools.
 - Custom plugins for advanced flows.
 
-Do not leave routes without `auth` unless intentionally unauthenticated.
+Do not leave tools without `auth` unless intentionally unauthenticated.
 
 ### Add scripts (optional)
 
@@ -147,10 +147,10 @@ Common issues:
 
 | Error                                         | Resolution                                        |
 | --------------------------------------------- | ------------------------------------------------- |
-| Route has neither `use` nor `scripts.handler` | Add adapter reference or handler.                 |
+| Tool has neither `use` nor `scripts.handler`  | Add adapter reference or handler.                 |
 | Adapter name not found                        | Verify `use` matches filename or explicit `name`. |
 | Unknown connector type                        | Use `postgres`, `mysql`, `mongodb`, or `redis`.   |
-| Script file not found                         | Verify paths are relative to route directory.     |
+| Script file not found                         | Verify paths are relative to tool directory.      |
 
 ### Test
 
@@ -218,7 +218,7 @@ my-api/
   app/
     adapters/
       main-db.terse
-    routes/
+    tools/
       get-user/
         config.terse
         validate.ts        # optional
@@ -232,8 +232,8 @@ my-api/
 | Change                    | Impact                            | Action                                 |
 | ------------------------- | --------------------------------- | -------------------------------------- |
 | Inline `adapters` removed | Config will not parse             | Extract to `app/adapters/*.terse`      |
-| Inline `queries` removed  | Config will not parse             | Extract to `app/routes/*/config.terse` |
+| Inline `queries` removed  | Config will not parse             | Extract to `app/tools/*/config.terse`  |
 | `/query/{name}` removed   | HTTP clients break                | Migrate to MCP `tools/call`            |
-| Auth now per-route        | Routes unauthenticated by default | Add `auth` blocks                      |
+| Auth now per-tool         | Tools unauthenticated by default  | Add `auth` blocks                      |
 | DSL parser deprecated     | Text-format blocks unsupported    | Convert to YAML                        |
 | Build step introduced     | Direct interpretation replaced    | Add `build` + `serve` to pipeline      |

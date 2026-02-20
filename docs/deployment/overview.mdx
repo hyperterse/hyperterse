@@ -15,7 +15,7 @@ Compile your project into a self-contained output directory:
 hyperterse build -o dist
 ```
 
-This loads `.hyperterse` from the current directory, discovers all adapters and routes, bundles scripts, and writes the deployment artifact.
+This loads `.hyperterse` from the current directory, discovers all adapters and tools, bundles scripts, and writes the deployment artifact.
 
 To build from a different project directory, pass a positional argument:
 
@@ -28,9 +28,9 @@ The output directory contains:
 | Artifact                   | Description                                              |
 | -------------------------- | -------------------------------------------------------- |
 | `hyperterse`               | Runtime binary                                           |
-| `model.bin`                | Serialized manifest (adapters, routes, config)           |
-| `build/vendor.js`          | Shared dependency bundle (if routes import npm packages) |
-| `build/routes/<name>/*.js` | Per-route script bundles                                 |
+| `model.bin`                | Serialized manifest (adapters, tools, config)            |
+| `build/vendor.js`          | Shared dependency bundle (if tools import npm packages)  |
+| `build/tools/<name>/*.js`  | Per-tool script bundles                                  |
 
 <Tip>
   Always run `hyperterse validate` before building. The build command also

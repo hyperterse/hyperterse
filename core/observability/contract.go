@@ -16,7 +16,7 @@ const (
 	AttrAdapterName         = "adapter.name"
 	AttrConnectorType       = "connector.type"
 	AttrHTTPMethod          = "http.request.method"
-	AttrHTTPRoute           = "http.route"
+	AttrHTTPEndpoint        = "http.route"
 	AttrHTTPStatusCode      = "http.response.status_code"
 	AttrErrorType           = "error.type"
 	AttrErrorMessage        = "error.message"

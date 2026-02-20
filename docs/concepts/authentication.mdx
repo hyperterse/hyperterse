@@ -1,15 +1,15 @@
 ---
 title: Authentication
-description: Route-level authentication with built-in and custom plugins.
+description: Tool-level authentication with built-in and custom plugins.
 ---
 
-Authentication in Hyperterse is route-scoped and plugin-based. Each route declares which plugin to use and supplies policy parameters. The auth check runs as the second stage of the execution pipeline — after route resolution, before input transforms or execution.
+Authentication in Hyperterse is tool-scoped and plugin-based. Each tool declares which plugin to use and supplies policy parameters. The auth check runs as the second stage of the execution pipeline — after tool resolution, before input transforms or execution.
 
-Routes without an `auth` block are unauthenticated. There is no global auth middleware.
+Tools without an `auth` block are unauthenticated. There is no global auth middleware.
 
 ## Configuration
 
-Add an `auth` block to any route config:
+Add an `auth` block to any tool config:
 
 ```yaml
 auth:
@@ -42,18 +42,11 @@ auth:
 
 ## Auth flow
 
-<Frame caption="Authentication decision flow for each tool invocation">
-  <img
-    src="/assets/diagrams/auth-flow.svg"
-    alt="Authentication decision flow: check for auth block, resolve plugin, execute authorization, continue or reject"
-  />
-</Frame>
-
-When a tool is invoked, the runtime checks whether the matched route has an `auth` block. If present, the configured plugin is resolved and executed with the request context and policy map. A successful check allows the pipeline to continue. An error halts the pipeline immediately and returns an authentication error.
+When a tool is invoked, the runtime checks whether the matched tool has an `auth` block. If present, the configured plugin is resolved and executed with the request context and policy map. A successful check allows the pipeline to continue. An error halts the pipeline immediately and returns an authentication error.
 
 ## Custom plugins
 
-You can register custom auth plugins to implement strategies like JWT validation, OAuth bearer tokens, or IP allowlisting. Once registered, use the plugin name in route configs just like the built-in ones:
+You can register custom auth plugins to implement strategies like JWT validation, OAuth bearer tokens, or IP allowlisting. Once registered, use the plugin name in tool configs just like the built-in ones:
 
 ```yaml
 auth:
@@ -63,11 +56,11 @@ auth:
     audience: 'my-service'
 ```
 
-A plugin receives the request headers (extracted from the HTTP transport) and the policy map from the route config. Return success to authorize, or an error to reject.
+A plugin receives the request headers (extracted from the HTTP transport) and the policy map from the tool config. Return success to authorize, or an error to reject.
 
 ## Key points
 
-- **Auth is per-route.** Every route that needs protection must declare it. There is no implicit inheritance.
+- **Auth is per-tool.** Every tool that needs protection must declare it. There is no implicit inheritance.
 - **No `auth` block means no authentication.** The tool is accessible to anyone who can reach the endpoint.
 - **Use environment variables for secrets.** `{{ env.VAR }}` in policy values keeps credentials out of config files.
-- **`allow_all` is not a security boundary.** It exists for convenience — do not use it on production routes that access sensitive data.
+- **`allow_all` is not a security boundary.** It exists for convenience — do not use it on production tools that access sensitive data.

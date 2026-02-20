@@ -31,28 +31,28 @@ func (e *Engine) Project() *Project {
 	return e.project
 }
 
-func (e *Engine) GetRoute(toolName string) *Route {
+func (e *Engine) GetTool(toolName string) *Tool {
 	if e.project == nil {
 		return nil
 	}
-	return e.project.Routes[toolName]
+	return e.project.Tools[toolName]
 }
 
 func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[string]any) ([]map[string]any, error) {
-	route := e.GetRoute(queryName)
-	if route == nil {
+	tool := e.GetTool(queryName)
+	if tool == nil {
 		return e.executor.ExecuteQuery(ctx, queryName, userInputs)
 	}
 
-	if err := e.authRegistry.Authorize(ctx, route); err != nil {
+	if err := e.authRegistry.Authorize(ctx, tool); err != nil {
 		return nil, err
 	}
 
 	currentInputs := userInputs
-	if bundlePath := route.BundleOutputs["input_transform"]; bundlePath != "" {
+	if bundlePath := tool.BundleOutputs["input_transform"]; bundlePath != "" {
 		transformed, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, "inputTransform", map[string]any{
 			"inputs": userInputs,
-			"route":  route.RoutePath,
+			"tool":   tool.ToolPath,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("input transform failed for tool %s: %w", queryName, err)
@@ -63,10 +63,10 @@ func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[s
 	}
 
 	var results []map[string]any
-	if bundlePath := route.BundleOutputs["handler"]; bundlePath != "" {
+	if bundlePath := tool.BundleOutputs["handler"]; bundlePath != "" {
 		customResult, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, "handler", map[string]any{
 			"inputs": currentInputs,
-			"route":  route.RoutePath,
+			"tool":   tool.ToolPath,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("handler script failed for tool %s: %w", queryName, err)
@@ -80,10 +80,10 @@ func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[s
 		results = dbResults
 	}
 
-	if bundlePath := route.BundleOutputs["output_transform"]; bundlePath != "" {
+	if bundlePath := tool.BundleOutputs["output_transform"]; bundlePath != "" {
 		transformed, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, "outputTransform", map[string]any{
 			"results": results,
-			"route":   route.RoutePath,
+			"tool":    tool.ToolPath,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("output transform failed for tool %s: %w", queryName, err)

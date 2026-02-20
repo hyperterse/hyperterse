@@ -94,7 +94,7 @@
       "properties": {
         "app_dir": {
           "type": "string",
-          "description": "Base application directory used for route/adapters discovery.",
+          "description": "Base application directory used for tool/adapters discovery.",
           "minLength": 1
         }
       },

@@ -13,8 +13,8 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 | --------------------------- | --------------------------------------------------------------------------------------------- |
 | Adapter `connection_string` | `"postgresql://{{ env.DB_USER }}:{{ env.DB_PASS }}@{{ env.DB_HOST }}:5432/{{ env.DB_NAME }}"` |
 | Adapter `options` values    | `sslmode: "{{ env.DB_SSL_MODE }}"`                                                            |
-| Route `statement`           | `"SELECT * FROM {{ env.TABLE_PREFIX }}_users WHERE id = {{ inputs.user_id }}"`                |
-| Route `auth.policy` values  | `value: "{{ env.API_KEY }}"`                                                                  |
+| Tool `statement`            | `"SELECT * FROM {{ env.TABLE_PREFIX }}_users WHERE id = {{ inputs.user_id }}"`               |
+| Tool `auth.policy` values   | `value: "{{ env.API_KEY }}"`                                                                  |
 | Root config `server.port`   | `port: "{{ env.PORT }}"`                                                                      |
 
 ### Resolution behavior
@@ -34,7 +34,7 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 </ParamField>
 
 <ParamField body="HYPERTERSE_API_KEY" type="string">
-  Fallback API key for the `api_key` auth plugin when `auth.policy.value` is not set on a route.
+  Fallback API key for the `api_key` auth plugin when `auth.policy.value` is not set on a tool.
 
 **Precedence:** `auth.policy.value` config → `HYPERTERSE_API_KEY` env
 

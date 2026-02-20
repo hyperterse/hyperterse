@@ -31,7 +31,7 @@ func (h otelLoggerErrorHandler) Handle(err error) {
 	if err == nil {
 		return
 	}
-	// Route OpenTelemetry internal warnings through Hyperterse logger.
+	// Send OpenTelemetry internal warnings through Hyperterse logger.
 	h.log.Warnf("OpenTelemetry warning: %v", err)
 }
 

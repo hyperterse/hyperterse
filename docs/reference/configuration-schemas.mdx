@@ -9,7 +9,7 @@ Hyperterse ships three role-based JSON Schema files for editor-time validation, 
 | ---------------------------------- | --------------------------- | -------------------------- |
 | `schema/root.terse.schema.json`    | `.hyperterse`               | Root service configuration |
 | `schema/adapter.terse.schema.json` | `app/adapters/*.terse`      | Adapter definitions        |
-| `schema/route.terse.schema.json`   | `app/routes/*/config.terse` | Route/tool definitions     |
+| `schema/tool.terse.schema.json`    | `app/tools/*/config.terse`  | Tool definitions           |
 
 ## Generation
 
@@ -34,7 +34,7 @@ Add to `.vscode/settings.json`:
   "yaml.schemas": {
     "schema/root.terse.schema.json": "**/.hyperterse",
     "schema/adapter.terse.schema.json": "**/adapters/*.terse",
-    "schema/route.terse.schema.json": "**/routes/**/config.terse"
+    "schema/tool.terse.schema.json": "**/tools/**/config.terse"
   }
 }
 ```
@@ -67,7 +67,7 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `name` — Optional.
 - `options` — Optional map.
 
-### Route (`route.terse.schema.json`)
+### Tool (`tool.terse.schema.json`)
 
 - `description` — Required string.
 - `use` — String or string[].

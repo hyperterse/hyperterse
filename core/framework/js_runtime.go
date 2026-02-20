@@ -15,7 +15,7 @@ import (
 	"github.com/hyperterse/hyperterse/core/logger"
 )
 
-// ScriptRuntime executes bundled route scripts in-process.
+// ScriptRuntime executes bundled tool scripts in-process.
 type ScriptRuntime struct {
 	httpClient *http.Client
 }

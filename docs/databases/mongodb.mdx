@@ -83,9 +83,9 @@ If the connection fails, the server exits immediately with a diagnostic message.
 
 ## Usage
 
-MongoDB route statements are JSON objects with two required fields: `database` and `command`. The `command` field takes a raw MongoDB database command.
+MongoDB tool statements are JSON objects with two required fields: `database` and `command`. The `command` field takes a raw MongoDB database command.
 
-```yaml app/routes/find-users/config.terse
+```yaml app/tools/find-users/config.terse
 description: 'Find users by name'
 use: mongo-db
 statement: |
@@ -120,7 +120,7 @@ auth:
 
 ### Aggregation example
 
-```yaml app/routes/sales-summary/config.terse
+```yaml app/tools/sales-summary/config.terse
 description: 'Aggregate sales by product category'
 use: mongo-db
 statement: |

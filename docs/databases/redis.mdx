@@ -71,9 +71,9 @@ If the connection fails, the server exits immediately with a diagnostic message.
 
 ## Usage
 
-Redis route statements contain the Redis command to execute. Use `{{ inputs.field }}` placeholders for dynamic values.
+Redis tool statements contain the Redis command to execute. Use `{{ inputs.field }}` placeholders for dynamic values.
 
-```yaml app/routes/get-cached-value/config.terse
+```yaml app/tools/get-cached-value/config.terse
 description: 'Retrieve a cached value by key'
 use: cache
 statement: 'GET {{ inputs.key }}'
@@ -135,7 +135,7 @@ app/adapters/
   feature-flags.terse   # Redis DB 2 — feature flag values
 ```
 
-Each adapter can connect to a different Redis database number or a different Redis instance entirely. Routes reference the appropriate adapter by name.
+Each adapter can connect to a different Redis database number or a different Redis instance entirely. Tools reference the appropriate adapter by name.
 
 ## Troubleshooting
 

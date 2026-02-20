@@ -35,11 +35,7 @@
           {
             "group": "Getting started",
             "icon": "home",
-            "pages": [
-              "introduction",
-              "getting-started/installation",
-              "getting-started/quickstart"
-            ]
+            "pages": ["introduction", "installation", "quickstart"]
           },
           {
             "group": "Core concepts",
@@ -47,7 +43,7 @@
             "pages": [
               "concepts/project-structure",
               "concepts/adapters",
-              "concepts/routes-and-tools",
+              "concepts/tools",
               "concepts/scripts",
               "concepts/authentication"
             ]
@@ -129,7 +125,7 @@
             "pages": [
               "reference/root-config",
               "reference/adapter-config",
-              "reference/route-config",
+              "reference/tool-config",
               "reference/environment-variables",
               "reference/configuration-schemas"
             ]

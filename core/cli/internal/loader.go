@@ -16,7 +16,7 @@ func LoadConfig(filePath string) (*hyperterse.Model, error) {
 	return model, err
 }
 
-// LoadConfigWithProject loads and parses a configuration file and compiles v2 app routes if present.
+// LoadConfigWithProject loads and parses a configuration file and compiles v2 app tools if present.
 func LoadConfigWithProject(filePath string) (*hyperterse.Model, *framework.Project, error) {
 	log := logger.New("parser")
 
@@ -34,7 +34,7 @@ func LoadConfigWithProject(filePath string) (*hyperterse.Model, *framework.Proje
 	parserType := ""
 
 	// Determine parser based on file extension.
-	// Root config is now `.hyperterse` and route/adapter files remain `.terse`.
+	// Root config is now `.hyperterse` and tool/adapter files remain `.terse`.
 	if strings.HasSuffix(filePath, ".terse") || strings.HasSuffix(filePath, ".hyperterse") {
 		parserType = "YAML"
 		log.Debugf("Parsing configuration with YAML parser")

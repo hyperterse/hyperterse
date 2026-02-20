@@ -39,7 +39,7 @@ Type validation constrains the value space: an `int` input only accepts numbers,
 
 ### Auth enforcement
 
-- Route-level auth runs before any input processing.
+- Tool-level auth runs before any input processing.
 - Auth failures halt the pipeline immediately.
 
 ## What the framework does not protect against
@@ -71,7 +71,7 @@ For `string`-typed inputs, validate format in an input transform:
 ```typescript
 export function inputTransform(payload: {
   inputs: Record<string, any>
-  route: string
+  tool: string
 }) {
   const { email } = payload.inputs
 
@@ -105,7 +105,7 @@ When a query needs dynamic structure, implement it as a handler with explicit sa
 ```typescript
 export async function handler(payload: {
   inputs: Record<string, any>
-  route: string
+  tool: string
 }) {
   const { user_id, fields } = payload.inputs
 
@@ -131,7 +131,7 @@ Missing variables fail execution rather than defaulting to empty strings.
 | ------------------------- | ----------------------------------------- | -------------------------------- |
 | Input type validation     | Type conversion and required checks       | Framework (automatic)            |
 | Credential isolation      | Connection strings hidden from callers    | Framework (automatic)            |
-| Auth enforcement          | Pre-execution access control              | Framework (configured per-route) |
+| Auth enforcement          | Pre-execution access control              | Framework (configured per-tool)  |
 | String input sanitization | Content validation and format enforcement | Developer (input transforms)     |
 | Statement safety          | Avoiding structural injection             | Developer (query design)         |
 | Network security          | TLS, rate limiting, access control        | Operator (infrastructure)        |

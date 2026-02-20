@@ -1,9 +1,9 @@
 ---
 title: Adapters
-description: Named database connections that routes reference for query execution.
+description: Named database connections that tools reference for query execution.
 ---
 
-An adapter is a named binding between the Hyperterse runtime and a database. You define the connector type and connection string in a `.terse` file under `app/adapters/`, and routes reference adapters by name through the `use` field. The framework handles connection pooling, health checks, and graceful shutdown.
+An adapter is a named binding between the Hyperterse runtime and a database. You define the connector type and connection string in a `.terse` file under `app/adapters/`, and tools reference adapters by name through the `use` field. The framework handles connection pooling, health checks, and graceful shutdown.
 
 ## Defining an adapter
 
@@ -54,17 +54,17 @@ Hyperterse ships with four built-in connectors:
   </Card>
 </CardGroup>
 
-## Referencing adapters from routes
+## Referencing adapters from tools
 
-Routes point to an adapter by name:
+Tools point to an adapter by name:
 
 ```yaml
-# app/routes/get-user/config.terse
+# app/tools/get-user/config.terse
 use: primary-db
 statement: 'SELECT * FROM users WHERE id = {{ inputs.user_id }}'
 ```
 
-A project can define multiple adapters, and different routes can reference different ones:
+A project can define multiple adapters, and different tools can reference different ones:
 
 ```
 app/adapters/
@@ -75,7 +75,7 @@ app/adapters/
 
 ## Lifecycle
 
-All adapters referenced by at least one route are initialized in parallel at startup. Each connector establishes its pool and runs a connectivity check. If any connector fails — unreachable host, invalid credentials, network timeout — the runtime exits immediately. This fail-fast behavior prevents serving tools that would error on every request.
+All adapters referenced by at least one tool are initialized in parallel at startup. Each connector establishes its pool and runs a connectivity check. If any connector fails — unreachable host, invalid credentials, network timeout — the runtime exits immediately. This fail-fast behavior prevents serving tools that would error on every request.
 
 On shutdown (`SIGINT` / `SIGTERM`), all connectors close concurrently after in-flight queries complete.
 

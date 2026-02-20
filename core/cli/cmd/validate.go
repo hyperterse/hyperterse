@@ -63,7 +63,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 		if err := framework.ValidateModel(model, project); err != nil {
 			return log.Errorf("validation failed: %w", err)
 		}
-		// Validate route scripts/dependencies by running bundling in a temp directory.
+		// Validate tool scripts/dependencies by running bundling in a temp directory.
 		tempBuildRoot, err := os.MkdirTemp("", "hyperterse-validate-*")
 		if err != nil {
 			return log.Errorf("validation failed: unable to create temp build directory: %w", err)
@@ -71,7 +71,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 		defer os.RemoveAll(tempBuildRoot)
 
 		project.BuildDir = filepath.Join(tempBuildRoot, "build")
-		if err := framework.BundleRoutes(project); err != nil {
+		if err := framework.BundleTools(project); err != nil {
 			return log.Errorf("validation failed: %w", err)
 		}
 	} else {
@@ -128,7 +128,7 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 
 	log.Infof("  app directory: %s", project.AppDir)
 	log.Infof("  adapter directory: %s", project.AdaptersDir)
-	log.Infof("  routes directory: %s", project.RoutesDir)
+	log.Infof("  tools directory: %s", project.ToolsDir)
 
 	adapterFiles := listTerseFiles(project.AdaptersDir)
 	log.Infof("  adapter files (%d):", len(adapterFiles))
@@ -140,14 +140,14 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 		}
 	}
 
-	routeNames := make([]string, 0, len(project.Routes))
-	for routeName := range project.Routes {
-		routeNames = append(routeNames, routeName)
+	toolNames := make([]string, 0, len(project.Tools))
+	for toolName := range project.Tools {
+		toolNames = append(toolNames, toolName)
 	}
-	sort.Strings(routeNames)
+	sort.Strings(toolNames)
 
-	log.Infof("  routes (%d):", len(routeNames))
-	if len(routeNames) == 0 {
+	log.Infof("  tools (%d):", len(toolNames))
+	if len(toolNames) == 0 {
 		log.Info("    - none")
 	}
 
@@ -159,27 +159,27 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 	}
 	totalBundles := 0
 
-	for _, routeName := range routeNames {
-		route := project.Routes[routeName]
-		if route == nil {
+	for _, toolName := range toolNames {
+		tool := project.Tools[toolName]
+		if tool == nil {
 			continue
 		}
 
-		log.Infof("    - tool: %s", route.ToolName)
-		log.Infof("      config: %s", displayPath(project.BaseDir, route.TerseFile))
-		if len(route.Query.GetUse()) > 0 {
-			log.Infof("      adapters: %s", strings.Join(route.Query.GetUse(), ", "))
+		log.Infof("    - tool: %s", tool.ToolName)
+		log.Infof("      config: %s", displayPath(project.BaseDir, tool.TerseFile))
+		if len(tool.Query.GetUse()) > 0 {
+			log.Infof("      adapters: %s", strings.Join(tool.Query.GetUse(), ", "))
 		} else {
-			log.Info("      adapters: none (script-only route)")
+			log.Info("      adapters: none (script-only tool)")
 		}
 
 		for _, scriptKind := range []string{"handler", "input_transform", "output_transform"} {
-			scriptPath := scriptPathForKind(route, scriptKind)
+			scriptPath := scriptPathForKind(tool, scriptKind)
 			if scriptPath == "" {
 				continue
 			}
 			scriptLabel := strings.ReplaceAll(scriptKind, "_", " ")
-			bundlePath := route.BundleOutputs[scriptKind]
+			bundlePath := tool.BundleOutputs[scriptKind]
 			if bundlePath != "" {
 				totalBundles++
 			}
@@ -193,7 +193,7 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 	}
 
 	log.Infof("  vendor bundle validated: %s", vendorValidated)
-	log.Infof("  route bundles validated: %d", totalBundles)
+	log.Infof("  tool bundles validated: %d", totalBundles)
 }
 
 func listTerseFiles(dir string) []string {
@@ -219,14 +219,14 @@ func listTerseFiles(dir string) []string {
 	return entries
 }
 
-func scriptPathForKind(route *framework.Route, kind string) string {
+func scriptPathForKind(tool *framework.Tool, kind string) string {
 	switch kind {
 	case "handler":
-		return route.Scripts.Handler
+		return tool.Scripts.Handler
 	case "input_transform":
-		return route.Scripts.InputTransform
+		return tool.Scripts.InputTransform
 	case "output_transform":
-		return route.Scripts.OutputTransform
+		return tool.Scripts.OutputTransform
 	default:
 		return ""
 	}

@@ -20,9 +20,9 @@ var namespaceImportPattern = regexp.MustCompile(`^\s*import\s+\*\s+as\s+([A-Za-z
 var sideEffectImportPattern = regexp.MustCompile(`^\s*import\s+['"]([^'"]+)['"]`)
 var namedBindingsPattern = regexp.MustCompile(`^\s*import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]`)
 
-// BundleRoutes bundles TS scripts for each route and builds a shared vendor.js.
+// BundleTools bundles TS scripts for each tool and builds a shared vendor.js.
 // Bundling is performed with native esbuild Go API.
-func BundleRoutes(project *Project) error {
+func BundleTools(project *Project) error {
 	if project == nil {
 		return nil
 	}
@@ -36,14 +36,14 @@ func BundleRoutes(project *Project) error {
 		return fmt.Errorf("failed to create build dir: %w", err)
 	}
 
-	routeEntries := collectRouteScriptEntries(project)
-	if len(routeEntries) == 0 {
-		log.Debugf("No route script entries found; skipping bundling")
+	toolEntries := collectToolScriptEntries(project)
+	if len(toolEntries) == 0 {
+		log.Debugf("No tool script entries found; skipping bundling")
 		return nil
 	}
 
 	project.VendorBundle = filepath.Join(buildDir, "vendor.js")
-	existingTSEntries := filterExistingTSEntries(routeEntries)
+	existingTSEntries := filterExistingTSEntries(toolEntries)
 	if len(existingTSEntries) > 0 {
 		deps, err := collectExternalDeps(existingTSEntries)
 		if err != nil {
@@ -62,31 +62,31 @@ func BundleRoutes(project *Project) error {
 		}
 	}
 
-	if err := bundleRouteEntries(project, routeEntries, buildDir); err != nil {
+	if err := bundleToolEntries(project, toolEntries, buildDir); err != nil {
 		return err
 	}
 
-	log.Infof("Prepared %d route script(s)", len(routeEntries))
+	log.Infof("Prepared %d tool script(s)", len(toolEntries))
 	return nil
 }
 
-func collectRouteScriptEntries(project *Project) map[string]string {
+func collectToolScriptEntries(project *Project) map[string]string {
 	entries := map[string]string{}
-	for _, route := range project.Routes {
-		addScriptEntry(route, entries, "handler", route.Scripts.Handler)
-		addScriptEntry(route, entries, "input_transform", route.Scripts.InputTransform)
-		addScriptEntry(route, entries, "output_transform", route.Scripts.OutputTransform)
+	for _, tool := range project.Tools {
+		addScriptEntry(tool, entries, "handler", tool.Scripts.Handler)
+		addScriptEntry(tool, entries, "input_transform", tool.Scripts.InputTransform)
+		addScriptEntry(tool, entries, "output_transform", tool.Scripts.OutputTransform)
 	}
 	return entries
 }
 
-func addScriptEntry(route *Route, entries map[string]string, kind string, scriptPath string) {
+func addScriptEntry(tool *Tool, entries map[string]string, kind string, scriptPath string) {
 	if scriptPath == "" {
 		return
 	}
 	lower := strings.ToLower(scriptPath)
 	if strings.HasSuffix(lower, ".ts") || strings.HasSuffix(lower, ".js") {
-		entries[route.ToolName+"::"+kind] = scriptPath
+		entries[tool.ToolName+"::"+kind] = scriptPath
 	}
 }
 
@@ -160,16 +160,16 @@ func buildVendorBundle(vendorOut, projectDir string, deps []string) error {
 		globalName := fmt.Sprintf("__hyperterse_vendor_mod_%d", i)
 		outPath := filepath.Join(tmpDir, fmt.Sprintf("dep_%d.js", i))
 		result := api.Build(api.BuildOptions{
-			EntryPoints: []string{dep},
-			Outfile:     outPath,
-			Bundle:      true,
-			Format:      api.FormatIIFE,
-			Platform:    api.PlatformBrowser,
-			Target:      api.ES2020,
-			GlobalName:  globalName,
+			EntryPoints:   []string{dep},
+			Outfile:       outPath,
+			Bundle:        true,
+			Format:        api.FormatIIFE,
+			Platform:      api.PlatformBrowser,
+			Target:        api.ES2020,
+			GlobalName:    globalName,
 			AbsWorkingDir: projectDir,
-			Write:       true,
-			LogLevel:    api.LogLevelSilent,
+			Write:         true,
+			LogLevel:      api.LogLevelSilent,
 		})
 		if len(result.Errors) > 0 {
 			return fmt.Errorf("failed to build vendor dependency %s: %s", dep, result.Errors[0].Text)
@@ -194,62 +194,62 @@ func buildVendorBundle(vendorOut, projectDir string, deps []string) error {
 	return nil
 }
 
-func bundleRouteEntries(project *Project, entries map[string]string, buildDir string) error {
+func bundleToolEntries(project *Project, entries map[string]string, buildDir string) error {
 	for entryKey, entryPath := range entries {
 		parts := strings.Split(entryKey, "::")
 		if len(parts) != 2 {
 			continue
 		}
 		toolName, kind := parts[0], parts[1]
-		route, ok := project.Routes[toolName]
+		tool, ok := project.Tools[toolName]
 		if !ok {
 			continue
 		}
 
 		extension := strings.ToLower(filepath.Ext(entryPath))
 		if extension == ".js" {
-			route.BundleOutputs[kind] = entryPath
+			tool.BundleOutputs[kind] = entryPath
 			continue
 		}
 		if extension != ".ts" {
 			continue
 		}
 
-		routeBuildDir := filepath.Join(buildDir, "routes", toolName)
-		if err := os.MkdirAll(routeBuildDir, 0o755); err != nil {
-			return fmt.Errorf("failed to create route build dir: %w", err)
+		toolBuildDir := filepath.Join(buildDir, "tools", toolName)
+		if err := os.MkdirAll(toolBuildDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create tool build dir: %w", err)
 		}
-		outFile := filepath.Join(routeBuildDir, kind+".js")
+		outFile := filepath.Join(toolBuildDir, kind+".js")
 
 		source, err := os.ReadFile(entryPath)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				// Build artifacts may intentionally ship without TS sources.
 				if _, statErr := os.Stat(outFile); statErr == nil {
-					route.BundleOutputs[kind] = outFile
+					tool.BundleOutputs[kind] = outFile
 					continue
 				}
 			}
-			return fmt.Errorf("failed to read route entry %s: %w", entryPath, err)
+			return fmt.Errorf("failed to read tool entry %s: %w", entryPath, err)
 		}
-		rewritten, usesVendor, err := rewriteRouteSourceForVendor(string(source))
+		rewritten, usesVendor, err := rewriteToolSourceForVendor(string(source))
 		if err != nil {
 			return fmt.Errorf("failed to rewrite imports for %s: %w", entryPath, err)
 		}
 
 		if !usesVendor {
-			if err := runBundler("route", entryPath, outFile, nil); err != nil {
+			if err := runBundler("tool", entryPath, outFile, nil); err != nil {
 				return err
 			}
-		} else if err := runBundlerFromSource("route", rewritten, entryPath, outFile); err != nil {
+		} else if err := runBundlerFromSource("tool", rewritten, entryPath, outFile); err != nil {
 			return err
 		}
-		route.BundleOutputs[kind] = outFile
+		tool.BundleOutputs[kind] = outFile
 	}
 	return nil
 }
 
-func rewriteRouteSourceForVendor(source string) (string, bool, error) {
+func rewriteToolSourceForVendor(source string) (string, bool, error) {
 	lines := strings.Split(source, "\n")
 	rewritten := make([]string, 0, len(lines))
 	usesVendor := false

@@ -7,8 +7,8 @@ description: Security model and current substitution caveats.
 
 - Connection strings stay server-side.
 - Tool callers do not see adapter credentials.
-- Inputs are validated against declared route/query input types.
-- Route-level auth plugins can enforce access policies.
+- Inputs are validated against declared tool/query input types.
+- Tool-level auth plugins can enforce access policies.
 
 ## Critical caveat: statement substitution
 
@@ -25,7 +25,7 @@ That means:
 - Prefer strict input typing and custom input transforms.
 - Avoid building unconstrained dynamic SQL fragments.
 - Keep statement templates narrow and deterministic.
-- Use route handlers for complex logic where you need stronger control.
+- Use tool handlers for complex logic where you need stronger control.
 - Put runtime behind gateway/auth/rate-limit layers in production.
 
 ## Environment variable substitution

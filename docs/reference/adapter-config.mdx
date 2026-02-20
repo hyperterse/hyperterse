@@ -19,7 +19,7 @@ options:
 ## Field reference
 
 <ParamField body="name" type="string">
-  Adapter identifier, referenced by routes via `use`. Must be unique across all adapters. Must match `^[a-zA-Z][a-zA-Z0-9_-]*$`.
+  Adapter identifier, referenced by tools via `use`. Must be unique across all adapters. Must match `^[a-zA-Z][a-zA-Z0-9_-]*$`.
 
 **Default:** filename without the `.terse` extension (e.g., `primary-db` from `primary-db.terse`).
 
@@ -113,7 +113,7 @@ options:
     parallel.
   </Step>
   <Step title="Execution">
-    Routes resolve adapters by name when executing statements.
+    Tools resolve adapters by name when executing statements.
   </Step>
   <Step title="Shutdown">
     All connectors close concurrently on termination.

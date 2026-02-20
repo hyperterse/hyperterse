@@ -12,10 +12,10 @@ When enabled, the runtime creates spans for each stage of tool execution:
 | Span                     | Attributes                                   |
 | ------------------------ | -------------------------------------------- |
 | MCP request handling     | Method, tool name, request ID                |
-| Auth plugin execution    | Plugin name, route name, success/failure     |
-| Input transform          | Route name, script path                      |
+| Auth plugin execution    | Plugin name, tool name, success/failure      |
+| Input transform          | Tool name, script path                       |
 | Connector execution      | Adapter name, connector type, cache hit/miss |
-| Output transform         | Route name, script path                      |
+| Output transform         | Tool name, script path                       |
 | Connector initialization | Adapter name, connector type                 |
 
 Traces follow the OpenTelemetry specification and export to any compatible backend: Jaeger, Zipkin, Grafana Tempo, Datadog, AWS X-Ray (via ADOT collector), or any OTLP receiver.

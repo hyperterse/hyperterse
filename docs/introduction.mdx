@@ -5,13 +5,13 @@ description: Build MCP tool servers from declarative configuration with built-in
 
 Every AI agent that queries a database, calls an API, or runs business logic needs the same infrastructure: connection management, input validation, authentication, caching, observability, and a transport protocol that LLMs understand.
 
-With Hyperterse, you define your tools in YAML configuration files. The framework compiles, validates, bundles, and serves them as a standards-compliant [MCP](https://modelcontextprotocol.io/) server. You own the data and the logic — the framework handles everything else.
+With Hyperterse, you define your tools in YAML configuration files. The framework compiles, validates, bundles, and serves them as a standards-compliant [Model Context Protocol](https://modelcontextprotocol.io/) server. You own the data and the logic — the framework handles everything else.
 
 ## What you can build
 
-You use Hyperterse to expose databases and custom logic as MCP tools that any AI agent can call. A typical route looks like this:
+You use Hyperterse to expose databases and custom logic as MCP tools that any AI agent can call. A typical tool definition looks like this:
 
-```yaml app/routes/get-user/config.terse
+```yaml app/tools/get-user/config.terse
 description: 'Get user by ID'
 use: primary-db
 statement: 'SELECT id, name, email FROM users WHERE id = {{ inputs.user_id }}'
@@ -31,8 +31,8 @@ This configuration creates an MCP tool called `get-user` that queries your datab
 
 <Steps>
   <Step title="Define your tools">
-    Create `.terse` YAML files for your database connections and routes. Each
-    directory under `app/routes/` becomes one MCP tool.
+    Create `.terse` YAML files for your database connections and tools. Each
+    directory under `app/tools/` becomes one MCP tool.
   </Step>
   <Step title="Compile your project">
     Run `hyperterse build` to validate configuration, bundle scripts, and
@@ -69,11 +69,11 @@ This configuration creates an MCP tool called `get-user` that queries your datab
     shutdown.
   </Card>
   <Card
-    title="Filesystem-based routing"
-    icon="folder-tree"
-    href="/concepts/routes-and-tools"
+    title="Filesystem-based tool discovery"
+    icon="folder"
+    href="/concepts/tools"
   >
-    Each folder under `app/routes/` maps to one MCP tool. No manual registration
+    Each folder under `app/tools/` maps to one MCP tool. No manual registration
     — the directory name becomes the tool name.
   </Card>
   <Card
@@ -86,19 +86,19 @@ This configuration creates an MCP tool called `get-user` that queries your datab
     `fetch` and `console`.
   </Card>
   <Card
-    title="Per-route authentication"
+    title="Per-tool authentication"
     icon="lock"
     href="/concepts/authentication"
   >
-    Attach authentication to any route with a built-in `api_key` plugin, or
-    write your own. No global middleware to configure.
+    Attach authentication to any tool with a built-in `api_key` plugin, or write
+    your own. No global middleware to configure.
   </Card>
   <Card
     title="In-memory caching"
     icon="bolt"
     href="/runtime/caching"
   >
-    Enable query result caching globally or per-route with a TTL. Identical
+    Enable query result caching globally or per-tool with a TTL. Identical
     requests return cached results without hitting your database.
   </Card>
   <Card

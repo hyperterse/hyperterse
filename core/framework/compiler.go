@@ -18,13 +18,13 @@ import (
 
 var tsConventionPattern = regexp.MustCompile(`(?i)\.ts$`)
 
-// CompileProjectIfPresent discovers app routes and merges them into model queries.
+// CompileProjectIfPresent discovers app tools and merges them into model queries.
 // If the app directory does not exist, it returns nil project with no error.
 func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*Project, error) {
 	baseDir := filepath.Dir(configFilePath)
 	appDir := filepath.Join(baseDir, "app")
 	adaptersDir := filepath.Join(appDir, "adapters")
-	routesDir := filepath.Join(appDir, "routes")
+	toolsDir := filepath.Join(appDir, "tools")
 	buildOutDir := "dist"
 	if model != nil && model.Export != nil && model.Export.Out != "" {
 		buildOutDir = model.Export.Out
@@ -46,15 +46,15 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 	}
 
 	log := logger.New("framework")
-	log.Infof("Compiling v2 app routes from %s", appDir)
+	log.Infof("Compiling v2 app tools from %s", appDir)
 
 	project := &Project{
 		BaseDir:     baseDir,
 		AppDir:      appDir,
 		AdaptersDir: adaptersDir,
-		RoutesDir:   routesDir,
+		ToolsDir:    toolsDir,
 		BuildDir:    buildDir,
-		Routes:      map[string]*Route{},
+		Tools:       map[string]*Tool{},
 	}
 
 	adapterFiles, err := discoverAdapterFiles(adaptersDir)
@@ -70,25 +70,25 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 		model.Adapters = append(model.Adapters, adapter)
 	}
 
-	routeTerseFiles, err := discoverRouteTerseFiles(routesDir)
+	toolTerseFiles, err := discoverToolTerseFiles(toolsDir)
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(routeTerseFiles)
+	sort.Strings(toolTerseFiles)
 
-	for _, terseFile := range routeTerseFiles {
-		route, err := compileRouteFile(project, terseFile)
+	for _, terseFile := range toolTerseFiles {
+		tool, err := compileToolFile(project, terseFile)
 		if err != nil {
 			return nil, err
 		}
-		if _, exists := project.Routes[route.ToolName]; exists {
-			return nil, fmt.Errorf("duplicate tool name generated from routes: %s", route.ToolName)
+		if _, exists := project.Tools[tool.ToolName]; exists {
+			return nil, fmt.Errorf("duplicate tool name generated from tools: %s", tool.ToolName)
 		}
-		project.Routes[route.ToolName] = route
-		model.Queries = append(model.Queries, route.Query)
+		project.Tools[tool.ToolName] = tool
+		model.Queries = append(model.Queries, tool.Query)
 	}
 
-	log.Infof("Compiled %d route(s) into model queries", len(project.Routes))
+	log.Infof("Compiled %d tool(s) into model queries", len(project.Tools))
 	return project, nil
 }
 
@@ -118,15 +118,15 @@ func discoverAdapterFiles(adaptersDir string) ([]string, error) {
 	return files, nil
 }
 
-func discoverRouteTerseFiles(routesDir string) ([]string, error) {
+func discoverToolTerseFiles(toolsDir string) ([]string, error) {
 	var files []string
-	if _, err := os.Stat(routesDir); err != nil {
+	if _, err := os.Stat(toolsDir); err != nil {
 		if os.IsNotExist(err) {
 			return files, nil
 		}
-		return nil, fmt.Errorf("failed to stat routes dir: %w", err)
+		return nil, fmt.Errorf("failed to stat tools dir: %w", err)
 	}
-	err := filepath.WalkDir(routesDir, func(path string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(toolsDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -139,7 +139,7 @@ func discoverRouteTerseFiles(routesDir string) ([]string, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover route .terse files: %w", err)
+		return nil, fmt.Errorf("failed to discover tool .terse files: %w", err)
 	}
 	return files, nil
 }
@@ -175,55 +175,55 @@ func compileAdapterFile(adapterFile string) (*hyperterse.Adapter, error) {
 	return adapter, nil
 }
 
-func compileRouteFile(project *Project, terseFile string) (*Route, error) {
+func compileToolFile(project *Project, terseFile string) (*Tool, error) {
 	content, err := os.ReadFile(terseFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read route config %s: %w", terseFile, err)
+		return nil, fmt.Errorf("failed to read tool config %s: %w", terseFile, err)
 	}
 
-	var cfg RouteFileConfig
+	var cfg ToolFileConfig
 	if err := strictYAMLUnmarshal(content, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse route config %s: %w", terseFile, err)
+		return nil, fmt.Errorf("failed to parse tool config %s: %w", terseFile, err)
 	}
 
-	routeDir := filepath.Dir(terseFile)
-	routePath, err := routePathFromDirectory(project.RoutesDir, routeDir)
+	toolDir := filepath.Dir(terseFile)
+	toolPath, err := toolPathFromDirectory(project.ToolsDir, toolDir)
 	if err != nil {
 		return nil, err
 	}
 	toolName := cfg.Name
 	if toolName == "" {
-		toolName = toolNameFromRoutePath(routePath)
+		toolName = toolNameFromToolPath(toolPath)
 	}
 
-	query, err := routeConfigToQuery(toolName, cfg)
+	query, err := toolConfigToQuery(toolName, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("invalid route config %s: %w", terseFile, err)
+		return nil, fmt.Errorf("invalid tool config %s: %w", terseFile, err)
 	}
 
-	route := &Route{
+	tool := &Tool{
 		ToolName:  toolName,
-		RoutePath: routePath,
-		Directory: routeDir,
+		ToolPath:  toolPath,
+		Directory: toolDir,
 		TerseFile: terseFile,
 		Query:     query,
-		Scripts: RouteScripts{
-			Handler:         resolveScriptPath(project.BaseDir, routeDir, cfg.Scripts.Handler),
-			InputTransform:  resolveScriptPath(project.BaseDir, routeDir, cfg.Scripts.InputTransform),
-			OutputTransform: resolveScriptPath(project.BaseDir, routeDir, cfg.Scripts.OutputTransform),
+		Scripts: ToolScripts{
+			Handler:         resolveScriptPath(project.BaseDir, toolDir, cfg.Scripts.Handler),
+			InputTransform:  resolveScriptPath(project.BaseDir, toolDir, cfg.Scripts.InputTransform),
+			OutputTransform: resolveScriptPath(project.BaseDir, toolDir, cfg.Scripts.OutputTransform),
 		},
-		Auth: RouteAuth{
+		Auth: ToolAuth{
 			Plugin: cfg.Auth.Plugin,
 			Policy: cfg.Auth.Policy,
 		},
 		BundleOutputs: map[string]string{},
 	}
-	applyRouteScriptConventions(route)
+	applyToolScriptConventions(tool)
 
-	return route, nil
+	return tool, nil
 }
 
-func resolveScriptPath(baseDir, routeDir, scriptPath string) string {
+func resolveScriptPath(baseDir, toolDir, scriptPath string) string {
 	if scriptPath == "" {
 		return ""
 	}
@@ -231,17 +231,17 @@ func resolveScriptPath(baseDir, routeDir, scriptPath string) string {
 		return scriptPath
 	}
 	if strings.HasPrefix(scriptPath, "./") || strings.HasPrefix(scriptPath, "../") {
-		return filepath.Join(routeDir, scriptPath)
+		return filepath.Join(toolDir, scriptPath)
 	}
-	routeLocal := filepath.Join(routeDir, scriptPath)
-	if _, err := os.Stat(routeLocal); err == nil {
-		return routeLocal
+	toolLocal := filepath.Join(toolDir, scriptPath)
+	if _, err := os.Stat(toolLocal); err == nil {
+		return toolLocal
 	}
 	return filepath.Join(baseDir, scriptPath)
 }
 
-func applyRouteScriptConventions(route *Route) {
-	entries, err := os.ReadDir(route.Directory)
+func applyToolScriptConventions(tool *Tool) {
+	entries, err := os.ReadDir(tool.Directory)
 	if err != nil {
 		return
 	}
@@ -250,17 +250,17 @@ func applyRouteScriptConventions(route *Route) {
 			continue
 		}
 		fileName := strings.ToLower(entry.Name())
-		fullPath := filepath.Join(route.Directory, entry.Name())
-		if route.Scripts.Handler == "" && strings.Contains(fileName, "handler") {
-			route.Scripts.Handler = fullPath
+		fullPath := filepath.Join(tool.Directory, entry.Name())
+		if tool.Scripts.Handler == "" && strings.Contains(fileName, "handler") {
+			tool.Scripts.Handler = fullPath
 			continue
 		}
-		if route.Scripts.InputTransform == "" && strings.Contains(fileName, "input") && strings.Contains(fileName, "validator") {
-			route.Scripts.InputTransform = fullPath
+		if tool.Scripts.InputTransform == "" && strings.Contains(fileName, "input") && strings.Contains(fileName, "validator") {
+			tool.Scripts.InputTransform = fullPath
 			continue
 		}
-		if route.Scripts.OutputTransform == "" && (strings.Contains(fileName, "data") && strings.Contains(fileName, "mapper")) {
-			route.Scripts.OutputTransform = fullPath
+		if tool.Scripts.OutputTransform == "" && (strings.Contains(fileName, "data") && strings.Contains(fileName, "mapper")) {
+			tool.Scripts.OutputTransform = fullPath
 			continue
 		}
 	}
@@ -272,17 +272,17 @@ func strictYAMLUnmarshal(content []byte, out any) error {
 	return decoder.Decode(out)
 }
 
-func routeConfigToQuery(toolName string, cfg RouteFileConfig) (*hyperterse.Query, error) {
+func toolConfigToQuery(toolName string, cfg ToolFileConfig) (*hyperterse.Query, error) {
 	query := &hyperterse.Query{
 		Name:        toolName,
 		Description: cfg.Description,
 		Statement:   cfg.Statement,
 	}
 	if query.Description == "" {
-		query.Description = fmt.Sprintf("Tool generated from app route: %s", toolName)
+		query.Description = fmt.Sprintf("Tool generated from app tool: %s", toolName)
 	}
 
-	// Custom handler routes are allowed without use/statement. They bypass DB execution.
+	// Custom handler tools are allowed without use/statement. They bypass DB execution.
 	// We still add a harmless placeholder to remain compatible with existing validators/executors.
 	if query.Statement == "" {
 		query.Statement = "SELECT 1"

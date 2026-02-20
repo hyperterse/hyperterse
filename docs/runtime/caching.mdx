@@ -5,7 +5,7 @@ description: In-memory query result caching, cache key derivation, TTL, and over
 
 Hyperterse includes an executor-level in-memory cache. The cache stores query results keyed by the combination of query name and substituted statement, eliminating redundant connector execution for identical requests.
 
-Caching applies to DB-backed routes only. Script-backed routes (handler-only) bypass the cache.
+Caching applies to DB-backed tools only. Script-backed tools (handler-only) bypass the cache.
 
 ## Cache key derivation
 
@@ -19,7 +19,7 @@ The same query with different input values produces different cache entries. Ide
 
 ## Configuration
 
-Caching is controlled at two levels: global defaults in the root config and per-route overrides.
+Caching is controlled at two levels: global defaults in the root config and per-tool overrides.
 
 ### Global defaults
 
@@ -38,7 +38,7 @@ server:
 | `enabled` | boolean | `false` | Whether caching is active for all queries. |
 | `ttl`     | integer | `120`   | Time-to-live in seconds.                   |
 
-### Per-route override
+### Per-tool override
 
 ```yaml
 cache:
@@ -53,7 +53,7 @@ cache:
 
 ### Precedence
 
-1. Route-level config (highest priority).
+1. Tool-level config (highest priority).
 2. Global server config.
 3. Framework defaults (`enabled: false`, `ttl: 120`).
 
@@ -74,7 +74,7 @@ The cache operates as a read-through layer in front of connectors and handler sc
 
 ### No explicit invalidation
 
-There is no API for manual cache invalidation. Entries are evicted only by TTL or capacity pressure. For immediate invalidation, disable caching on affected routes and manage cache externally (e.g., through a Redis adapter with handler logic).
+There is no API for manual cache invalidation. Entries are evicted only by TTL or capacity pressure. For immediate invalidation, disable caching on affected tools and manage cache externally (e.g., through a Redis adapter with handler logic).
 
 ## Characteristics
 

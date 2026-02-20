@@ -121,7 +121,7 @@ func (r *Runtime) StartAsync() error {
 	log.Infof("Starting engine")
 	log.Debugf("Creating HTTP server on port %s", r.port)
 
-	r.registerRoutes()
+	r.registerEndpoints()
 
 	r.server = &http.Server{
 		Addr:         ":" + r.port,
@@ -148,14 +148,14 @@ func (r *Runtime) StartAsync() error {
 	return nil
 }
 
-// registerRoutes registers all HTTP routes
-func (r *Runtime) registerRoutes() {
+// registerEndpoints registers all HTTP endpoints.
+func (r *Runtime) registerEndpoints() {
 	log := logger.New("runtime")
 
-	log.Infof("Registering routes")
+	log.Infof("Registering endpoints")
 
-	// Track routes for logging
-	var utilityRoutes []string
+	// Track endpoints for logging.
+	var utilityEndpoints []string
 
 	mcpHTTPHandler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
 		if r.mcpAdapter == nil {
@@ -165,7 +165,7 @@ func (r *Runtime) registerRoutes() {
 	}, &mcpsdk.StreamableHTTPOptions{})
 
 	r.mux.Handle("/mcp", r.instrumentHandler("/mcp", r.withCORS(mcpHTTPHandler)))
-	utilityRoutes = append(utilityRoutes, "GET/POST/DELETE /mcp (MCP SDK Streamable HTTP)")
+	utilityEndpoints = append(utilityEndpoints, "GET/POST/DELETE /mcp (MCP SDK Streamable HTTP)")
 
 	// Heartbeat endpoint for health checks
 	r.mux.Handle("/heartbeat", r.instrumentHandler("/heartbeat", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -177,13 +177,13 @@ func (r *Runtime) registerRoutes() {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"success":true}`)
 	})))
-	utilityRoutes = append(utilityRoutes, "GET /heartbeat")
+	utilityEndpoints = append(utilityEndpoints, "GET /heartbeat")
 
-	// Log all registered routes
-	log.Infof("Routes registered: %d utility", len(utilityRoutes))
-	log.Debugf("Utility routes:")
-	for _, route := range utilityRoutes {
-		log.Debugf("  %s", route)
+	// Log all registered endpoints.
+	log.Infof("Endpoints registered: %d utility", len(utilityEndpoints))
+	log.Debugf("Utility endpoints:")
+	for _, endpoint := range utilityEndpoints {
+		log.Debugf("  %s", endpoint)
 	}
 }
 
@@ -222,9 +222,9 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 	r.mcpAdapter = mcpAdapter
 	log.Debugf("MCP server adapter recreated")
 
-	// Re-register routes (this will update the handlers)
+	// Re-register endpoints (this will update the handlers).
 	r.mux = http.NewServeMux()
-	r.registerRoutes()
+	r.registerEndpoints()
 
 	// Update server handler
 	if r.server != nil {
@@ -341,13 +341,13 @@ func (rt *Runtime) withCORS(next http.Handler) http.Handler {
 	})
 }
 
-func (rt *Runtime) instrumentHandler(route string, next http.Handler) http.Handler {
+func (rt *Runtime) instrumentHandler(endpoint string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		start := time.Now()
-		ctx, span := rt.tracer.Start(req.Context(), "http."+route)
+		ctx, span := rt.tracer.Start(req.Context(), "http."+endpoint)
 		span.SetAttributes(
 			attribute.String(observability.AttrHTTPMethod, req.Method),
-			attribute.String(observability.AttrHTTPRoute, route),
+			attribute.String(observability.AttrHTTPEndpoint, endpoint),
 		)
 		defer span.End()
 
@@ -355,7 +355,7 @@ func (rt *Runtime) instrumentHandler(route string, next http.Handler) http.Handl
 		next.ServeHTTP(recorder, req.WithContext(ctx))
 
 		durationMS := float64(time.Since(start).Milliseconds())
-		observability.RecordHTTPRequest(ctx, req.Method, route, recorder.statusCode, durationMS)
+		observability.RecordHTTPRequest(ctx, req.Method, endpoint, recorder.statusCode, durationMS)
 		span.SetAttributes(attribute.Int(observability.AttrHTTPStatusCode, recorder.statusCode))
 		if recorder.statusCode >= 500 {
 			span.SetStatus(codes.Error, "server_error")

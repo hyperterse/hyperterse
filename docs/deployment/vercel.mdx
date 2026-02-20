@@ -3,7 +3,7 @@ title: Vercel
 description: Connect a Vercel-hosted frontend to a Hyperterse MCP server.
 ---
 
-Vercel excels at hosting frontends and serverless functions. For Hyperterse — a long-running server process — the recommended architecture is to deploy Hyperterse on a container platform and connect your Vercel frontend to it through API routes.
+Vercel excels at hosting frontends and serverless functions. For Hyperterse — a long-running server process — the recommended architecture is to deploy Hyperterse on a container platform and connect your Vercel frontend to it through API handlers.
 
 <Note>
   Hyperterse requires a persistent server process. Deploy it on
@@ -16,10 +16,10 @@ Vercel excels at hosting frontends and serverless functions. For Hyperterse — 
 
 ## Architecture
 
-Your Vercel frontend communicates with Hyperterse through server-side API routes. This keeps your Hyperterse endpoint private and lets Vercel handle CORS, authentication, and caching at the edge.
+Your Vercel frontend communicates with Hyperterse through server-side API handlers. This keeps your Hyperterse endpoint private and lets Vercel handle CORS, authentication, and caching at the edge.
 
 ```
-Browser → Vercel Edge → API Route → Hyperterse Server → Database
+Browser → Vercel Edge → API Handler → Hyperterse Server → Database
 ```
 
 ## Configure the proxy
@@ -33,24 +33,25 @@ Browser → Vercel Edge → API Route → Hyperterse Server → Database
     ```
 
   </Step>
-  <Step title="Create an API route">
+  <Step title="Create an API handler">
     Forward MCP requests from your frontend to the Hyperterse server:
 
     ```typescript
-    // app/api/mcp/route.ts (Next.js App Router)
-    import { NextRequest, NextResponse } from "next/server";
+    // pages/api/mcp.ts (Next.js Pages Router)
+    import type { NextApiRequest, NextApiResponse } from "next";
 
-    export async function POST(request: NextRequest) {
-      const body = await request.json();
-
+    export default async function handler(
+      req: NextApiRequest,
+      res: NextApiResponse
+    ) {
       const response = await fetch(`${process.env.HYPERTERSE_URL}/mcp`, {
-        method: "POST",
+        method: req.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(req.body),
       });
 
       const data = await response.json();
-      return NextResponse.json(data, { status: response.status });
+      res.status(response.status).json(data);
     }
     ```
 
@@ -67,7 +68,7 @@ Browser → Vercel Edge → API Route → Hyperterse Server → Database
 
 ## Rewrites
 
-As an alternative to an API route, use Vercel rewrites to proxy requests directly:
+As an alternative to an API handler, use Vercel rewrites to proxy requests directly:
 
 ```json
 {
@@ -85,5 +86,5 @@ Add this to your `vercel.json`. Vercel forwards matching requests to your Hypert
 ## Considerations
 
 - **Latency**: Place your Hyperterse server in the same region as your primary user base to minimize round-trip time.
-- **Authentication**: Add authentication in your API route or Vercel middleware before forwarding requests to Hyperterse.
+- **Authentication**: Add authentication in your API handler or Vercel middleware before forwarding requests to Hyperterse.
 - **Timeouts**: Vercel serverless functions have execution time limits. For long-running tool calls, ensure your Hyperterse queries complete within the Vercel timeout window, or use streaming responses.

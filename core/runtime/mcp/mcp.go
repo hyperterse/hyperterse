@@ -88,7 +88,7 @@ func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, que
 		observability.AttrQueryName: query.Name,
 	}, "Calling MCP tool: %s", query.Name)
 
-	// Preserve route-level auth behavior by forwarding incoming HTTP headers from
+	// Preserve tool-level auth behavior by forwarding incoming HTTP headers from
 	// transport metadata into the framework auth context.
 	if extra := req.GetExtra(); extra != nil && extra.Header != nil {
 		ctx = framework.WithRequestHeaders(ctx, extra.Header)

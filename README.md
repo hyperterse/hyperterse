@@ -1,24 +1,24 @@
 # Hyperterse
 
-Framework for building MCP tools from declarative data routes.
+Framework for building MCP tools from declarative data tools.
 
-Hyperterse turns route configs in `app/routes/*/config.terse` into callable tools, with:
+Hyperterse turns tool configs in `app/tools/*/config.terse` into callable tools, with:
 
-- filesystem-based tool routing,
+- filesystem-based tool discovery,
 - pluggable adapters (Postgres, MySQL, MongoDB, Redis),
 - optional scripts for transforms and handlers,
 - MCP runtime exposure over Streamable HTTP.
 
 ## What Hyperterse is
 
-- **Tool-first MCP framework**: each route compiles into a tool.
-- **Declarative runtime**: root config + adapter files + route files.
+- **Tool-first MCP framework**: each tool config compiles into a tool.
+- **Declarative runtime**: root config + adapter files + tool files.
 - **Extensible execution pipeline**: auth -> input transform -> execute -> output transform.
 - **Embedded scripting**: script hooks run in a sandboxed runtime; bundled at compile time.
 
 ## Runtime surface
 
-Current server routes registered by runtime:
+Current server endpoints exposed by runtime:
 
 - `GET/POST/DELETE /mcp`
 - `GET /heartbeat`
@@ -41,8 +41,8 @@ This scaffolds:
 
 - `.hyperterse`
 - `app/adapters/my-database.terse`
-- `app/routes/health/config.terse`
-- `app/routes/health/handler.ts`
+- `app/tools/health/config.terse`
+- `app/tools/health/handler.ts`
 
 ### Run
 
@@ -80,7 +80,7 @@ my-project/
   app/
     adapters/
       main-db.terse
-    routes/
+    tools/
       get-user/
         config.terse
         input.ts
@@ -90,9 +90,9 @@ my-project/
         handler.ts
 ```
 
-## Route examples
+## Tool examples
 
-### DB-backed route
+### DB-backed tool
 
 ```yaml
 description: "Get user by id"
@@ -106,7 +106,7 @@ inputs:
     type: int
 ```
 
-### Script-backed route
+### Script-backed tool
 
 ```yaml
 description: "Get weather"
@@ -119,7 +119,7 @@ scripts:
 - `start` - run runtime from config
 - `serve` - run from built manifest (`model.bin`)
 - `build` - package runtime binary + manifest + bundles
-- `validate` - validate config and route scripts
+- `validate` - validate config and tool scripts
 - `init` - scaffold starter project
 - `upgrade` - upgrade installed binary
 - `completion` - shell completion helper
@@ -138,13 +138,13 @@ Build output includes:
 - `model.bin`
 - runtime binary
 - `build/vendor.js`
-- `build/routes/...` bundles
+- `build/tools/...` bundles
 
 ## Configuration highlights
 
 - root config: `.hyperterse`
 - adapter files: `app/adapters/*.terse`
-- route files: `app/routes/*/config.terse`
+- tool files: `app/tools/*/config.terse`
 
 Supported primitive types:
 
@@ -156,7 +156,7 @@ Supported primitive types:
 
 ## Security note
 
-Hyperterse validates typed inputs, but statement placeholder substitution (`{{ inputs.x }}`) is raw string replacement. Use strict route input constraints and safe query patterns for production.
+Hyperterse validates typed inputs, but statement placeholder substitution (`{{ inputs.x }}`) is raw string replacement. Use strict tool input constraints and safe query patterns for production.
 
 ## Documentation
 

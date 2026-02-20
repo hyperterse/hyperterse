@@ -7,11 +7,11 @@ This page covers security beyond input validation: network security, authenticat
 
 ## Authentication
 
-Auth is per-route — there is no global middleware that applies automatically. You must opt in for every route that handles sensitive data.
+Auth is per-tool — there is no global middleware that applies automatically. You must opt in for every tool that handles sensitive data.
 
-### Enforce auth on every sensitive route
+### Enforce auth on every sensitive tool
 
-Auth is per-route. There is no global middleware. Every route accessing sensitive data must have an `auth` block:
+Auth is per-tool. There is no global middleware. Every tool accessing sensitive data must have an `auth` block:
 
 ```yaml
 auth:
@@ -22,7 +22,7 @@ auth:
 
 **Audit checklist:**
 
-- Review all `config.terse` files for missing `auth` blocks.
+- Review all `app/tools/*/config.terse` files for missing `auth` blocks.
 - `allow_all` should only appear on health checks and intentionally public tools.
 - `hyperterse validate` confirms structural correctness; manually verify auth presence.
 
@@ -178,7 +178,7 @@ Confirms the HTTP server is accepting connections. Does not check connector heal
 For full-system readiness, create a tool that queries each adapter:
 
 ```yaml
-# app/routes/readiness/config.terse
+# app/tools/readiness/config.terse
 description: 'Readiness check'
 use: primary-db
 statement: 'SELECT 1'
@@ -188,8 +188,8 @@ auth:
 
 ## Deployment checklist
 
-- [ ] All sensitive routes have `auth` blocks.
-- [ ] No `allow_all` on routes accessing sensitive data.
+- [ ] All sensitive tools have `auth` blocks.
+- [ ] No `allow_all` on tools accessing sensitive data.
 - [ ] Credentials via environment variables, not plaintext.
 - [ ] `.env` excluded from version control.
 - [ ] TLS at reverse proxy or load balancer.

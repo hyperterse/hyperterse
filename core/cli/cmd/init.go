@@ -49,12 +49,12 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	baseDir := filepath.Dir(initOutputFile)
 	appAdaptersDir := filepath.Join(baseDir, "app", "adapters")
-	appRouteDir := filepath.Join(baseDir, "app", "routes", "health")
+	appToolDir := filepath.Join(baseDir, "app", "tools", "health")
 	if err := os.MkdirAll(appAdaptersDir, 0755); err != nil {
 		return fmt.Errorf("failed to create app adapters directory: %w", err)
 	}
-	if err := os.MkdirAll(appRouteDir, 0755); err != nil {
-		return fmt.Errorf("failed to create app route directory: %w", err)
+	if err := os.MkdirAll(appToolDir, 0755); err != nil {
+		return fmt.Errorf("failed to create app tool directory: %w", err)
 	}
 
 	adapterConfig := `connector: postgres
@@ -66,12 +66,12 @@ options:
 		return fmt.Errorf("failed to write adapter .terse: %w", err)
 	}
 
-	routeConfig := `description: "Health route tool"
+	toolConfig := `description: "Health tool"
 scripts:
   handler: "handler.ts"
 `
-	if err := os.WriteFile(filepath.Join(appRouteDir, "config.terse"), []byte(routeConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write route config.terse: %w", err)
+	if err := os.WriteFile(filepath.Join(appToolDir, "config.terse"), []byte(toolConfig), 0644); err != nil {
+		return fmt.Errorf("failed to write tool config.terse: %w", err)
 	}
 
 	handlerTS := `export async function handler(payload: { inputs?: Record<string, unknown> }) {
@@ -85,15 +85,15 @@ scripts:
   ];
 }
 `
-	if err := os.WriteFile(filepath.Join(appRouteDir, "handler.ts"), []byte(handlerTS), 0644); err != nil {
-		return fmt.Errorf("failed to write route handler.ts: %w", err)
+	if err := os.WriteFile(filepath.Join(appToolDir, "handler.ts"), []byte(handlerTS), 0644); err != nil {
+		return fmt.Errorf("failed to write tool handler.ts: %w", err)
 	}
 
 	fmt.Printf("✓ Created configuration file: %s\n", initOutputFile)
 	fmt.Printf("✓ Created adapter config: %s\n", filepath.Join("app", "adapters", "my-database.terse"))
-	fmt.Printf("✓ Created route config: %s\n", filepath.Join("app", "routes", "health", "config.terse"))
+	fmt.Printf("✓ Created tool config: %s\n", filepath.Join("app", "tools", "health", "config.terse"))
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  1. Edit %s and files under app/adapters + app/routes\n", initOutputFile)
+	fmt.Printf("  1. Edit %s and files under app/adapters + app/tools\n", initOutputFile)
 	fmt.Printf("  2. Run: hyperterse start -f %s\n", initOutputFile)
 
 	return nil

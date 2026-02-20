@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/route.terse.schema.json",
-  "title": "HyperterseRouteConfig",
-  "description": "Schema for route-level `.terse` files. This schema validates route configuration regardless of folder naming convention.",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/tool.terse.schema.json",
+  "title": "HyperterseToolConfig",
+  "description": "Schema for tool-level `.terse` files. This schema validates tool configuration regardless of folder naming convention.",
   "type": "object",
   "properties": {
     "name": {
@@ -17,7 +17,7 @@
       "minLength": 1
     },
     "use": {
-      "description": "Adapter binding for DB-backed route tools.",
+      "description": "Adapter binding for DB-backed tools.",
       "oneOf": [
         {
           "type": "string",
@@ -35,16 +35,16 @@
     },
     "statement": {
       "type": "string",
-      "description": "Statement for DB-backed route tools.",
+      "description": "Statement for DB-backed tools.",
       "minLength": 1
     },
     "scripts": {
       "type": "object",
-      "description": "Optional script hooks for route behavior.",
+      "description": "Optional script hooks for tool behavior.",
       "properties": {
         "handler": {
           "type": "string",
-          "description": "Custom route handler script path.",
+          "description": "Custom tool handler script path.",
           "minLength": 1
         },
         "input_transform": {
@@ -62,7 +62,7 @@
     },
     "auth": {
       "type": "object",
-      "description": "Optional route auth plugin configuration.",
+      "description": "Optional tool auth plugin configuration.",
       "properties": {
         "plugin": {
           "type": "string",
