@@ -1,3 +1,27 @@
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-light.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-dark.svg">
+    <img alt="Hyperterse" src="docs/assets/logo-dark.svg" width="256" />
+  </picture>
+</div>
+
+<p align="center"><strong>The declarative framework for performant MCP servers.</strong></p>
+
+<p align="center">
+  <a href="https://hyperterse.com">Website</a>
+  •
+  <a href="https://docs.hyperterse.com">Documentation</a>
+  •
+  <a href="#quick-start">Quick Start</a>
+  •
+  <a href="#tool-examples">Examples</a>
+  •
+  <a href="https://github.com/hyperterse/hyperterse">GitHub</a>
+</p>
+
+---
+
 # Hyperterse
 
 Framework for building MCP tools from declarative data tools.
@@ -160,3 +184,14 @@ Hyperterse validates typed inputs, but statement placeholder substitution (`{{ i
 5. Open a PR
 
 See `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
+
+---
+
+<p align="center">
+  The declarative framework for performant MCP servers.<br />
+  <a href="https://hyperterse.com">Website</a>
+  •
+  <a href="https://github.com/hyperterse/hyperterse">GitHub</a>
+  •
+  <a href="https://docs.hyperterse.com">Documentation</a>
+</p>

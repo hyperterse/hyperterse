@@ -51,6 +51,7 @@ make setup
 ```
 
 This will:
+
 - Check and install required dependencies (Go, protoc, protoc-gen-go)
 - Download Go module dependencies
 - Generate protobuf code and type definitions
@@ -105,6 +106,7 @@ This watches your configuration file and reloads when it changes.
 ### IDE Setup
 
 The project includes VS Code settings (`.vscode/settings.json`) that configure:
+
 - Format on save for Go files
 - Prettier for JSON/YAML/MDX files
 - YAML schema validation for `.terse` files
@@ -156,6 +158,7 @@ git checkout -b docs/your-documentation-update
 ```
 
 **Branch naming conventions:**
+
 - `feature/` - New features
 - `fix/` - Bug fixes
 - `docs/` - Documentation updates
@@ -210,6 +213,7 @@ git commit -m "Add support for Redis pub/sub queries"
 ```
 
 **Commit message guidelines:**
+
 - Use present tense ("Add feature" not "Added feature")
 - Keep the first line under 72 characters
 - Add a blank line between the subject and body if needed
@@ -259,6 +263,7 @@ func ExecuteQuery(ctx context.Context, query *Query, connector Connector) (*Resu
 ### Editor Configuration
 
 The project includes `.editorconfig` with these settings:
+
 - Line endings: LF
 - Indent: 2 spaces
 - Charset: UTF-8
@@ -371,6 +376,7 @@ git push origin feature/your-feature-name
 ```
 
 2. **Open a Pull Request on GitHub:**
+
    - Use a clear, descriptive title
    - Reference related issues (e.g., "Fixes #123")
    - Describe what changes you made and why
@@ -380,23 +386,28 @@ git push origin feature/your-feature-name
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Related Issue
+
 Closes #123
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## Testing
+
 - [ ] Tests added/updated
 - [ ] All tests pass
 - [ ] Manual testing completed
 
 ## Checklist
+
 - [ ] Code follows style guidelines
 - [ ] Self-review completed
 - [ ] Comments added for complex code
@@ -416,6 +427,7 @@ Closes #123
 ### Adding a New Connector
 
 1. **Define connector type** in `proto/connectors/connectors.proto`:
+
    ```protobuf
    enum Connector {
      // ... existing connectors
@@ -424,6 +436,7 @@ Closes #123
    ```
 
 2. **Implement connector interface** in `core/runtime/connectors/newconnector.go`:
+
    ```go
    type NewConnector struct {
        // fields
@@ -435,12 +448,14 @@ Closes #123
    ```
 
 3. **Update factory** in `core/runtime/connectors/connector.go`:
+
    ```go
    case proto.Connector_NEW_CONNECTOR:
        return NewNewConnector(config), nil
    ```
 
 4. **Regenerate code:**
+
    ```bash
    make generate
    ```
@@ -452,6 +467,7 @@ Closes #123
 ### Adding a New Primitive Type
 
 1. **Define type** in `proto/primitives/primitives.proto`:
+
    ```protobuf
    enum Primitive {
      // ... existing types
@@ -460,6 +476,7 @@ Closes #123
    ```
 
 2. **Regenerate code:**
+
    ```bash
    make generate
    ```
@@ -473,6 +490,7 @@ Closes #123
 ### Adding a New Parser
 
 1. **Create parser** in `core/parser/`:
+
    ```go
    func ParseNewFormat(data []byte) (*Config, error) {
        // implementation
@@ -480,6 +498,7 @@ Closes #123
    ```
 
 2. **Add file detection** in `core/cli/internal/loader.go`:
+
    ```go
    if strings.HasSuffix(filename, ".newformat") {
        return ParseNewFormat(data)
@@ -507,7 +526,7 @@ Releases are managed by maintainers. The release process includes:
 
 ## Getting Help
 
-- **Documentation:** [docs.hyperterse.com](https://docs.hyperterse.com)
+- **Documentation:** [hyperterse.mintlify.app](https://hyperterse.mintlify.app)
 - **Issues:** [GitHub Issues](https://github.com/hyperterse/hyperterse/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/hyperterse/hyperterse/discussions)
 

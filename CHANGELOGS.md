@@ -169,7 +169,7 @@ A huge thank you to everyone who tested the alpha and beta releases, reported is
 
 ## 📚 Resources
 
-- **Documentation**: [Full Documentation](https://docs.hyperterse.com)
+- **Documentation**: [Full Documentation](https://hyperterse.mintlify.app)
 - **GitHub**: [hyperterse/hyperterse](https://github.com/hyperterse/hyperterse)
 - **Issues**: [Report Issues](https://github.com/hyperterse/hyperterse/issues)
 
@@ -495,6 +495,6 @@ Or download binary directly for your platform below.
 ## 📚 Documentation
 
 - [README](https://github.com/hyperterse/hyperterse#readme)
-- [Full Documentation](https://docs.hyperterse.com)
+- [Full Documentation](https://hyperterse.mintlify.app)
 
 > _This is the first public alpha release of Hyperterse. We welcome feedback and contributions!_
