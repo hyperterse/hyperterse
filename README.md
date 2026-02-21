@@ -116,8 +116,8 @@ handler: "./weather-handler.ts"
 ## CLI commands
 
 - `start` - run runtime from config
-- `serve` - run from built manifest (`model.bin`)
-- `build` - package runtime binary + manifest + bundles
+- `serve` - run from a compiled artifact
+- `build` - produce a deployable artifact
 - `validate` - validate config and tool scripts
 - `init` - scaffold starter project
 - `upgrade` - upgrade installed binary
@@ -128,16 +128,10 @@ handler: "./weather-handler.ts"
 ```bash
 hyperterse validate
 hyperterse build -o dist
-cd dist
-./hyperterse serve
+hyperterse serve dist/
 ```
 
-Build output includes:
-
-- `model.bin`
-- runtime binary
-- `build/vendor.js`
-- `build/tools/...` bundles
+The `dist/` output includes everything needed to run in production.
 
 ## Configuration highlights
 
@@ -156,21 +150,6 @@ Supported primitive types:
 ## Security note
 
 Hyperterse validates typed inputs, but statement placeholder substitution (`{{ inputs.x }}`) is raw string replacement. Use strict tool input constraints and safe query patterns for production.
-
-## Documentation
-
-Docs are Mintlify-native in `docs/`:
-
-- `docs/docs.json` (navigation + site config)
-- `docs/**/*.mdx` (content pages)
-
-Run docs locally:
-
-```bash
-cd docs
-bun install
-bun run dev
-```
 
 ## Contributing
 
