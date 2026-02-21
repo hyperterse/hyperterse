@@ -4,6 +4,9 @@
   </picture>
 </div>
 <br />
+<div align="center">
+  <h1>Hyperterse</h1>
+</div>
 <p align="center">
   <strong>The declarative framework for performant MCP servers.</strong><br />
   <a href="https://hyperterse.com">Website</a>
