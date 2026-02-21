@@ -46,7 +46,10 @@ async function getLatestVersion(): Promise<string> {
 }
 
 // Parse command line arguments
-let bumpType: semver.ReleaseType = "patch";
+type BaseBumpType = "major" | "minor" | "patch";
+let bumpType: BaseBumpType = "patch";
+let bumpTypeProvided = false;
+let prereleaseRequested = false;
 let prereleaseTag = "";
 let explicitVersion = "";
 let push = false;
@@ -57,18 +60,21 @@ while (i < args.length) {
   switch (args[i]) {
     case "--major":
       bumpType = "major";
+      bumpTypeProvided = true;
       i++;
       break;
     case "--minor":
       bumpType = "minor";
+      bumpTypeProvided = true;
       i++;
       break;
     case "--patch":
       bumpType = "patch";
+      bumpTypeProvided = true;
       i++;
       break;
     case "--prerelease":
-      bumpType = "prerelease";
+      prereleaseRequested = true;
       prereleaseTag = args[i + 1] || "";
       if (!prereleaseTag) {
         console.error("❌ Error: --prerelease requires a tag");
@@ -97,16 +103,8 @@ while (i < args.length) {
   }
 }
 
-// Validate that exactly one option was provided
-if (!bumpType && !explicitVersion) {
-  console.error(
-    "❌ Error: Must specify one of --major, --minor, --patch, --prerelease, or --version"
-  );
-  usage();
-}
-
-if (bumpType && explicitVersion) {
-  console.error("❌ Error: Cannot specify both bump type and explicit version");
+if (explicitVersion && (bumpTypeProvided || prereleaseRequested)) {
+  console.error("❌ Error: Cannot combine --version with bumping options");
   usage();
 }
 
@@ -152,9 +150,21 @@ if (explicitVersion) {
   const currentVersion = await getLatestVersion();
   console.log(`📋 Current version: v${currentVersion}`);
 
-  const bumped = semver.inc(currentVersion, bumpType, prereleaseTag || "");
+  let releaseType: semver.ReleaseType = bumpType;
+
+  if (prereleaseRequested) {
+    if (bumpType === "major") {
+      releaseType = "premajor";
+    } else if (bumpType === "minor") {
+      releaseType = "preminor";
+    } else {
+      releaseType = bumpTypeProvided ? "prepatch" : "prerelease";
+    }
+  }
+
+  const bumped = semver.inc(currentVersion, releaseType, prereleaseTag || "");
   if (!bumped) {
-    console.error(`❌ Error: Failed to bump version ${currentVersion} with ${bumpType}`);
+    console.error(`❌ Error: Failed to bump version ${currentVersion} with ${releaseType}`);
     process.exit(1);
   }
   newVersion = bumped;
