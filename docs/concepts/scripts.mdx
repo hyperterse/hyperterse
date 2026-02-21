@@ -100,7 +100,7 @@ from the tool directory. Convention names include:
 
 ## npm packages
 
-If your scripts import external packages, add a `package.json` at the project root. The bundler resolves packages from `node_modules/`, compiles shared dependencies into a single `vendor.js`, and rewrites tool bundles to reference it. The deployed artifact has no dependency on `node_modules/`.
+If your scripts import external packages, add a `package.json` at the project root. The build process packages dependencies with your scripts, so deployment does not require `node_modules/`.
 
 ```typescript
 import dayjs from 'dayjs'

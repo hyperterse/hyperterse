@@ -104,7 +104,7 @@ Executes a tool with the provided arguments.
 }
 ```
 
-The `content` array contains one text entry with JSON-encoded results. For DB-backed tools, this is the serialized row set. For handler tools, this is the serialized return value.
+The `content` array contains one text entry with JSON-encoded tool results.
 
 **Error response:**
 
@@ -145,7 +145,7 @@ Preflight (`OPTIONS`) requests are handled automatically. For production deploym
 
 ## HTTP headers in the execution context
 
-HTTP request headers from `tools/call` requests are forwarded into the execution pipeline. Auth plugins access them through `framework.RequestHeadersFromContext(ctx)`. This makes `X-API-Key`, `Authorization`, and any custom headers available for authentication decisions.
+HTTP request headers from `tools/call` requests are forwarded into the execution pipeline so auth plugins can evaluate authentication data (`X-API-Key`, `Authorization`, and custom headers) when making access decisions.
 
 ## Session management
 
@@ -153,9 +153,3 @@ The MCP Streamable HTTP transport supports session-based interaction via the `Mc
 
 For stateless tool invocation — the common case — sessions are not required. Each `POST /mcp` with a `tools/call` method is independently executed.
 
-## Internal service contracts
-
-The runtime defines two RPC services:
-
-- **MCPService** — `ListTools` and `CallTool`. Active in the current runtime, mapped to the MCP JSON-RPC methods.
-- **QueryService** — `ExecuteQuery`. Defined but not registered. Reserved for potential direct HTTP query endpoints in future versions.

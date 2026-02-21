@@ -14,7 +14,7 @@ Every `tools/call` request passes through a deterministic pipeline. The stages a
 
 ## Tool resolution
 
-The runtime matches the tool name from the `tools/call` request to a compiled tool definition. Lookup is O(1) via an in-memory map populated at startup.
+The runtime matches the tool name from the `tools/call` request to a compiled tool definition loaded at startup.
 
 If no tool matches, a JSON-RPC error is returned with code `-32601`.
 
@@ -59,7 +59,7 @@ When `use` and `statement` are configured, the executor runs six substeps:
 2. **Environment substitution.** Resolve `{{ env.VAR }}` placeholders. Missing variables produce errors.
 3. **Input substitution.** Replace `{{ inputs.field }}` placeholders with post-transform values. Substitution is textual.
 4. **Cache check.** If caching is enabled, compute the cache key from tool name + statement hash. On hit, return cached result and skip connector execution.
-5. **Connector execution.** Delegate the statement to the connector's `Execute` method. Returns `[]map[string]any`.
+5. **Connector execution.** Execute the statement against the configured connector and return row/object results.
 6. **Cache store.** On miss, store the result with the configured TTL.
 
 ## Output transform

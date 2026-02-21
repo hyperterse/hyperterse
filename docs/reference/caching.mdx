@@ -1,18 +1,18 @@
 ---
 title: Caching
-description: Query result caching behavior and configuration.
+description: Tool result caching behavior and configuration.
 ---
 
-Hyperterse includes executor-level in-memory caching (Ristretto).
+Hyperterse includes built-in in-memory caching for DB-backed tools.
 
 ## How cache keys are built
 
 Cache key is derived from:
 
-- query name
+- tool name
 - final substituted statement hash
 
-So the same query with different substituted statements creates separate cache entries.
+So the same tool with different substituted statements creates separate cache entries.
 
 ## Global cache config
 
@@ -31,7 +31,7 @@ cache:
   ttl: 30
 ```
 
-Or disable for one tool/query:
+Or disable for one tool:
 
 ```yaml
 cache:
@@ -49,5 +49,5 @@ Default TTL is `120` seconds when enabled and no TTL override is supplied.
 ## Current characteristics
 
 - In-process cache (not distributed)
-- Memory bounded by Ristretto settings
+- Memory-bounded cache storage
 - Results are cloned before store/return to avoid mutation side effects

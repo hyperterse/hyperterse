@@ -76,4 +76,4 @@ See [Scripts](/concepts/scripts) for the full script model.
 
 ## Vendor dependencies
 
-If your tool scripts import npm packages, add a `package.json` at the project root and install your dependencies. At build time, the bundler resolves external imports, deduplicates shared packages into a single `vendor.js`, and rewrites tool bundles to reference it. The deployed artifact has no dependency on `node_modules/`.
+If your tool scripts import npm packages, add a `package.json` at the project root and install your dependencies. Build output includes everything needed to run scripts, so deployment does not depend on `node_modules/` being present.

@@ -1,9 +1,9 @@
 ---
 title: Caching
-description: In-memory query result caching, cache key derivation, TTL, and override behavior.
+description: In-memory tool result caching, cache key derivation, TTL, and override behavior.
 ---
 
-Hyperterse includes an executor-level in-memory cache. The cache stores query results keyed by the combination of query name and substituted statement, eliminating redundant connector execution for identical requests.
+Hyperterse includes a built-in in-memory cache. The cache stores tool results keyed by tool name and substituted statement, reducing redundant connector execution for identical requests.
 
 Caching applies to DB-backed tools only. Script-backed tools (handler-only) bypass the cache.
 
@@ -12,10 +12,10 @@ Caching applies to DB-backed tools only. Script-backed tools (handler-only) bypa
 Each entry is identified by:
 
 ```
-cache_key = hash(query_name + substituted_statement)
+cache_key = hash(tool_name + substituted_statement)
 ```
 
-The same query with different input values produces different cache entries. Identical inputs for the same query produce a cache hit.
+The same tool with different input values produces different cache entries. Identical inputs for the same tool produce a cache hit.
 
 ## Configuration
 
@@ -34,7 +34,7 @@ tools:
 
 | Field     | Type    | Default | Description                                |
 | --------- | ------- | ------- | ------------------------------------------ |
-| `enabled` | boolean | `false` | Whether caching is active for all queries. |
+| `enabled` | boolean | `false` | Whether caching is active for all DB-backed tools. |
 | `ttl`     | integer | `120`   | Time-to-live in seconds.                   |
 
 ### Per-tool override
