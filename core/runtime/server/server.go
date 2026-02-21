@@ -331,6 +331,8 @@ func (rt *Runtime) withCORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID")
+		// MCP clients need to read this response header after initialize to reuse sessions.
+		w.Header().Set("Access-Control-Expose-Headers", "Mcp-Session-Id")
 
 		if req.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

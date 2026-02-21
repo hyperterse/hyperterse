@@ -12,6 +12,12 @@ var (
 	initOutputFile string
 )
 
+const (
+	scaffoldRootDir     = "app"
+	scaffoldToolsDir    = "tools"
+	scaffoldAdaptersDir = "adapters"
+)
+
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:          "init",
@@ -48,8 +54,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	baseDir := filepath.Dir(initOutputFile)
-	appAdaptersDir := filepath.Join(baseDir, "app", "adapters")
-	appToolDir := filepath.Join(baseDir, "app", "tools", "hello-world")
+	appAdaptersDir := filepath.Join(baseDir, scaffoldRootDir, scaffoldAdaptersDir)
+	appToolDir := filepath.Join(baseDir, scaffoldRootDir, scaffoldToolsDir, "hello-world")
 	if err := os.MkdirAll(appAdaptersDir, 0755); err != nil {
 		return fmt.Errorf("failed to create app adapters directory: %w", err)
 	}
@@ -74,8 +80,8 @@ inputs:
   userId:
     type: int
     description: "User ID provided by the agent."
-scripts:
-  output_transform: "user-data-mapper.ts"
+mappers:
+  output: "user-data-mapper.ts"
 auth:
   plugin: allow_all
 `
@@ -85,10 +91,10 @@ auth:
 
 	handlerTS := `type Row = Record<string, unknown>;
 
-export async function outputTransform(payload: { results?: Row[] }) {
+export default async function outputTransform(payload: { results?: Row[] }) {
   const row = payload?.results?.[0] ?? {};
-  const nane = String(row.first_name ?? "there");
-  return ` + "`Hello ${nane}!`" + `;
+  const name = String(row.first_name ?? "there");
+  return ` + "`Hello ${name}!`" + `;
 }
 `
 	if err := os.WriteFile(filepath.Join(appToolDir, "user-data-mapper.ts"), []byte(handlerTS), 0644); err != nil {
@@ -96,17 +102,26 @@ export async function outputTransform(payload: { results?: Row[] }) {
 	}
 
 	fmt.Printf("✓ Created configuration file: %s\n", initOutputFile)
-	fmt.Printf("✓ Created adapter config: %s\n", filepath.Join("app", "adapters", "my-database.terse"))
-	fmt.Printf("✓ Created tool config: %s\n", filepath.Join("app", "tools", "hello-world", "config.terse"))
+	fmt.Printf("✓ Created adapter config: %s\n", filepath.Join(scaffoldRootDir, scaffoldAdaptersDir, "my-database.terse"))
+	fmt.Printf("✓ Created tool config: %s\n", filepath.Join(scaffoldRootDir, scaffoldToolsDir, "hello-world", "config.terse"))
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  1. Edit %s and files under app/adapters + app/tools\n", initOutputFile)
+	fmt.Printf("  1. Edit %s and files under %s/%s + %s/%s\n", initOutputFile, scaffoldRootDir, scaffoldAdaptersDir, scaffoldRootDir, scaffoldToolsDir)
 	fmt.Printf("  2. Run: hyperterse start -f %s\n", initOutputFile)
 
 	return nil
 }
 
 func generateConfigTemplate() string {
-	return `name: myconfig
+	return `name: my-service
+version: 1.0.0
+
+root: app
+
+tools:
+  directory: tools
+
+adapters:
+  directory: adapters
 
 server:
   port: 8080

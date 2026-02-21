@@ -10,20 +10,20 @@ import (
 )
 
 const (
-	// Keep up to ~128 MiB of cached query results in-memory.
+	// Keep up to ~128 MiB of cached tool results in-memory.
 	defaultRistrettoMaxCost = 128 << 20
 	// Rule of thumb from Ristretto: ~10x expected live keys.
 	defaultRistrettoNumCounters = 1_000_000
 	defaultRistrettoBufferItems = 64
 )
 
-type queryCache struct {
+type toolCache struct {
 	store *ristretto.Cache
 }
 
-func newQueryCache() *queryCache {
+func newToolCache() *toolCache {
 	// Ristretto requires sizing knobs up front.
-	// These defaults are tuned for query-result caching where values are
+	// These defaults are tuned for tool-result caching where values are
 	// variable-sized row sets and we want good hit ratio without unbounded RAM.
 	store, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: defaultRistrettoNumCounters,
@@ -35,12 +35,12 @@ func newQueryCache() *queryCache {
 		panic(err)
 	}
 
-	return &queryCache{
+	return &toolCache{
 		store: store,
 	}
 }
 
-func (c *queryCache) Get(key string) ([]map[string]any, bool) {
+func (c *toolCache) Get(key string) ([]map[string]any, bool) {
 	value, ok := c.store.Get(key)
 	if !ok {
 		return nil, false
@@ -54,7 +54,7 @@ func (c *queryCache) Get(key string) ([]map[string]any, bool) {
 	return cloneRows(rows), true
 }
 
-func (c *queryCache) Set(key string, rows []map[string]any, ttl time.Duration) {
+func (c *toolCache) Set(key string, rows []map[string]any, ttl time.Duration) {
 	if ttl <= 0 {
 		return
 	}
@@ -65,13 +65,13 @@ func (c *queryCache) Set(key string, rows []map[string]any, ttl time.Duration) {
 	accepted := c.store.SetWithTTL(key, clonedRows, cost, ttl)
 	if accepted {
 		// Ristretto sets are asynchronous. Wait ensures the value can be read
-		// immediately by the next query execution.
+		// immediately by the next tool execution.
 		c.store.Wait()
 	}
 }
 
-func buildCacheKey(queryName, finalStatement string) string {
-	hash := sha256.Sum256([]byte(queryName + ":" + finalStatement))
+func buildCacheKey(toolName, finalStatement string) string {
+	hash := sha256.Sum256([]byte(toolName + ":" + finalStatement))
 	return hex.EncodeToString(hash[:])
 }
 

@@ -47,10 +47,10 @@ const primitiveValues = parseEnumValues(primitivesContent, "Primitive");
 const schemaBaseURL =
   "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema";
 const namePattern = "^[a-zA-Z][a-zA-Z0-9_-]*$";
-const queryNamePattern = "^[a-z][a-z0-9_-]*$";
+const toolNamePattern = "^[a-z][a-z0-9_-]*$";
 
 function inputSpecSchema(requireDefaultWhenOptional: boolean) {
-  const typedDefaultRules = [
+  const typedDefaultRules: Array<Record<string, any>> = [
     {
       if: {
         properties: { type: { enum: ["string", "datetime"] } },
@@ -81,7 +81,7 @@ function inputSpecSchema(requireDefaultWhenOptional: boolean) {
     },
   ];
 
-  const allOf = [...typedDefaultRules];
+  const allOf: Array<Record<string, any>> = [...typedDefaultRules];
   if (requireDefaultWhenOptional) {
     allOf.unshift({
       if: { properties: { optional: { const: true } } },
@@ -126,12 +126,17 @@ const rootSchema = {
     name: {
       type: "string" as const,
       description: "Project name.",
-      pattern: queryNamePattern,
+      pattern: toolNamePattern,
       minLength: 1,
     },
     version: {
       type: "string" as const,
       description: "Optional project version for observability metadata.",
+      minLength: 1,
+    },
+    root: {
+      type: "string" as const,
+      description: "Base directory for discovery (defaults to `app`).",
       minLength: 1,
     },
     build: {
@@ -155,6 +160,39 @@ const rootSchema = {
       },
       additionalProperties: false,
     },
+    tools: {
+      type: "object" as const,
+      description: "Tool discovery and global tool cache settings.",
+      properties: {
+        directory: {
+          type: "string" as const,
+          description: "Tools directory relative to `root` (defaults to `tools`).",
+          minLength: 1,
+        },
+        cache: {
+          type: "object" as const,
+          description: "Global/default tool cache configuration.",
+          properties: {
+            enabled: { type: "boolean" as const },
+            ttl: { type: "integer" as const, minimum: 1 },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+    adapters: {
+      type: "object" as const,
+      description: "Adapter discovery settings.",
+      properties: {
+        directory: {
+          type: "string" as const,
+          description: "Adapters directory relative to `root` (defaults to `adapters`).",
+          minLength: 1,
+        },
+      },
+      additionalProperties: false,
+    },
     server: {
       type: "object" as const,
       description: "Runtime server configuration.",
@@ -171,35 +209,6 @@ const rootSchema = {
           description: "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG.",
           minimum: 1,
           maximum: 4,
-        },
-        queries: {
-          type: "object" as const,
-          description: "Global/default query execution settings.",
-          properties: {
-            cache: {
-              type: "object" as const,
-              description: "Global/default query cache configuration.",
-              properties: {
-                enabled: { type: "boolean" as const },
-                ttl: { type: "integer" as const, minimum: 1 },
-              },
-              required: ["enabled"],
-              additionalProperties: false,
-            },
-          },
-          additionalProperties: false,
-        },
-      },
-      additionalProperties: false,
-    },
-    framework: {
-      type: "object" as const,
-      description: "Framework mode options.",
-      properties: {
-        app_dir: {
-          type: "string" as const,
-          description: "Base application directory used for tool/adapters discovery.",
-          minLength: 1,
         },
       },
       additionalProperties: false,
@@ -260,7 +269,7 @@ const toolSchema = {
     name: {
       type: "string" as const,
       description: "Optional explicit MCP tool name.",
-      pattern: queryNamePattern,
+      pattern: toolNamePattern,
       minLength: 1,
     },
     description: {
@@ -284,23 +293,23 @@ const toolSchema = {
       description: "Statement for DB-backed tools.",
       minLength: 1,
     },
-    scripts: {
+    handler: {
+      type: "string" as const,
+      description: "Custom tool handler script path.",
+      minLength: 1,
+    },
+    mappers: {
       type: "object" as const,
-      description: "Optional script hooks for tool behavior.",
+      description: "Optional mapper script paths for tool input/output transforms.",
       properties: {
-        handler: {
+        input: {
           type: "string" as const,
-          description: "Custom tool handler script path.",
+          description: "Input mapper script path.",
           minLength: 1,
         },
-        input_transform: {
+        output: {
           type: "string" as const,
-          description: "Input transform script path.",
-          minLength: 1,
-        },
-        output_transform: {
-          type: "string" as const,
-          description: "Output transform script path.",
+          description: "Output mapper script path.",
           minLength: 1,
         },
       },
@@ -325,36 +334,12 @@ const toolSchema = {
       },
       additionalProperties: false,
     },
-    data: {
-      type: "object" as const,
-      patternProperties: {
-        [namePattern]: {
-          type: "object" as const,
-          properties: {
-            type: { type: "string" as const, enum: primitiveValues },
-            description: { type: "string" as const },
-            map_to: { type: "string" as const },
-          },
-          required: ["type"],
-          additionalProperties: false,
-        },
-      },
-      additionalProperties: false,
-    },
   },
   allOf: [
     {
       anyOf: [
         { required: ["use"] },
-        {
-          required: ["scripts"],
-          properties: {
-            scripts: {
-              type: "object" as const,
-              required: ["handler"],
-            },
-          },
-        },
+        { required: ["handler"] },
       ],
     },
   ],

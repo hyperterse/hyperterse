@@ -7,17 +7,17 @@ Hyperterse v2 is a breaking redesign. The framework shifts from a single-file qu
 
 ## What changed
 
-| Aspect        | V1                                                        | V2                                                                 |
-| ------------- | --------------------------------------------------------- | ------------------------------------------------------------------ |
+| Aspect        | V1                                                        | V2                                                                |
+| ------------- | --------------------------------------------------------- | ----------------------------------------------------------------- |
 | Configuration | Single `.hyperterse` with inline `adapters` and `queries` | Root config + `app/adapters/*.terse` + `app/tools/*/config.terse` |
-| Tool mapping  | Query name from config keys                               | Filesystem: each tool directory = one tool                         |
-| Scripts       | None                                                      | TypeScript handlers, input/output transforms                       |
-| Auth          | None                                                      | Per-tool pluggable auth                                            |
-| Transport     | HTTP query endpoints                                      | MCP Streamable HTTP (`/mcp`)                                       |
-| Build         | Runtime interprets config directly                        | `build` → `model.bin` → `serve`                                    |
-| Bundling      | None                                                      | Scripts bundled + vendor deduplication                             |
-| Caching       | Global only                                               | Global + per-tool override                                         |
-| Observability | Basic logging                                             | OpenTelemetry tracing + metrics + structured logging               |
+| Tool mapping  | Query name from config keys                               | Filesystem: each tool directory = one tool                        |
+| Scripts       | None                                                      | TypeScript handlers, input/output transforms                      |
+| Auth          | None                                                      | Per-tool pluggable auth                                           |
+| Transport     | HTTP query endpoints                                      | MCP Streamable HTTP (`/mcp`)                                      |
+| Build         | Runtime interprets config directly                        | `build` → `model.bin` → `serve`                                   |
+| Bundling      | None                                                      | Scripts bundled + vendor deduplication                            |
+| Caching       | Global only                                               | Global + per-tool override                                        |
+| Observability | Basic logging                                             | OpenTelemetry tracing + metrics + structured logging              |
 
 ## Migration steps
 
@@ -60,10 +60,10 @@ version: 2.0.0
 server:
   port: 8080
   log_level: 3
-  queries:
-    cache:
-      enabled: true
-      ttl: 60
+tools:
+  cache:
+    enabled: true
+    ttl: 60
 ```
 
 ### Extract adapters
@@ -118,9 +118,9 @@ Do not leave tools without `auth` unless intentionally unauthenticated.
 If queries need validation or formatting that v1 handled client-side:
 
 ```yaml
-scripts:
-  input_transform: './validate.ts'
-  output_transform: './format.ts'
+mappers:
+  input: './validate.ts'
+  output: './format.ts'
 ```
 
 ### Install dependencies
@@ -145,12 +145,12 @@ hyperterse validate
 
 Common issues:
 
-| Error                                         | Resolution                                        |
-| --------------------------------------------- | ------------------------------------------------- |
-| Tool has neither `use` nor `scripts.handler`  | Add adapter reference or handler.                 |
-| Adapter name not found                        | Verify `use` matches filename or explicit `name`. |
-| Unknown connector type                        | Use `postgres`, `mysql`, `mongodb`, or `redis`.   |
-| Script file not found                         | Verify paths are relative to tool directory.      |
+| Error                                        | Resolution                                        |
+| -------------------------------------------- | ------------------------------------------------- |
+| Tool has neither `use` nor `handler` | Add adapter reference or handler.                 |
+| Adapter name not found                       | Verify `use` matches filename or explicit `name`. |
+| Unknown connector type                       | Use `postgres`, `mysql`, `mongodb`, or `redis`.   |
+| Script file not found                        | Verify paths are relative to tool directory.      |
 
 ### Test
 
@@ -229,11 +229,11 @@ my-api/
 
 ## Breaking changes
 
-| Change                    | Impact                            | Action                                 |
-| ------------------------- | --------------------------------- | -------------------------------------- |
-| Inline `adapters` removed | Config will not parse             | Extract to `app/adapters/*.terse`      |
-| Inline `queries` removed  | Config will not parse             | Extract to `app/tools/*/config.terse`  |
-| `/query/{name}` removed   | HTTP clients break                | Migrate to MCP `tools/call`            |
-| Auth now per-tool         | Tools unauthenticated by default  | Add `auth` blocks                      |
-| DSL parser deprecated     | Text-format blocks unsupported    | Convert to YAML                        |
-| Build step introduced     | Direct interpretation replaced    | Add `build` + `serve` to pipeline      |
+| Change                    | Impact                           | Action                                |
+| ------------------------- | -------------------------------- | ------------------------------------- |
+| Inline `adapters` removed | Config will not parse            | Extract to `app/adapters/*.terse`     |
+| Inline `queries` removed  | Config will not parse            | Extract to `app/tools/*/config.terse` |
+| `/query/{name}` removed   | HTTP clients break               | Migrate to MCP `tools/call`           |
+| Auth now per-tool         | Tools unauthenticated by default | Add `auth` blocks                     |
+| DSL parser deprecated     | Text-format blocks unsupported   | Convert to YAML                       |
+| Build step introduced     | Direct interpretation replaced   | Add `build` + `serve` to pipeline     |

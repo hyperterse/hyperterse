@@ -3,7 +3,7 @@ title: Root
 description: Complete field reference for the .hyperterse root configuration file.
 ---
 
-The root configuration file (`.hyperterse`) defines service-level settings. It does not contain adapter or tool definitions — those are discovered from the `app/` directory.
+The root configuration file (`.hyperterse`) defines service-level settings and discovery settings. It does not contain adapter or tool definitions — those are discovered from the filesystem.
 
 ## Full schema
 
@@ -11,20 +11,24 @@ The root configuration file (`.hyperterse`) defines service-level settings. It d
 name: my-service
 version: 1.0.0
 
+root: app
+
+tools:
+  directory: tools
+  cache:
+    enabled: true
+    ttl: 60
+
+adapters:
+  directory: adapters
+
 server:
   port: 8080
   log_level: 3
-  queries:
-    cache:
-      enabled: true
-      ttl: 60
 
 build:
   out: dist
   clean_dir: false
-
-framework:
-  app_dir: app
 ```
 
 ## Field reference
@@ -46,6 +50,44 @@ framework:
   logs.
 </ParamField>
 
+<ParamField body="root" type="string" default="app">
+  Base directory for adapter/tool discovery. Relative to the root config path.
+</ParamField>
+
+<ParamField body="tools" type="object">
+  Tool discovery and global tool cache defaults.
+
+  <Expandable title="properties">
+    <ParamField body="directory" type="string" default="tools">
+      Tools directory relative to `root`.
+    </ParamField>
+
+    <ParamField body="cache" type="object">
+      Global cache defaults for DB-backed tools.
+
+      <Expandable title="properties">
+        <ParamField body="enabled" type="boolean" default="false">
+          Enable in-memory query result caching globally.
+        </ParamField>
+
+        <ParamField body="ttl" type="integer" default="120">
+          Default TTL in seconds for cached query results.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="adapters" type="object">
+  Adapter discovery settings.
+
+  <Expandable title="properties">
+    <ParamField body="directory" type="string" default="adapters">
+      Adapters directory relative to `root`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
 <ParamField body="server" type="object">
   Server runtime settings.
 
@@ -60,26 +102,6 @@ framework:
       Log verbosity. `1` = error, `2` = warn, `3` = info, `4` = debug.
 
       **Resolution order:** `--verbose` (4) → `--log-level` flag → `server.log_level` config → `3`
-    </ParamField>
-
-    <ParamField body="queries" type="object">
-      Query execution settings.
-
-      <Expandable title="properties">
-        <ParamField body="cache" type="object">
-          Global cache settings.
-
-          <Expandable title="properties">
-            <ParamField body="enabled" type="boolean" default="false">
-              Enable in-memory query result caching globally. Individual tools can override this.
-            </ParamField>
-
-            <ParamField body="ttl" type="integer" default="120">
-              Default TTL in seconds for cached query results. Individual tools can override this.
-            </ParamField>
-          </Expandable>
-        </ParamField>
-      </Expandable>
     </ParamField>
 
   </Expandable>
@@ -99,16 +121,6 @@ framework:
       Remove output directory before building.
     </ParamField>
 
-  </Expandable>
-</ParamField>
-
-<ParamField body="framework" type="object">
-  Framework discovery settings.
-
-  <Expandable title="properties">
-    <ParamField body="app_dir" type="string" default="app">
-      Base directory for adapter and tool discovery. Relative to the root config path.
-    </ParamField>
   </Expandable>
 </ParamField>
 
@@ -149,10 +161,11 @@ Editor validation: `schema/root.terse.schema.json`. See [Configuration schemas](
     server:
       port: "{{ env.PORT }}"
       log_level: 2
-      queries:
-        cache:
-          enabled: true
-          ttl: 300
+
+    tools:
+      cache:
+        enabled: true
+        ttl: 300
 
     build:
       out: release

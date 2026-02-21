@@ -2,10 +2,8 @@ package parser
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
-	"github.com/hyperterse/hyperterse/core/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -53,7 +51,6 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 			buildConfig.CleanDir = cleanDirRaw
 		}
 
-		// Reuse existing model field until proto naming is migrated.
 		if buildConfig.Out != "" || buildConfig.CleanDir {
 			model.Export = buildConfig
 		}
@@ -83,166 +80,20 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 			}
 		}
 
-		// Parse server.queries.cache configuration
-		if queriesRaw, ok := serverRaw["queries"].(map[string]any); ok {
-			serverQueriesConfig := &hyperterse.ServerQueriesConfig{}
-			if cacheRaw, ok := queriesRaw["cache"].(map[string]any); ok {
-				serverQueriesConfig.Cache = parseCacheConfig(cacheRaw)
-			}
-			if serverQueriesConfig.Cache != nil {
-				serverConfig.Queries = serverQueriesConfig
-			}
-		}
-
 		model.Server = serverConfig
 	}
 
-	// Parse adapters - now a map where keys are names
-	if adaptersRaw, ok := raw["adapters"].(map[string]any); ok {
-		for adapterName, adapterRaw := range adaptersRaw {
-			adapterMap, ok := adapterRaw.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("invalid adapter structure for '%s'", adapterName)
-			}
-
-			adapter := &hyperterse.Adapter{
-				Name: adapterName,
-			}
-			if connectorStr, ok := adapterMap["connector"].(string); ok {
-				connectorEnum, err := types.StringToConnectorEnum(connectorStr)
-				if err != nil {
-					return nil, fmt.Errorf("invalid connector '%s' for adapter '%s': %w", connectorStr, adapterName, err)
+	// Parse tools root config (v2 discovery + global cache defaults).
+	// This maps tools.cache into model.tool_defaults.
+	if toolsRaw, ok := raw["tools"].(map[string]any); ok {
+		if cacheRaw, ok := toolsRaw["cache"].(map[string]any); ok {
+			cacheConfig := parseCacheConfig(cacheRaw)
+			if cacheConfig != nil {
+				if model.ToolDefaults == nil {
+					model.ToolDefaults = &hyperterse.ToolDefaultsConfig{}
 				}
-				adapter.Connector = connectorEnum
+				model.ToolDefaults.Cache = cacheConfig
 			}
-			// Parse connection_string from adapter level
-			if connStr, ok := adapterMap["connection_string"].(string); ok {
-				adapter.ConnectionString = connStr
-			}
-			// Parse optional connector-specific options
-			if optionsRaw, ok := adapterMap["options"].(map[string]any); ok {
-				adapter.Options = &hyperterse.AdapterOptions{
-					Options: make(map[string]string),
-				}
-				for key, value := range optionsRaw {
-					if strValue, ok := value.(string); ok {
-						adapter.Options.Options[key] = strValue
-					} else {
-						// Convert non-string values to string
-						adapter.Options.Options[key] = fmt.Sprintf("%v", value)
-					}
-				}
-			}
-
-			model.Adapters = append(model.Adapters, adapter)
-		}
-	}
-
-	// Parse queries - now a map where keys are names
-	if queriesRaw, ok := raw["queries"].(map[string]any); ok {
-		for queryName, queryRaw := range queriesRaw {
-			queryMap, ok := queryRaw.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("invalid query structure for '%s'", queryName)
-			}
-
-			query := &hyperterse.Query{
-				Name: queryName,
-			}
-			if description, ok := queryMap["description"].(string); ok {
-				query.Description = description
-			}
-			if statement, ok := queryMap["statement"].(string); ok {
-				query.Statement = statement
-			}
-
-			// Handle use field: can be string or []string
-			if useRaw, ok := queryMap["use"]; ok {
-				switch v := useRaw.(type) {
-				case string:
-					query.Use = []string{v}
-				case []any:
-					for _, item := range v {
-						if str, ok := item.(string); ok {
-							query.Use = append(query.Use, str)
-						}
-					}
-				}
-			}
-
-			// Parse inputs - now a map where keys are names
-			if inputsRaw, ok := queryMap["inputs"].(map[string]any); ok {
-				for inputName, inputRaw := range inputsRaw {
-					inputMap, ok := inputRaw.(map[string]any)
-					if !ok {
-						return nil, fmt.Errorf("invalid input structure for '%s' in query '%s'", inputName, queryName)
-					}
-
-					input := &hyperterse.Input{
-						Name: inputName,
-					}
-					if typ, ok := inputMap["type"].(string); ok {
-						if !types.IsValidPrimitiveType(typ) {
-							return nil, fmt.Errorf("invalid type '%s' for input '%s' in query '%s': must be one of: %s", typ, inputName, queryName, strings.Join(types.GetValidPrimitives(), ", "))
-						}
-						inputType, err := types.StringToPrimitiveEnum(typ)
-						if err != nil {
-							return nil, err
-						}
-						input.Type = inputType
-					}
-					if description, ok := inputMap["description"].(string); ok {
-						input.Description = description
-					}
-					if optional, ok := inputMap["optional"].(bool); ok {
-						input.Optional = optional
-					}
-					if defaultValueRaw, ok := inputMap["default"]; ok {
-						input.DefaultValue = fmt.Sprintf("%v", defaultValueRaw)
-					}
-
-					query.Inputs = append(query.Inputs, input)
-				}
-			}
-
-			// Parse data - now a map where keys are names
-			if dataRaw, ok := queryMap["data"].(map[string]any); ok {
-				for dataName, dataRaw := range dataRaw {
-					dataMap, ok := dataRaw.(map[string]any)
-					if !ok {
-						return nil, fmt.Errorf("invalid data structure for '%s' in query '%s'", dataName, queryName)
-					}
-
-					data := &hyperterse.Data{
-						Name: dataName,
-					}
-					if typ, ok := dataMap["type"].(string); ok {
-						if !types.IsValidPrimitiveType(typ) {
-							return nil, fmt.Errorf("invalid type '%s' for data '%s' in query '%s': must be one of: %s", typ, dataName, queryName, strings.Join(types.GetValidPrimitives(), ", "))
-						}
-						dataType, err := types.StringToPrimitiveEnum(typ)
-						if err != nil {
-							return nil, err
-						}
-						data.Type = dataType
-					}
-					if description, ok := dataMap["description"].(string); ok {
-						data.Description = description
-					}
-					if mapTo, ok := dataMap["map_to"].(string); ok {
-						data.MapTo = mapTo
-					}
-
-					query.Data = append(query.Data, data)
-				}
-			}
-
-			// Parse optional query-level cache override
-			if cacheRaw, ok := queryMap["cache"].(map[string]any); ok {
-				query.Cache = parseCacheConfig(cacheRaw)
-			}
-
-			model.Queries = append(model.Queries, query)
 		}
 	}
 

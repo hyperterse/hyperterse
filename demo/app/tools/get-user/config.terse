@@ -6,8 +6,8 @@ inputs:
   userId:
     type: int
     description: "User ID to fetch."
-scripts:
-  input_transform: "./user-input-validator.ts"
-  output_transform: "./user-data-mapper.ts"
+mappers:
+  input: "./user-input-validator.ts"
+  output: "./user-data-mapper.ts"
 auth:
   plugin: allow_all

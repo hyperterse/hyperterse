@@ -28,7 +28,7 @@ If the tool defines an `auth` block, the configured plugin is invoked with the r
 
 ## Input transform
 
-If `scripts.input_transform` is configured or discovered by convention, the `inputTransform` function executes in the embedded runtime.
+If `mappers.input` is configured or discovered by convention, the mapper script's `export default` function executes in the embedded runtime.
 
 **Payload:**
 
@@ -49,7 +49,7 @@ The execution stage branches based on the tool's configuration. Only one path ru
 
 ### Script-backed tools
 
-When `scripts.handler` is configured, the `handler` function executes in the embedded runtime. The return value becomes the execution result.
+When `handler` is configured, the handler script's `export default` function executes in the embedded runtime. The return value becomes the execution result.
 
 ### DB-backed tools
 
@@ -58,13 +58,13 @@ When `use` and `statement` are configured, the executor runs six substeps:
 1. **Input validation.** Validate all declared inputs against type definitions. Missing required inputs and type mismatches produce errors.
 2. **Environment substitution.** Resolve `{{ env.VAR }}` placeholders. Missing variables produce errors.
 3. **Input substitution.** Replace `{{ inputs.field }}` placeholders with post-transform values. Substitution is textual.
-4. **Cache check.** If caching is enabled, compute the cache key from query name + statement hash. On hit, return cached result and skip connector execution.
+4. **Cache check.** If caching is enabled, compute the cache key from tool name + statement hash. On hit, return cached result and skip connector execution.
 5. **Connector execution.** Delegate the statement to the connector's `Execute` method. Returns `[]map[string]any`.
 6. **Cache store.** On miss, store the result with the configured TTL.
 
 ## Output transform
 
-If `scripts.output_transform` is configured or discovered by convention, the `outputTransform` function executes in the embedded runtime.
+If `mappers.output` is configured or discovered by convention, the mapper script's `export default` function executes in the embedded runtime.
 
 **Payload:**
 

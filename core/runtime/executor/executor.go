@@ -17,56 +17,56 @@ import (
 
 const defaultCacheTTLSeconds = int32(120)
 
-// Executor executes queries against database connectors
+// Executor executes tools against database connectors
 type Executor struct {
 	connectorManager *connectors.ConnectorManager
 	model            *hyperterse.Model
-	cache            *queryCache
+	cache            *toolCache
 }
 
-// NewExecutor creates a new query executor
+// NewExecutor creates a new tool executor
 func NewExecutor(model *hyperterse.Model, manager *connectors.ConnectorManager) *Executor {
 	return &Executor{
 		connectorManager: manager,
 		model:            model,
-		cache:            newQueryCache(),
+		cache:            newToolCache(),
 	}
 }
 
-// ExecuteQuery executes a query by name with the provided inputs and context.
+// ExecuteTool executes a tool by name with the provided inputs and context.
 // The context allows for request cancellation and timeout propagation.
-func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInputs map[string]any) ([]map[string]any, error) {
+func (e *Executor) ExecuteTool(ctx context.Context, toolName string, userInputs map[string]any) ([]map[string]any, error) {
 	log := logger.New("executor")
 	start := time.Now()
 	tracer := otel.Tracer("runtime/executor")
-	ctx, span := tracer.Start(ctx, "executor.execute_query")
-	span.SetAttributes(attribute.String(observability.AttrQueryName, queryName))
+	ctx, span := tracer.Start(ctx, "executor.execute_tool")
+	span.SetAttributes(attribute.String(observability.AttrToolName, toolName))
 	defer span.End()
 
-	// Find the query definition
-	var query *hyperterse.Query
-	for _, q := range e.model.Queries {
-		if q.Name == queryName {
-			query = q
+	// Find the tool definition
+	var tool *hyperterse.Tool
+	for _, t := range e.model.Tools {
+		if t.Name == toolName {
+			tool = t
 			break
 		}
 	}
 
-	if query == nil {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
-		span.SetStatus(codes.Error, "query_not_found")
-		return nil, log.Errorf("query '%s' not found", queryName)
+	if tool == nil {
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "tool_not_found")
+		return nil, log.Errorf("tool '%s' not found", toolName)
 	}
 
 	log.InfofCtx(ctx, map[string]any{
-		observability.AttrQueryName: queryName,
-	}, "Executing query: %s", queryName)
+		observability.AttrToolName: toolName,
+	}, "Executing tool: %s", toolName)
 
 	// Validate inputs
 	log.Debugf("Validating inputs")
-	validatedInputs, err := utils.ValidateInputs(query, userInputs)
+	validatedInputs, err := utils.ValidateInputs(tool, userInputs)
 	if err != nil {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
 		span.SetStatus(codes.Error, "input_validation_failed")
 		return nil, log.Errorf("input validation failed: %w", err)
 	}
@@ -74,52 +74,52 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 
 	// Build input type map for proper formatting
 	inputTypeMap := make(map[string]string)
-	for _, input := range query.Inputs {
+	for _, input := range tool.Inputs {
 		inputTypeMap[input.Name] = input.Type.String()
 	}
 
 	// Substitute environment variables in statement at runtime (before input substitution)
 	log.Debugf("Substituting environment variables")
-	statementWithEnvVars, err := runtimeutils.SubstituteEnvVars(query.Statement)
+	statementWithEnvVars, err := runtimeutils.SubstituteEnvVars(tool.Statement)
 	if err != nil {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
 		span.SetStatus(codes.Error, "env_substitution_failed")
-		return nil, log.Errorf("query '%s': failed to substitute environment variables in statement: %w", queryName, err)
+		return nil, log.Errorf("tool '%s': failed to substitute environment variables in statement: %w", toolName, err)
 	}
 
 	// Substitute inputs in statement
 	log.Debugf("Substituting inputs")
 	finalStatement, err := utils.SubstituteInputs(statementWithEnvVars, validatedInputs, inputTypeMap)
 	if err != nil {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
 		span.SetStatus(codes.Error, "template_substitution_failed")
 		return nil, log.Errorf("template substitution failed: %w", err)
 	}
 	log.Debugf("Final statement: %s", finalStatement)
 
-	cacheEnabled, cacheTTL := e.resolveCachePolicy(query)
+	cacheEnabled, cacheTTL := e.resolveCachePolicy(tool)
 	if cacheEnabled {
-		cacheKey := buildCacheKey(queryName, finalStatement)
+		cacheKey := buildCacheKey(toolName, finalStatement)
 		if cachedResults, found := e.cache.Get(cacheKey); found {
-			log.Debugf("Cache hit for query: %s", queryName)
-			log.Infof("Query execution completed (cache hit)")
+			log.Debugf("Cache hit for tool: %s", toolName)
+			log.Infof("Tool execution completed (cache hit)")
 			return cachedResults, nil
 		}
-		log.Debugf("Cache miss for query: %s", queryName)
+		log.Debugf("Cache miss for tool: %s", toolName)
 	}
 
-	// Get the connector(s) for this query
-	if len(query.Use) == 0 {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+	// Get the connector(s) for this tool
+	if len(tool.Use) == 0 {
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
 		span.SetStatus(codes.Error, "adapter_missing")
-		return nil, log.Errorf("query '%s' has no adapter specified", queryName)
+		return nil, log.Errorf("tool '%s' has no adapter specified", toolName)
 	}
 
 	// Use the first adapter (supporting multiple adapters can be added later)
-	adapterName := query.Use[0]
+	adapterName := tool.Use[0]
 	conn, exists := e.connectorManager.Get(adapterName)
 	if !exists {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
 		span.SetStatus(codes.Error, "adapter_not_found")
 		return nil, log.Errorf("adapter '%s' not found", adapterName)
 	}
@@ -139,48 +139,47 @@ func (e *Executor) ExecuteQuery(ctx context.Context, queryName string, userInput
 		log.Debugf("Using adapter: %s", adapterName)
 	}
 
-	// Execute the query with context for cancellation support
+	// Execute the tool statement with context for cancellation support
 	results, err := conn.Execute(ctx, finalStatement, validatedInputs)
 	if err != nil {
-		observability.RecordQueryExecution(ctx, queryName, false, float64(time.Since(start).Milliseconds()))
-		span.SetStatus(codes.Error, "query_execution_failed")
-		return nil, log.Errorf("query execution failed: %w", err)
+		observability.RecordToolExecution(ctx, toolName, false, float64(time.Since(start).Milliseconds()))
+		span.SetStatus(codes.Error, "tool_execution_failed")
+		return nil, log.Errorf("tool execution failed: %w", err)
 	}
 
 	if cacheEnabled {
-		cacheKey := buildCacheKey(queryName, finalStatement)
+		cacheKey := buildCacheKey(toolName, finalStatement)
 		e.cache.Set(cacheKey, results, cacheTTL)
 	}
 
-	log.Debugf("Query executed successfully, %d result(s)", len(results))
-	log.Infof("Query execution completed")
-	observability.RecordQueryExecution(ctx, queryName, true, float64(time.Since(start).Milliseconds()))
+	log.Debugf("Tool executed successfully, %d result(s)", len(results))
+	log.Infof("Tool execution completed")
+	observability.RecordToolExecution(ctx, toolName, true, float64(time.Since(start).Milliseconds()))
 	return results, nil
 }
 
-func (e *Executor) resolveCachePolicy(query *hyperterse.Query) (bool, time.Duration) {
+func (e *Executor) resolveCachePolicy(tool *hyperterse.Tool) (bool, time.Duration) {
 	enabled := false
 	ttlSeconds := defaultCacheTTLSeconds
 
 	if e.model != nil &&
-		e.model.Server != nil &&
-		e.model.Server.Queries != nil &&
-		e.model.Server.Queries.Cache != nil {
-		serverCache := e.model.Server.Queries.Cache
-		if serverCache.HasEnabled {
-			enabled = serverCache.Enabled
+		e.model.ToolDefaults != nil &&
+		e.model.ToolDefaults.Cache != nil {
+		defaultCache := e.model.ToolDefaults.Cache
+		if defaultCache.HasEnabled {
+			enabled = defaultCache.Enabled
 		}
-		if serverCache.HasTtl {
-			ttlSeconds = serverCache.Ttl
+		if defaultCache.HasTtl {
+			ttlSeconds = defaultCache.Ttl
 		}
 	}
 
-	if query != nil && query.Cache != nil {
-		if query.Cache.HasEnabled {
-			enabled = query.Cache.Enabled
+	if tool != nil && tool.Cache != nil {
+		if tool.Cache.HasEnabled {
+			enabled = tool.Cache.Enabled
 		}
-		if query.Cache.HasTtl {
-			ttlSeconds = query.Cache.Ttl
+		if tool.Cache.HasTtl {
+			ttlSeconds = tool.Cache.Ttl
 		}
 	}
 
@@ -191,18 +190,18 @@ func (e *Executor) resolveCachePolicy(query *hyperterse.Query) (bool, time.Durat
 	return true, time.Duration(ttlSeconds) * time.Second
 }
 
-// GetQuery returns a query definition by name
-func (e *Executor) GetQuery(queryName string) (*hyperterse.Query, error) {
-	for _, q := range e.model.Queries {
-		if q.Name == queryName {
-			return q, nil
+// GetTool returns a tool definition by name.
+func (e *Executor) GetTool(toolName string) (*hyperterse.Tool, error) {
+	for _, tool := range e.model.Tools {
+		if tool.Name == toolName {
+			return tool, nil
 		}
 	}
 	log := logger.New("executor")
-	return nil, log.Errorf("query '%s' not found", queryName)
+	return nil, log.Errorf("tool '%s' not found", toolName)
 }
 
-// GetAllQueries returns all query definitions
-func (e *Executor) GetAllQueries() []*hyperterse.Query {
-	return e.model.Queries
+// GetAllTools returns all tool definitions.
+func (e *Executor) GetAllTools() []*hyperterse.Tool {
+	return e.model.Tools
 }

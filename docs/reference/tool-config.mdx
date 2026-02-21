@@ -3,7 +3,7 @@ title: Tool
 description: Complete field reference for tool definition files.
 ---
 
-Each `app/tools/*/config.terse` defines one MCP tool — its execution strategy, inputs, outputs, scripts, authentication, and caching behavior.
+Each `app/tools/*/config.terse` defines one MCP tool — its execution strategy, inputs, mappers, authentication, and caching behavior.
 
 ## Full schema
 
@@ -19,18 +19,9 @@ inputs:
   user_id:
     type: int
     description: 'User primary key'
-data:
-  id:
-    type: int
-  name:
-    type: string
-  email:
-    type: string
-  created_at:
-    type: datetime
-scripts:
-  input_transform: './validate-input.ts'
-  output_transform: './format-output.ts'
+mappers:
+  input: './validate-input.ts'
+  output: './format-output.ts'
 auth:
   plugin: api_key
   policy:
@@ -61,7 +52,7 @@ cache:
   Adapter name(s) for statement execution. References adapter identifiers defined in `app/adapters/`.
 
   <Warning>
-  Required if `scripts.handler` is not set. A tool must have either `use` or `scripts.handler` (or both).
+  Required if `handler` is not set. A tool must have either `use` or `handler` (or both).
   </Warning>
 </ParamField>
 
@@ -100,49 +91,39 @@ statement: |
   </Expandable>
 </ParamField>
 
-<ParamField body="data" type="object">
-  Map of output field definitions. Metadata only — does not enforce runtime validation.
+<ParamField body="handler" type="string">
+  Optional handler script path for fully script-backed tools. When set, it replaces
+  database execution entirely. The handler receives inputs and returns results directly.
 
-  <Expandable title="data field properties">
-    <ParamField body="type" type="string" required>
-      Expected output data type.
-    </ParamField>
-
-    <ParamField body="description" type="string">
-      Human-readable field description.
-    </ParamField>
-
-    <ParamField body="optional" type="boolean" default="false">
-      Whether the field may be absent in the response.
-    </ParamField>
-
-    <ParamField body="map_to" type="string">
-      Source column name if different from the key. Use when your database column name does not match the desired output field name.
-    </ParamField>
-
-  </Expandable>
+  Use `path#exportName` to call a non-default export.
+  Without `#exportName`, Hyperterse calls the script's `export default` (function name ignored).
 </ParamField>
 
-<ParamField body="scripts" type="object">
-  Script paths for custom logic. All paths are relative to the tool directory.
+<ParamField body="mappers" type="object">
+  Optional mapper script paths for pre/post processing. All paths are relative to
+  the tool directory.
 
   <Expandable title="properties">
-    <ParamField body="handler" type="string">
-      Handler script path. When set, replaces database execution entirely. The handler receives inputs and returns results directly.
+    <ParamField body="input" type="string">
+      Input mapper script path. Runs before statement execution. Receives raw inputs
+      and returns modified inputs.
+
+      Use `path#exportName` to call a non-default export.
+      Without `#exportName`, Hyperterse calls the script's `export default` (function name ignored).
     </ParamField>
 
-    <ParamField body="input_transform" type="string">
-      Input transform script path. Runs before statement execution. Receives raw inputs and returns modified inputs.
-    </ParamField>
+    <ParamField body="output" type="string">
+      Output mapper script path. Runs after statement execution. Receives raw results
+      and returns modified results.
 
-    <ParamField body="output_transform" type="string">
-      Output transform script path. Runs after statement execution. Receives raw results and returns modified results.
+      Use `path#exportName` to call a non-default export.
+      Without `#exportName`, Hyperterse calls the script's `export default` (function name ignored).
     </ParamField>
 
   </Expandable>
 
   <Tip>
-  If scripts are omitted, convention-based discovery applies — see [Scripts](/concepts/scripts).
+  If mapper/handler scripts are omitted, convention-based discovery applies — see [Scripts](/concepts/scripts).
   </Tip>
 </ParamField>
 
@@ -173,11 +154,11 @@ statement: |
 
   <Expandable title="properties">
     <ParamField body="enabled" type="boolean">
-      Whether caching is active for this tool. Inherits from `server.queries.cache.enabled` if not set.
+      Whether caching is active for this tool. Inherits from `tools.cache.enabled` if not set.
     </ParamField>
 
     <ParamField body="ttl" type="integer">
-      Cache TTL in seconds for this tool. Inherits from `server.queries.cache.ttl` if not set.
+      Cache TTL in seconds for this tool. Inherits from `tools.cache.ttl` if not set.
     </ParamField>
 
   </Expandable>
@@ -188,10 +169,10 @@ statement: |
 A tool is valid when at least one of these conditions is met:
 
 1. `use` is defined (database-backed tool).
-2. `scripts.handler` is defined (script-backed tool).
+2. `handler` is defined (script-backed tool).
 
 <Warning>
-  Tools with neither `use` nor `scripts.handler` are rejected during
+  Tools with neither `use` nor `handler` are rejected during
   validation.
 </Warning>
 

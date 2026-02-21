@@ -178,7 +178,7 @@ func setupMCPToolTest(t *testing.T, enableCache bool) (*Adapter, *fakeConnector,
 				ConnectionString: "postgres://unused",
 			},
 		},
-		Queries: []*hyperterse.Query{
+		Tools: []*hyperterse.Tool{
 			{
 				Name:        "get-orders",
 				Description: "Returns orders by status",
@@ -197,14 +197,12 @@ func setupMCPToolTest(t *testing.T, enableCache bool) (*Adapter, *fakeConnector,
 	}
 
 	if enableCache {
-		model.Server = &hyperterse.ServerConfig{
-			Queries: &hyperterse.ServerQueriesConfig{
-				Cache: &hyperterse.CacheConfig{
-					Enabled:    true,
-					HasEnabled: true,
-					Ttl:        60,
-					HasTtl:     true,
-				},
+		model.ToolDefaults = &hyperterse.ToolDefaultsConfig{
+			Cache: &hyperterse.CacheConfig{
+				Enabled:    true,
+				HasEnabled: true,
+				Ttl:        60,
+				HasTtl:     true,
 			},
 		}
 	}

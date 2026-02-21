@@ -38,23 +38,23 @@
       "description": "Statement for DB-backed tools.",
       "minLength": 1
     },
-    "scripts": {
+    "handler": {
+      "type": "string",
+      "description": "Custom tool handler script path.",
+      "minLength": 1
+    },
+    "mappers": {
       "type": "object",
-      "description": "Optional script hooks for tool behavior.",
+      "description": "Optional mapper script paths for tool input/output transforms.",
       "properties": {
-        "handler": {
+        "input": {
           "type": "string",
-          "description": "Custom tool handler script path.",
+          "description": "Input mapper script path.",
           "minLength": 1
         },
-        "input_transform": {
+        "output": {
           "type": "string",
-          "description": "Input transform script path.",
-          "minLength": 1
-        },
-        "output_transform": {
-          "type": "string",
-          "description": "Output transform script path.",
+          "description": "Output mapper script path.",
           "minLength": 1
         }
       },
@@ -194,37 +194,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "data": {
-      "type": "object",
-      "patternProperties": {
-        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "string",
-                "int",
-                "float",
-                "boolean",
-                "datetime"
-              ]
-            },
-            "description": {
-              "type": "string"
-            },
-            "map_to": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
     }
   },
   "allOf": [
@@ -237,16 +206,8 @@
         },
         {
           "required": [
-            "scripts"
-          ],
-          "properties": {
-            "scripts": {
-              "type": "object",
-              "required": [
-                "handler"
-              ]
-            }
-          }
+            "handler"
+          ]
         }
       ]
     }

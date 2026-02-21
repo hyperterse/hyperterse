@@ -69,7 +69,7 @@ inputs:
 For `string`-typed inputs, validate format in an input transform:
 
 ```typescript
-export function inputTransform(payload: {
+export default function inputTransform(payload: {
   inputs: Record<string, any>
   tool: string
 }) {
@@ -103,7 +103,7 @@ statement: "SELECT * FROM {{ inputs.table_name }}"
 When a query needs dynamic structure, implement it as a handler with explicit sanitization:
 
 ```typescript
-export async function handler(payload: {
+export default async function handler(payload: {
   inputs: Record<string, any>
   tool: string
 }) {

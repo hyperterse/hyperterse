@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// BuildManifestModel clones the compiled model and embeds framework runtime metadata
+// BuildManifestModel clones the compiled model and embeds runtime manifest metadata
 // (tool bundle references, auth policy hooks, and vendor bundle path) so the
 // runtime can start directly from the manifest without reparsing app sources.
 func BuildManifestModel(model *hyperterse.Model, project *Project, manifestDir string) (*hyperterse.Model, error) {
@@ -25,7 +25,7 @@ func BuildManifestModel(model *hyperterse.Model, project *Project, manifestDir s
 		return cloned, nil
 	}
 
-	manifest := &hyperterse.FrameworkManifest{
+	manifest := &hyperterse.CompiledManifest{
 		VendorBundle: toManifestPath(manifestDir, project.VendorBundle),
 	}
 
@@ -51,29 +51,32 @@ func BuildManifestModel(model *hyperterse.Model, project *Project, manifestDir s
 			HandlerBundle:         toManifestPath(manifestDir, handlerPath),
 			InputTransformBundle:  toManifestPath(manifestDir, inputPath),
 			OutputTransformBundle: toManifestPath(manifestDir, outputPath),
+			HandlerExport:         tool.Scripts.HandlerExport,
+			InputTransformExport:  tool.Scripts.InputTransformExport,
+			OutputTransformExport: tool.Scripts.OutputTransformExport,
 			AuthPlugin:            tool.Auth.Plugin,
 			AuthPolicy:            copyStringMap(tool.Auth.Policy),
 		})
 	}
 
-	cloned.Framework = manifest
+	cloned.CompiledManifest = manifest
 	return cloned, nil
 }
 
-// ProjectFromManifestModel reconstructs minimal framework project metadata from a
+// ProjectFromManifestModel reconstructs minimal project metadata from a
 // compiled model manifest. The returned project contains tools with prebuilt JS
 // bundle references and is ready for runtime execution.
 func ProjectFromManifestModel(model *hyperterse.Model, manifestPath string) (*Project, error) {
 	if model == nil {
 		return nil, fmt.Errorf("model is nil")
 	}
-	frameworkManifest := model.GetFramework()
-	if frameworkManifest == nil {
+	compiledManifest := model.GetCompiledManifest()
+	if compiledManifest == nil {
 		return nil, nil
 	}
 
 	manifestDir := filepath.Dir(manifestPath)
-	vendorPath := resolveManifestPath(manifestDir, frameworkManifest.GetVendorBundle())
+	vendorPath := resolveManifestPath(manifestDir, compiledManifest.GetVendorBundle())
 	buildDir := ""
 	if vendorPath != "" {
 		buildDir = filepath.Dir(vendorPath)
@@ -85,20 +88,20 @@ func ProjectFromManifestModel(model *hyperterse.Model, manifestPath string) (*Pr
 		Tools:        map[string]*Tool{},
 	}
 
-	queryByName := make(map[string]*hyperterse.Query, len(model.Queries))
-	for _, query := range model.Queries {
-		if query != nil {
-			queryByName[query.Name] = query
+	toolByName := make(map[string]*hyperterse.Tool, len(model.Tools))
+	for _, tool := range model.Tools {
+		if tool != nil {
+			toolByName[tool.Name] = tool
 		}
 	}
 
-	for _, toolManifest := range frameworkManifest.GetTools() {
+	for _, toolManifest := range compiledManifest.GetTools() {
 		if toolManifest == nil {
 			continue
 		}
-		query, ok := queryByName[toolManifest.GetToolName()]
+		compiledTool, ok := toolByName[toolManifest.GetToolName()]
 		if !ok {
-			return nil, fmt.Errorf("manifest tool %q does not match any compiled query", toolManifest.GetToolName())
+			return nil, fmt.Errorf("manifest tool %q does not match any compiled tool", toolManifest.GetToolName())
 		}
 
 		handlerPath := resolveManifestPath(manifestDir, toolManifest.GetHandlerBundle())
@@ -106,13 +109,16 @@ func ProjectFromManifestModel(model *hyperterse.Model, manifestPath string) (*Pr
 		outputPath := resolveManifestPath(manifestDir, toolManifest.GetOutputTransformBundle())
 
 		tool := &Tool{
-			ToolName: toolManifest.GetToolName(),
-			ToolPath: firstNonEmpty(toolManifest.GetToolPath(), toolManifest.GetToolName()),
-			Query:    query,
+			ToolName:   toolManifest.GetToolName(),
+			ToolPath:   firstNonEmpty(toolManifest.GetToolPath(), toolManifest.GetToolName()),
+			Definition: compiledTool,
 			Scripts: ToolScripts{
-				Handler:         handlerPath,
-				InputTransform:  inputPath,
-				OutputTransform: outputPath,
+				Handler:               handlerPath,
+				HandlerExport:         firstNonEmpty(toolManifest.GetHandlerExport(), "default"),
+				InputTransform:        inputPath,
+				InputTransformExport:  firstNonEmpty(toolManifest.GetInputTransformExport(), "default"),
+				OutputTransform:       outputPath,
+				OutputTransformExport: firstNonEmpty(toolManifest.GetOutputTransformExport(), "default"),
 			},
 			Auth: ToolAuth{
 				Plugin: toolManifest.GetAuthPlugin(),

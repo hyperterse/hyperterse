@@ -75,7 +75,7 @@ func ExtractInputReferences(statement string) []string {
 	return result
 }
 
-// ValidateAllInputsReferenced checks that all inputs in the query are referenced in the statement
+// ValidateAllInputsReferenced checks that all inputs in the tool are referenced in the statement
 func ValidateAllInputsReferenced(statement string, inputNames []string) error {
 	referenced := ExtractInputReferences(statement)
 	referencedMap := make(map[string]bool)

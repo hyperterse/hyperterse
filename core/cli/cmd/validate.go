@@ -122,7 +122,7 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 
 	if project == nil {
 		log.Infof("  adapters: %d", len(model.GetAdapters()))
-		log.Infof("  queries: %d", len(model.GetQueries()))
+		log.Infof("  tools: %d", len(model.GetTools()))
 		return
 	}
 
@@ -167,8 +167,8 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 
 		log.Infof("    - tool: %s", tool.ToolName)
 		log.Infof("      config: %s", displayPath(project.BaseDir, tool.TerseFile))
-		if len(tool.Query.GetUse()) > 0 {
-			log.Infof("      adapters: %s", strings.Join(tool.Query.GetUse(), ", "))
+		if len(tool.Definition.GetUse()) > 0 {
+			log.Infof("      adapters: %s", strings.Join(tool.Definition.GetUse(), ", "))
 		} else {
 			log.Info("      adapters: none (script-only tool)")
 		}

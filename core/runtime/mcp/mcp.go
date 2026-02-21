@@ -21,7 +21,7 @@ const (
 )
 
 // Adapter configures and exposes an MCP SDK server backed by the existing
-// Hyperterse execution stack (framework engine + query executor).
+// Hyperterse execution stack (framework engine + tool executor).
 type Adapter struct {
 	model    *hyperterse.Model
 	executor *executor.Executor
@@ -29,7 +29,7 @@ type Adapter struct {
 	server   *mcpsdk.Server
 }
 
-// New creates an MCP SDK adapter and registers all query tools.
+// New creates an MCP SDK adapter and registers all tools.
 func New(model *hyperterse.Model, exec *executor.Executor, eng *framework.Engine) (*Adapter, error) {
 	if model == nil {
 		return nil, fmt.Errorf("mcp adapter requires a model")
@@ -63,30 +63,30 @@ func (a *Adapter) Server() *mcpsdk.Server {
 
 func (a *Adapter) registerTools() error {
 	log := logger.New("mcp")
-	for _, query := range a.model.Queries {
-		if query == nil {
+	for _, tool := range a.model.Tools {
+		if tool == nil {
 			continue
 		}
 
-		query := query
+		tool := tool
 		a.server.AddTool(&mcpsdk.Tool{
-			Name:        query.Name,
-			Description: query.Description,
-			InputSchema: buildInputSchema(query),
+			Name:        tool.Name,
+			Description: tool.Description,
+			InputSchema: buildInputSchema(tool),
 		}, func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
-			return a.callTool(ctx, req, query)
+			return a.callTool(ctx, req, tool)
 		})
 
-		log.Debugf("Registered MCP tool: %s", query.Name)
+		log.Debugf("Registered MCP tool: %s", tool.Name)
 	}
 	return nil
 }
 
-func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, query *hyperterse.Query) (*mcpsdk.CallToolResult, error) {
+func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, tool *hyperterse.Tool) (*mcpsdk.CallToolResult, error) {
 	log := logger.New("mcp")
 	log.InfofCtx(ctx, map[string]any{
-		observability.AttrQueryName: query.Name,
-	}, "Calling MCP tool: %s", query.Name)
+		observability.AttrToolName: tool.Name,
+	}, "Calling MCP tool: %s", tool.Name)
 
 	// Preserve tool-level auth behavior by forwarding incoming HTTP headers from
 	// transport metadata into the framework auth context.
@@ -111,9 +111,9 @@ func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, que
 		err     error
 	)
 	if a.engine != nil {
-		results, err = a.engine.Execute(ctx, query.Name, inputs)
+		results, err = a.engine.Execute(ctx, tool.Name, inputs)
 	} else {
-		results, err = a.executor.ExecuteQuery(ctx, query.Name, inputs)
+		results, err = a.executor.ExecuteTool(ctx, tool.Name, inputs)
 	}
 	if err != nil {
 		return toolError(err.Error(), jsonrpcsdk.CodeInternalError), nil
@@ -125,7 +125,7 @@ func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, que
 	}
 
 	log.InfofCtx(ctx, map[string]any{
-		observability.AttrQueryName: query.Name,
+		observability.AttrToolName: tool.Name,
 	}, "MCP tool call completed successfully")
 
 	return &mcpsdk.CallToolResult{
@@ -153,11 +153,11 @@ func toolError(message string, code int) *mcpsdk.CallToolResult {
 	}
 }
 
-func buildInputSchema(query *hyperterse.Query) map[string]any {
+func buildInputSchema(tool *hyperterse.Tool) map[string]any {
 	properties := make(map[string]any)
-	required := make([]string, 0, len(query.Inputs))
+	required := make([]string, 0, len(tool.Inputs))
 
-	for _, input := range query.Inputs {
+	for _, input := range tool.Inputs {
 		if input == nil {
 			continue
 		}

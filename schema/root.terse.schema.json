@@ -16,6 +16,11 @@
       "description": "Optional project version for observability metadata.",
       "minLength": 1
     },
+    "root": {
+      "type": "string",
+      "description": "Base directory for discovery (defaults to `app`).",
+      "minLength": 1
+    },
     "build": {
       "type": "object",
       "description": "Optional build configuration.",
@@ -33,6 +38,44 @@
         "clean_dir": {
           "type": "boolean",
           "description": "Clean output directory before build."
+        }
+      },
+      "additionalProperties": false
+    },
+    "tools": {
+      "type": "object",
+      "description": "Tool discovery and global tool cache settings.",
+      "properties": {
+        "directory": {
+          "type": "string",
+          "description": "Tools directory relative to `root` (defaults to `tools`).",
+          "minLength": 1
+        },
+        "cache": {
+          "type": "object",
+          "description": "Global/default tool cache configuration.",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "ttl": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "adapters": {
+      "type": "object",
+      "description": "Adapter discovery settings.",
+      "properties": {
+        "directory": {
+          "type": "string",
+          "description": "Adapters directory relative to `root` (defaults to `adapters`).",
+          "minLength": 1
         }
       },
       "additionalProperties": false
@@ -60,42 +103,6 @@
           "description": "Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG.",
           "minimum": 1,
           "maximum": 4
-        },
-        "queries": {
-          "type": "object",
-          "description": "Global/default query execution settings.",
-          "properties": {
-            "cache": {
-              "type": "object",
-              "description": "Global/default query cache configuration.",
-              "properties": {
-                "enabled": {
-                  "type": "boolean"
-                },
-                "ttl": {
-                  "type": "integer",
-                  "minimum": 1
-                }
-              },
-              "required": [
-                "enabled"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "framework": {
-      "type": "object",
-      "description": "Framework mode options.",
-      "properties": {
-        "app_dir": {
-          "type": "string",
-          "description": "Base application directory used for tool/adapters discovery.",
-          "minLength": 1
         }
       },
       "additionalProperties": false

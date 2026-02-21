@@ -12,7 +12,7 @@ const (
 	AttrSpanID              = "span_id"
 	AttrRequestID           = "request.id"
 	AttrLogTag              = "log.tag"
-	AttrQueryName           = "query.name"
+	AttrToolName            = "tool.name"
 	AttrAdapterName         = "adapter.name"
 	AttrConnectorType       = "connector.type"
 	AttrHTTPMethod          = "http.request.method"

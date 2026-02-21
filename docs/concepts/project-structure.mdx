@@ -43,13 +43,13 @@ See [Adapters](/concepts/adapters) for how adapters work, and [Adapter configura
 
 The compiler scans `app/tools/*/config.terse` at build time. Each `config.terse` file defines one MCP tool. The directory name becomes the tool name, unless the file explicitly sets a `name` field.
 
-Every tool must define either a database connection (`use`) or a handler script (`scripts.handler`). Tools with neither are rejected during validation.
+Every tool must define either a database connection (`use`) or a handler script (`handler`). Tools with neither are rejected during validation.
 
 See [Tools](/concepts/tools) for execution models, and [Tool configuration reference](/reference/tool-config) for the field specification.
 
 ## Script resolution
 
-Script paths in tool configs are resolved relative to the tool directory. You can declare them explicitly, or rely on convention-based discovery where files matching naming patterns (like `*handler*.ts`) are automatically picked up.
+Script paths in tool configs are resolved relative to the tool directory. You can declare them explicitly, or rely on convention-based discovery. Common conventions include `handler.ts`, `input.ts`, and `output.ts`.
 
 See [Scripts](/concepts/scripts) for the full script model.
 

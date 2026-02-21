@@ -51,6 +51,9 @@ func TestRuntimeLifecycle_StartReloadStop(t *testing.T) {
 	if optionsResp.Header.Get("Access-Control-Allow-Origin") != "*" {
 		t.Fatalf("expected Access-Control-Allow-Origin header on /mcp OPTIONS response")
 	}
+	if optionsResp.Header.Get("Access-Control-Expose-Headers") != "Mcp-Session-Id" {
+		t.Fatalf("expected Access-Control-Expose-Headers to include Mcp-Session-Id on /mcp responses")
+	}
 
 	reloadedModel := &hyperterse.Model{Name: "runtime-lifecycle-reloaded"}
 	if err := rt.ReloadModel(reloadedModel); err != nil {

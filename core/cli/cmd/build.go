@@ -21,7 +21,6 @@ var (
 )
 
 const modelManifestFileName = "model.bin"
-const legacyModelManifestFileName = "hyperterse.model.bin"
 
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
@@ -125,10 +124,6 @@ func buildBundle(cmd *cobra.Command, args []string) error {
 		return log.Errorf("error serializing model manifest: %w", err)
 	}
 	manifestPath := filepath.Join(outputDir, modelManifestFileName)
-	legacyManifestPath := filepath.Join(outputDir, legacyModelManifestFileName)
-	if !samePath(manifestPath, legacyManifestPath) {
-		_ = os.Remove(legacyManifestPath)
-	}
 	if err := os.WriteFile(manifestPath, manifestBytes, 0644); err != nil {
 		return log.Errorf("error writing model manifest: %w", err)
 	}

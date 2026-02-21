@@ -18,13 +18,24 @@ import (
 
 var tsConventionPattern = regexp.MustCompile(`(?i)\.ts$`)
 
-// CompileProjectIfPresent discovers app tools and merges them into model queries.
-// If the app directory does not exist, it returns nil project with no error.
+type discoveryConfigFile struct {
+	Root     string                   `yaml:"root"`
+	Tools    discoveryDirectoryConfig `yaml:"tools"`
+	Adapters discoveryDirectoryConfig `yaml:"adapters"`
+}
+
+type discoveryDirectoryConfig struct {
+	Directory string `yaml:"directory"`
+}
+
+// CompileProjectIfPresent discovers tools/adapters directories and merges tools into model definitions.
+// If the configured discovery root does not exist, it returns nil project with no error.
 func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*Project, error) {
 	baseDir := filepath.Dir(configFilePath)
-	appDir := filepath.Join(baseDir, "app")
-	adaptersDir := filepath.Join(appDir, "adapters")
-	toolsDir := filepath.Join(appDir, "tools")
+	appDir, adaptersDir, toolsDir, err := resolveProjectDirectories(configFilePath)
+	if err != nil {
+		return nil, err
+	}
 	buildOutDir := "dist"
 	if model != nil && model.Export != nil && model.Export.Out != "" {
 		buildOutDir = model.Export.Out
@@ -39,14 +50,14 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to stat app directory: %w", err)
+		return nil, fmt.Errorf("failed to stat project root directory: %w", err)
 	}
 	if !stat.IsDir() {
-		return nil, fmt.Errorf("app exists but is not a directory: %s", appDir)
+		return nil, fmt.Errorf("project root exists but is not a directory: %s", appDir)
 	}
 
 	log := logger.New("framework")
-	log.Infof("Compiling v2 app tools from %s", appDir)
+	log.Infof("Compiling v2 tools from %s", appDir)
 
 	project := &Project{
 		BaseDir:     baseDir,
@@ -85,11 +96,53 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 			return nil, fmt.Errorf("duplicate tool name generated from tools: %s", tool.ToolName)
 		}
 		project.Tools[tool.ToolName] = tool
-		model.Queries = append(model.Queries, tool.Query)
+		model.Tools = append(model.Tools, tool.Definition)
 	}
 
-	log.Infof("Compiled %d tool(s) into model queries", len(project.Tools))
+	log.Infof("Compiled %d tool(s) into model tools", len(project.Tools))
 	return project, nil
+}
+
+func resolveProjectDirectories(configFilePath string) (string, string, string, error) {
+	baseDir := filepath.Dir(configFilePath)
+	rootDir := "app"
+	toolsDirName := "tools"
+	adaptersDirName := "adapters"
+
+	content, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to read config for discovery settings: %w", err)
+	}
+
+	var cfg discoveryConfigFile
+	if err := yaml.Unmarshal(content, &cfg); err != nil {
+		return "", "", "", fmt.Errorf("failed to decode discovery settings: %w", err)
+	}
+	if cfg.Root != "" {
+		rootDir = cfg.Root
+	}
+	if cfg.Tools.Directory != "" {
+		toolsDirName = cfg.Tools.Directory
+	}
+	if cfg.Adapters.Directory != "" {
+		adaptersDirName = cfg.Adapters.Directory
+	}
+
+	appDir := resolveDiscoveryPath(baseDir, rootDir)
+	adaptersDir := resolveDiscoveryPath(appDir, adaptersDirName)
+	toolsDir := resolveDiscoveryPath(appDir, toolsDirName)
+	return appDir, adaptersDir, toolsDir, nil
+}
+
+func resolveDiscoveryPath(baseDir, configured string) string {
+	configured = strings.TrimSpace(configured)
+	if configured == "" {
+		return filepath.Clean(baseDir)
+	}
+	if filepath.IsAbs(configured) {
+		return filepath.Clean(configured)
+	}
+	return filepath.Clean(filepath.Join(baseDir, configured))
 }
 
 func discoverAdapterFiles(adaptersDir string) ([]string, error) {
@@ -196,27 +249,33 @@ func compileToolFile(project *Project, terseFile string) (*Tool, error) {
 		toolName = toolNameFromToolPath(toolPath)
 	}
 
-	query, err := toolConfigToQuery(toolName, cfg)
+	compiledTool, err := toolConfigToProto(toolName, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tool config %s: %w", terseFile, err)
 	}
 
 	tool := &Tool{
-		ToolName:  toolName,
-		ToolPath:  toolPath,
-		Directory: toolDir,
-		TerseFile: terseFile,
-		Query:     query,
-		Scripts: ToolScripts{
-			Handler:         resolveScriptPath(project.BaseDir, toolDir, cfg.Scripts.Handler),
-			InputTransform:  resolveScriptPath(project.BaseDir, toolDir, cfg.Scripts.InputTransform),
-			OutputTransform: resolveScriptPath(project.BaseDir, toolDir, cfg.Scripts.OutputTransform),
-		},
+		ToolName:   toolName,
+		ToolPath:   toolPath,
+		Directory:  toolDir,
+		TerseFile:  terseFile,
+		Definition: compiledTool,
 		Auth: ToolAuth{
 			Plugin: cfg.Auth.Plugin,
 			Policy: cfg.Auth.Policy,
 		},
 		BundleOutputs: map[string]string{},
+	}
+	handlerPath, handlerExport := resolveScriptRef(project.BaseDir, toolDir, cfg.Handler, "default")
+	inputPath, inputExport := resolveScriptRef(project.BaseDir, toolDir, cfg.Mappers.Input, "default")
+	outputPath, outputExport := resolveScriptRef(project.BaseDir, toolDir, cfg.Mappers.Output, "default")
+	tool.Scripts = ToolScripts{
+		Handler:               handlerPath,
+		HandlerExport:         handlerExport,
+		InputTransform:        inputPath,
+		InputTransformExport:  inputExport,
+		OutputTransform:       outputPath,
+		OutputTransformExport: outputExport,
 	}
 	applyToolScriptConventions(tool)
 
@@ -240,6 +299,31 @@ func resolveScriptPath(baseDir, toolDir, scriptPath string) string {
 	return filepath.Join(baseDir, scriptPath)
 }
 
+func resolveScriptRef(baseDir, toolDir, scriptRef, defaultExport string) (string, string) {
+	scriptPath, exportName := parseScriptReference(scriptRef)
+	if scriptPath == "" {
+		return "", ""
+	}
+	if exportName == "" {
+		exportName = defaultExport
+	}
+	return resolveScriptPath(baseDir, toolDir, scriptPath), exportName
+}
+
+func parseScriptReference(scriptRef string) (string, string) {
+	ref := strings.TrimSpace(scriptRef)
+	if ref == "" {
+		return "", ""
+	}
+
+	parts := strings.SplitN(ref, "#", 2)
+	path := strings.TrimSpace(parts[0])
+	if len(parts) == 1 {
+		return path, ""
+	}
+	return path, strings.TrimSpace(parts[1])
+}
+
 func applyToolScriptConventions(tool *Tool) {
 	entries, err := os.ReadDir(tool.Directory)
 	if err != nil {
@@ -250,17 +334,27 @@ func applyToolScriptConventions(tool *Tool) {
 			continue
 		}
 		fileName := strings.ToLower(entry.Name())
+		baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 		fullPath := filepath.Join(tool.Directory, entry.Name())
-		if tool.Scripts.Handler == "" && strings.Contains(fileName, "handler") {
+		if tool.Scripts.Handler == "" && (baseName == "handler" || strings.Contains(fileName, "handler")) {
 			tool.Scripts.Handler = fullPath
+			if tool.Scripts.HandlerExport == "" {
+				tool.Scripts.HandlerExport = "default"
+			}
 			continue
 		}
-		if tool.Scripts.InputTransform == "" && strings.Contains(fileName, "input") && strings.Contains(fileName, "validator") {
+		if tool.Scripts.InputTransform == "" && (baseName == "input" || (strings.Contains(fileName, "input") && strings.Contains(fileName, "validator"))) {
 			tool.Scripts.InputTransform = fullPath
+			if tool.Scripts.InputTransformExport == "" {
+				tool.Scripts.InputTransformExport = "default"
+			}
 			continue
 		}
-		if tool.Scripts.OutputTransform == "" && (strings.Contains(fileName, "data") && strings.Contains(fileName, "mapper")) {
+		if tool.Scripts.OutputTransform == "" && (baseName == "output" || (strings.Contains(fileName, "data") && strings.Contains(fileName, "mapper"))) {
 			tool.Scripts.OutputTransform = fullPath
+			if tool.Scripts.OutputTransformExport == "" {
+				tool.Scripts.OutputTransformExport = "default"
+			}
 			continue
 		}
 	}
@@ -272,31 +366,31 @@ func strictYAMLUnmarshal(content []byte, out any) error {
 	return decoder.Decode(out)
 }
 
-func toolConfigToQuery(toolName string, cfg ToolFileConfig) (*hyperterse.Query, error) {
-	query := &hyperterse.Query{
+func toolConfigToProto(toolName string, cfg ToolFileConfig) (*hyperterse.Tool, error) {
+	tool := &hyperterse.Tool{
 		Name:        toolName,
 		Description: cfg.Description,
 		Statement:   cfg.Statement,
 	}
-	if query.Description == "" {
-		query.Description = fmt.Sprintf("Tool generated from app tool: %s", toolName)
+	if tool.Description == "" {
+		tool.Description = fmt.Sprintf("Tool generated from app tool: %s", toolName)
 	}
 
 	// Custom handler tools are allowed without use/statement. They bypass DB execution.
 	// We still add a harmless placeholder to remain compatible with existing validators/executors.
-	if query.Statement == "" {
-		query.Statement = "SELECT 1"
+	if tool.Statement == "" {
+		tool.Statement = "SELECT 1"
 	}
 
 	switch v := cfg.Use.(type) {
 	case string:
 		if v != "" {
-			query.Use = []string{v}
+			tool.Use = []string{v}
 		}
 	case []any:
 		for _, item := range v {
 			if s, ok := item.(string); ok && s != "" {
-				query.Use = append(query.Use, s)
+				tool.Use = append(tool.Use, s)
 			}
 		}
 	}
@@ -310,7 +404,7 @@ func toolConfigToQuery(toolName string, cfg ToolFileConfig) (*hyperterse.Query, 
 		if inputSpec.Default != nil {
 			defaultValue = fmt.Sprintf("%v", inputSpec.Default)
 		}
-		query.Inputs = append(query.Inputs, &hyperterse.Input{
+		tool.Inputs = append(tool.Inputs, &hyperterse.Input{
 			Name:         name,
 			Optional:     inputSpec.Optional,
 			Type:         primitive,
@@ -319,18 +413,5 @@ func toolConfigToQuery(toolName string, cfg ToolFileConfig) (*hyperterse.Query, 
 		})
 	}
 
-	for name, dataSpec := range cfg.Data {
-		primitive, err := types.StringToPrimitiveEnum(dataSpec.Type)
-		if err != nil {
-			return nil, fmt.Errorf("data '%s' has invalid type '%s': %w", name, dataSpec.Type, err)
-		}
-		query.Data = append(query.Data, &hyperterse.Data{
-			Name:        name,
-			Type:        primitive,
-			Description: dataSpec.Description,
-			MapTo:       dataSpec.MapTo,
-		})
-	}
-
-	return query, nil
+	return tool, nil
 }

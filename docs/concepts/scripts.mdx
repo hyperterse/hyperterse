@@ -9,18 +9,32 @@ Scripts extend tool behavior beyond what configuration can express. A handler sc
 
 There are three hooks, each corresponding to a stage in the execution pipeline:
 
-| Hook             | Export                     | Purpose                                |
+| Hook             | Default export             | Purpose                                |
 | ---------------- | -------------------------- | -------------------------------------- |
-| Handler          | `handler(payload)`         | Replaces DB execution entirely         |
-| Input transform  | `inputTransform(payload)`  | Pre-process arguments before execution |
-| Output transform | `outputTransform(payload)` | Post-process results before returning  |
+| Handler          | `export default (...)`     | Replaces DB execution entirely         |
+| Input transform  | `export default (...)`     | Pre-process arguments before execution |
+| Output transform | `export default (...)`     | Post-process results before returning  |
+
+## Selecting exported functions
+
+For all script references, you can target a non-default export with `#`:
+
+```yaml
+handler: "./weather-handler.ts#weather"
+mappers:
+  input: "./input.ts#normalize"
+  output: "./output.ts#shape"
+```
+
+Without `#exportName`, Hyperterse calls the script's `export default` function.  
+The function name itself is optional and ignored by the runtime.
 
 ## Handler
 
-A handler replaces adapter-based execution. When `scripts.handler` is configured, no `use` or `statement` is needed. The return value becomes the tool's result payload.
+A handler replaces adapter-based execution. When `handler` is configured, no `use` or `statement` is needed. The return value becomes the tool's result payload.
 
 ```typescript
-export function handler(payload: {
+export default function handler(payload: {
   inputs: Record<string, any>
   tool: string
 }) {
@@ -38,7 +52,7 @@ export function handler(payload: {
 An input transform pre-processes arguments before they reach the executor or handler. Use it for validation, normalization, or rejection. The returned object replaces the original inputs for all subsequent pipeline stages. Throwing an error aborts execution.
 
 ```typescript
-export function inputTransform(payload: {
+export default function inputTransform(payload: {
   inputs: Record<string, any>
   tool: string
 }) {
@@ -57,7 +71,7 @@ export function inputTransform(payload: {
 An output transform post-processes results before they are returned. Use it for field mapping, formatting, or redaction.
 
 ```typescript
-export function outputTransform(payload: { results: any[]; tool: string }) {
+export default function outputTransform(payload: { results: any[]; tool: string }) {
   return payload.results.map((row) => ({
     id: row.id,
     name: row.name,
@@ -75,6 +89,15 @@ Scripts execute in a sandboxed runtime with two injected globals:
 
 Scripts cannot access the host filesystem, spawn processes, or open network sockets. `setTimeout` and `setInterval` are not available — use `async`/`await` instead.
 
+## Convention discovery
+
+When script paths are omitted in tool config, Hyperterse auto-discovers script files
+from the tool directory. Convention names include:
+
+- `handler.ts`
+- `input.ts` (or `*input*validator*.ts`)
+- `output.ts` (or `*data*mapper*.ts`)
+
 ## npm packages
 
 If your scripts import external packages, add a `package.json` at the project root. The bundler resolves packages from `node_modules/`, compiles shared dependencies into a single `vendor.js`, and rewrites tool bundles to reference it. The deployed artifact has no dependency on `node_modules/`.
@@ -90,4 +113,4 @@ Errors thrown from scripts propagate as MCP error responses. The error message i
 
 ## Further reading
 
-See [Execution pipeline](/runtime/execution-pipeline) for how scripts fit into the request lifecycle, and [Tool configuration reference](/reference/tool-config) for the `scripts` block specification.
+See [Execution pipeline](/runtime/execution-pipeline) for how scripts fit into the request lifecycle, and [Tool configuration reference](/reference/tool-config) for `handler` and `mappers` configuration.

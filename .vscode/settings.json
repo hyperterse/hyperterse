@@ -33,7 +33,7 @@
   },
   "explorer.excludeGitIgnore": false,
   "yaml.schemas": {
-    "./schema/route.terse.schema.json": ["**/routes/**/config.terse"],
+    "./schema/tool.terse.schema.json": ["**/tools/**/config.terse"],
     "./schema/adapter.terse.schema.json": ["**/adapters/*.terse"],
     "./schema/root.terse.schema.json": ["**/.hyperterse"]
   },

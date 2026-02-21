@@ -11,7 +11,7 @@ import (
 
 var toolSegmentPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
-// Project describes a compiled v2 app project from app/** tool folders.
+// Project describes a compiled v2 project from discovered tool folders.
 type Project struct {
 	BaseDir      string
 	AppDir       string
@@ -22,13 +22,13 @@ type Project struct {
 	VendorBundle string
 }
 
-// Tool contains compiled metadata for a filesystem tool and associated query.
+// Tool contains compiled metadata for a filesystem tool and associated proto definition.
 type Tool struct {
 	ToolName      string
 	ToolPath      string
 	Directory     string
 	TerseFile     string
-	Query         *hyperterse.Query
+	Definition    *hyperterse.Tool
 	Scripts       ToolScripts
 	Auth          ToolAuth
 	BundleOutputs map[string]string
@@ -36,9 +36,12 @@ type Tool struct {
 
 // ToolScripts are optional script entrypoints declared by tool .terse files.
 type ToolScripts struct {
-	Handler         string
-	InputTransform  string
-	OutputTransform string
+	Handler               string
+	HandlerExport         string
+	InputTransform        string
+	InputTransformExport  string
+	OutputTransform       string
+	OutputTransformExport string
 }
 
 // ToolAuth controls per-tool authorization behavior.
@@ -54,12 +57,12 @@ type ToolFileConfig struct {
 	Use         any                      `yaml:"use"`
 	Statement   string                   `yaml:"statement"`
 	Inputs      map[string]toolInputSpec `yaml:"inputs"`
-	Data        map[string]toolDataSpec  `yaml:"data"`
-	Scripts     toolScriptSpec           `yaml:"scripts"`
+	Handler     string                   `yaml:"handler"`
+	Mappers     toolMapperSpec           `yaml:"mappers"`
 	Auth        toolAuthSpec             `yaml:"auth"`
 }
 
-// AdapterFileConfig is the schema for app/adapters/*.terse files.
+// AdapterFileConfig is the schema for adapter .terse files.
 type AdapterFileConfig struct {
 	Name             string         `yaml:"name"`
 	Connector        string         `yaml:"connector"`
@@ -74,16 +77,9 @@ type toolInputSpec struct {
 	Default     any    `yaml:"default"`
 }
 
-type toolDataSpec struct {
-	Type        string `yaml:"type"`
-	Description string `yaml:"description"`
-	MapTo       string `yaml:"map_to"`
-}
-
-type toolScriptSpec struct {
-	Handler         string `yaml:"handler"`
-	InputTransform  string `yaml:"input_transform"`
-	OutputTransform string `yaml:"output_transform"`
+type toolMapperSpec struct {
+	Input  string `yaml:"input"`
+	Output string `yaml:"output"`
 }
 
 type toolAuthSpec struct {

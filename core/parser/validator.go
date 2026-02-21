@@ -45,27 +45,27 @@ func Validate(model *hyperterse.Model) error {
 	log.Infof("Starting validation")
 	var errors []string
 
-	// Query name pattern: must start with a letter, lowercase only (lower-snake-case or lower-kebab-case)
-	queryNamePattern := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	// Tool name pattern: must start with a letter, lowercase only (lower-snake-case or lower-kebab-case)
+	toolNamePattern := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
 	// 0. Validate name is required
 	if model.Name == "" {
 		errors = append(errors, "name is required")
 	} else {
 		// 0a. Name must start with a letter and be in lower-snake-case or lower-kebab-case
-		if !queryNamePattern.MatchString(model.Name) {
+		if !toolNamePattern.MatchString(model.Name) {
 			errors = append(errors, fmt.Sprintf("name '%s' is invalid. Must start with a letter and be in lower-snake-case or lower-kebab-case (lowercase letters, numbers, hyphens, and underscores only)", model.Name))
 		}
 	}
 
-	// 0b. Validate optional server.queries.cache configuration
-	if model.Server != nil && model.Server.Queries != nil && model.Server.Queries.Cache != nil {
-		cache := model.Server.Queries.Cache
+	// 0b. Validate optional tools.cache configuration
+	if model.ToolDefaults != nil && model.ToolDefaults.Cache != nil {
+		cache := model.ToolDefaults.Cache
 		if !cache.HasEnabled {
-			errors = append(errors, "server.queries.cache.enabled is required when server.queries.cache is specified")
+			errors = append(errors, "tools.cache.enabled is required when tools.cache is specified")
 		}
 		if cache.HasTtl && cache.Ttl <= 0 {
-			errors = append(errors, "server.queries.cache.ttl must be greater than 0 when specified")
+			errors = append(errors, "tools.cache.ttl must be greater than 0 when specified")
 		}
 	}
 
@@ -117,9 +117,9 @@ func Validate(model *hyperterse.Model) error {
 		}
 	}
 
-	// 5. Validate queries is required and has at least one entry
-	if len(model.Queries) == 0 {
-		errors = append(errors, "queries is required and should have at least one entry")
+	// 5. Validate tools is required and has at least one entry
+	if len(model.Tools) == 0 {
+		errors = append(errors, "tools is required and should have at least one entry")
 	}
 
 	// Build list of adapter names for error messages
@@ -128,54 +128,54 @@ func Validate(model *hyperterse.Model) error {
 		adapterNameList = append(adapterNameList, name)
 	}
 
-	// Track query names for uniqueness
-	queryNames := make(map[string]bool)
+	// Track tool names for uniqueness
+	toolNames := make(map[string]bool)
 
-	for i, query := range model.Queries {
-		prefix := fmt.Sprintf("queries[%d]", i)
+	for i, tool := range model.Tools {
+		prefix := fmt.Sprintf("tools[%d]", i)
 
-		// 6. Query name is required
-		if query.Name == "" {
-			errors = append(errors, fmt.Sprintf("Query [%d] - name is required", i))
+		// 6. Tool name is required
+		if tool.Name == "" {
+			errors = append(errors, fmt.Sprintf("Tool [%d] - name is required", i))
 			continue
 		}
 
-		prefix = query.Name
+		prefix = tool.Name
 
-		// 6. Query name must be unique
-		if queryNames[query.Name] {
-			errors = append(errors, fmt.Sprintf("Query '%s' - name must be unique", query.Name))
+		// 6. Tool name must be unique
+		if toolNames[tool.Name] {
+			errors = append(errors, fmt.Sprintf("Tool '%s' - name must be unique", tool.Name))
 		}
-		queryNames[query.Name] = true
+		toolNames[tool.Name] = true
 
-		// 6a. Query name must start with a letter and be in lower-snake-case or lower-kebab-case
-		if !queryNamePattern.MatchString(query.Name) {
-			errors = append(errors, fmt.Sprintf("Query '%s' - name is invalid. Must start with a letter and be in lower-snake-case or lower-kebab-case (lowercase letters, numbers, hyphens, and underscores only)", query.Name))
+		// 6a. Tool name must start with a letter and be in lower-snake-case or lower-kebab-case
+		if !toolNamePattern.MatchString(tool.Name) {
+			errors = append(errors, fmt.Sprintf("Tool '%s' - name is invalid. Must start with a letter and be in lower-snake-case or lower-kebab-case (lowercase letters, numbers, hyphens, and underscores only)", tool.Name))
 		}
-		// 7. Query use is required and must reference a valid adapter
-		if len(query.Use) == 0 {
-			errors = append(errors, fmt.Sprintf("Query '%s' - use is required", prefix))
+		// 7. Tool use is required and must reference a valid adapter
+		if len(tool.Use) == 0 {
+			errors = append(errors, fmt.Sprintf("Tool '%s' - use is required", prefix))
 		} else {
-			for _, useAdapter := range query.Use {
+			for _, useAdapter := range tool.Use {
 				if !adapterNames[useAdapter] {
-					errors = append(errors, fmt.Sprintf("Query '%s' - use '%s' is invalid. Must reference one of the defined adapter names: %s", prefix, useAdapter, strings.Join(adapterNameList, ", ")))
+					errors = append(errors, fmt.Sprintf("Tool '%s' - use '%s' is invalid. Must reference one of the defined adapter names: %s", prefix, useAdapter, strings.Join(adapterNameList, ", ")))
 				}
 			}
 		}
 
-		// 8. Query description is required
-		if query.Description == "" {
+		// 8. Tool description is required
+		if tool.Description == "" {
 			errors = append(errors, fmt.Sprintf("%s.description is required", prefix))
 		}
 
-		// 9. Query statement is required
-		if query.Statement == "" {
+		// 9. Tool statement is required
+		if tool.Statement == "" {
 			errors = append(errors, fmt.Sprintf("%s.statement is required", prefix))
 		}
 
 		// 10. Validate inputs if specified
 		inputNames := make(map[string]bool)
-		for j, input := range query.Inputs {
+		for j, input := range tool.Inputs {
 			inputPrefix := fmt.Sprintf("%s.inputs[%d]", prefix, j)
 
 			// Input name is required
@@ -189,9 +189,9 @@ func Validate(model *hyperterse.Model) error {
 				errors = append(errors, fmt.Sprintf("%s.name '%s' is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", inputPrefix, input.Name))
 			}
 
-			// Input name must be unique within the query
+			// Input name must be unique within the tool
 			if inputNames[input.Name] {
-				errors = append(errors, fmt.Sprintf("%s.name '%s' must be unique within the query", inputPrefix, input.Name))
+				errors = append(errors, fmt.Sprintf("%s.name '%s' must be unique within the tool", inputPrefix, input.Name))
 			}
 			inputNames[input.Name] = true
 
@@ -213,11 +213,11 @@ func Validate(model *hyperterse.Model) error {
 		}
 
 		// 10a. Validate that all {{ inputs.x }} references in statement are defined
-		if query.Statement != "" {
-			referencedInputs := extractInputReferences(query.Statement)
+		if tool.Statement != "" {
+			referencedInputs := extractInputReferences(tool.Statement)
 			if len(referencedInputs) > 0 {
 				// If statement references inputs, inputs must be defined
-				if len(query.Inputs) == 0 {
+				if len(tool.Inputs) == 0 {
 					errors = append(errors, fmt.Sprintf("%s.statement references inputs but %s.inputs is not specified", prefix, prefix))
 				} else {
 					// Check that all referenced inputs exist
@@ -230,44 +230,12 @@ func Validate(model *hyperterse.Model) error {
 			}
 		}
 
-		// 11. Validate data if specified
-		dataNames := make(map[string]bool)
-		for j, data := range query.Data {
-			dataPrefix := fmt.Sprintf("%s.data[%d]", prefix, j)
-
-			// Data name is required
-			if data.Name == "" {
-				errors = append(errors, fmt.Sprintf("%s.name is required", dataPrefix))
-				continue
-			}
-
-			dataPrefix = fmt.Sprintf("%s.data.%s", prefix, data.Name)
-
-			// Data name must start with a letter
-			if !namePattern.MatchString(data.Name) {
-				errors = append(errors, fmt.Sprintf("%s.name '%s' is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", dataPrefix, data.Name))
-			}
-
-			// Data name must be unique within the query
-			if dataNames[data.Name] {
-				errors = append(errors, fmt.Sprintf("%s.name '%s' must be unique within the query", dataPrefix, data.Name))
-			}
-			dataNames[data.Name] = true
-			// Data type is required and must be valid
-			typeStr := types.PrimitiveEnumToString(data.Type)
-			if typeStr == "" {
-				errors = append(errors, fmt.Sprintf("%s.type is required", dataPrefix))
-			} else if !types.IsValidPrimitiveType(typeStr) {
-				errors = append(errors, fmt.Sprintf("%s.type '%s' must be one of: %s", dataPrefix, typeStr, strings.Join(types.GetValidPrimitives(), ", ")))
-			}
-		}
-
-		// 12. Validate optional query.cache override
-		if query.Cache != nil {
-			if !query.Cache.HasEnabled {
+		// 11. Validate optional tool.cache override
+		if tool.Cache != nil {
+			if !tool.Cache.HasEnabled {
 				errors = append(errors, fmt.Sprintf("%s.cache.enabled is required when %s.cache is specified", prefix, prefix))
 			}
-			if query.Cache.HasTtl && query.Cache.Ttl <= 0 {
+			if tool.Cache.HasTtl && tool.Cache.Ttl <= 0 {
 				errors = append(errors, fmt.Sprintf("%s.cache.ttl must be greater than 0 when specified", prefix))
 			}
 		}

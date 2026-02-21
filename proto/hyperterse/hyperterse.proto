@@ -12,18 +12,17 @@ import "proto/primitives/primitives.proto";
 message ServerConfig {
   string port = 1; // Server port (default: "8080")
   int32 log_level = 2; // Log level: 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG (default: 3)
-  ServerQueriesConfig queries = 3; // Optional query execution settings
 }
 
 message CacheConfig {
-  bool enabled = 1; // Enables query result caching
+  bool enabled = 1; // Enables tool result caching
   int32 ttl = 2; // Cache TTL in seconds (default: 120 when omitted)
   bool has_enabled = 3; // Internal parser flag to detect explicit 'enabled' presence
   bool has_ttl = 4; // Internal parser flag to detect explicit 'ttl' presence
 }
 
-message ServerQueriesConfig {
-  CacheConfig cache = 1; // Global/default query cache settings
+message ToolDefaultsConfig {
+  CacheConfig cache = 1; // Global/default tool cache settings
 }
 
 // Export Configuration
@@ -33,16 +32,19 @@ message ExportConfig {
 }
 
 message ToolBundleManifest {
-  string tool_name = 1; // Query/tool name
+  string tool_name = 1; // Tool name
   string tool_path = 2; // Original filesystem tool path
   string handler_bundle = 3; // Bundled JS path for handler
   string input_transform_bundle = 4; // Bundled JS path for input transform
   string output_transform_bundle = 5; // Bundled JS path for output transform
   string auth_plugin = 6; // Optional auth plugin name
   map<string, string> auth_policy = 7; // Optional auth policy map
+  string handler_export = 8; // JS export name for handler
+  string input_transform_export = 9; // JS export name for input transform
+  string output_transform_export = 10; // JS export name for output transform
 }
 
-message FrameworkManifest {
+message CompiledManifest {
   string vendor_bundle = 1; // Bundled vendor.js path
   repeated ToolBundleManifest tools = 2; // Tool metadata required at runtime
 }
@@ -51,11 +53,12 @@ message FrameworkManifest {
 message Model {
   string name = 1; // Required: configuration name - must be lower-kebab-case or lower_snake_case
   repeated Adapter adapters = 2;
-  repeated Query queries = 3;
+  repeated Tool tools = 3;
   ServerConfig server = 4; // Optional server configuration
   ExportConfig export = 5; // Optional export configuration
   string version = 6; // Optional service version for observability
-  FrameworkManifest framework = 7; // Optional compiled framework manifest for serve command
+  CompiledManifest compiled_manifest = 7; // Optional compiled manifest for serve command
+  ToolDefaultsConfig tool_defaults = 8; // Optional global/default tool settings
 }
 
 // Adapter Configuration
@@ -76,15 +79,15 @@ message AdapterOptions {
   map<string, string> options = 1;
 }
 
-// Query Definition
-message Query {
+// Tool Definition
+message Tool {
   string name = 1; // e.g., "get-user" - must be lower-kebab-case or lower_snake_case, required
   repeated string use = 2; // References to adapter names - required, must have at least one
   string statement = 3; // SQL or command string - required
   string description = 4; // Required
   repeated Input inputs = 5;
-  repeated Data data = 6;
-  CacheConfig cache = 7; // Optional query-level cache override (including opt-out)
+  reserved 6; // data schema removed
+  CacheConfig cache = 7; // Optional tool-level cache override (including opt-out)
 }
 
 // Input Parameter Definition
@@ -96,11 +99,3 @@ message Input {
   string default_value = 5; // Stored as string, parsed at runtime based on type
 }
 
-// Output Data Field Definition
-message Data {
-  string name = 1; // Required
-  bool optional = 2; // Marked by '?' in DSL
-  Primitive type = 3; // e.g., "int", "string" - required
-  string description = 4;
-  string map_to = 5; // e.g., "user.id"
-}

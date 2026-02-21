@@ -1,5 +1,4 @@
 description: "Custom weather MCP tool implemented entirely in TypeScript handler."
-scripts:
-  handler: "./weather-handler.ts"
+handler: "./weather-handler.ts"
 auth:
   plugin: allow_all

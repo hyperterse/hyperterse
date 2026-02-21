@@ -1,4 +1,4 @@
-export async function inputTransform(payload: { inputs?: Record<string, unknown> }) {
+export default async function inputTransform(payload: { inputs?: Record<string, unknown> }) {
   console.log("inputTransform,,,,,", payload);
   const inputs = payload?.inputs ?? {};
   const rawUserId = inputs.userId;

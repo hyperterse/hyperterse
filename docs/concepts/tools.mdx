@@ -30,13 +30,13 @@ auth:
 
 ```yaml
 description: 'Retrieve current weather conditions for a location'
-scripts:
-  handler: './weather-handler.ts'
+handler: './weather-handler.ts'
 auth:
   plugin: allow_all
 ```
 
-**Hybrid tools** combine a DB adapter with script transforms for pre-processing and post-processing. Execution order is: auth, input transform, DB execution, output transform.
+**Hybrid tools** combine a DB adapter with mappers for pre-processing and post-processing.
+Execution order is: auth, input mapper, DB execution, output mapper.
 
 ## Tool naming
 
@@ -60,14 +60,10 @@ inputs:
 
 Supported types are `string`, `int`, `float`, `boolean`, and `datetime`. Required inputs without a default must be provided by the caller. References in statements use `{{ inputs.field_name }}` placeholders.
 
-## Output schema
-
-The optional `data` block declares the expected output shape. It is metadata for documentation and schema generation — it does not enforce runtime result validation.
-
 ## Caching
 
 Tools can override the global cache policy with a `cache` block. See [Caching](/runtime/caching) for the full cache model.
 
 ## Further reading
 
-See [Tool configuration reference](/reference/tool-config) for the complete field specification, including all input properties, output definitions, and cache overrides.
+See [Tool configuration reference](/reference/tool-config) for the complete field specification, including input properties, mapper options, and cache overrides.

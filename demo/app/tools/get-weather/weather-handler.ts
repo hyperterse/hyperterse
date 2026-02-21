@@ -5,7 +5,7 @@ type Inputs = {
   units?: "metric" | "imperial";
 };
 
-export async function handler(payload: { inputs?: Inputs; route?: string }) {
+export default async function handler(payload: { inputs?: Inputs; route?: string }) {
   const city = payload?.inputs?.city ?? "Bengaluru";
   const units = payload?.inputs?.units ?? "metric";
 

@@ -295,16 +295,16 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 		}
 	}
 
-	log.Debugf("Queries: %d", len(model.Queries))
-	if len(model.Queries) > 0 {
-		for _, query := range model.Queries {
-			log.Debugf("  Query: %s", query.Name)
-			if len(query.Use) > 0 {
-				log.Debugf("    Uses: %s", strings.Join(query.Use, ", "))
+	log.Debugf("Tools: %d", len(model.Tools))
+	if len(model.Tools) > 0 {
+		for _, tool := range model.Tools {
+			log.Debugf("  Tool: %s", tool.Name)
+			if len(tool.Use) > 0 {
+				log.Debugf("    Uses: %s", strings.Join(tool.Use, ", "))
 			}
-			if len(query.Inputs) > 0 {
-				inputNames := make([]string, 0, len(query.Inputs))
-				for _, input := range query.Inputs {
+			if len(tool.Inputs) > 0 {
+				inputNames := make([]string, 0, len(tool.Inputs))
+				for _, input := range tool.Inputs {
 					optional := ""
 					if input.Optional {
 						optional = " (optional)"

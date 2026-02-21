@@ -5,11 +5,11 @@ description: JSON Schema files for editor-time validation of .hyperterse and .te
 
 Hyperterse ships three role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
 
-| Schema file                        | Target files                | Purpose                    |
-| ---------------------------------- | --------------------------- | -------------------------- |
-| `schema/root.terse.schema.json`    | `.hyperterse`               | Root service configuration |
-| `schema/adapter.terse.schema.json` | `app/adapters/*.terse`      | Adapter definitions        |
-| `schema/tool.terse.schema.json`    | `app/tools/*/config.terse`  | Tool definitions           |
+| Schema file                        | Target files               | Purpose                    |
+| ---------------------------------- | -------------------------- | -------------------------- |
+| `schema/root.terse.schema.json`    | `.hyperterse`              | Root service configuration |
+| `schema/adapter.terse.schema.json` | `app/adapters/*.terse`     | Adapter definitions        |
+| `schema/tool.terse.schema.json`    | `app/tools/*/config.terse` | Tool definitions           |
 
 ## Generation
 
@@ -53,12 +53,14 @@ Each schema enforces required fields, value constraints, and structural rules fo
 
 - `name` — Required. Pattern: `^[a-z][a-z0-9_-]*$`.
 - `version` — Optional string.
+- `root` — String (default discovery root: `app`).
+- `tools.directory` — String (default: `tools`).
+- `tools.cache` — `enabled` (boolean), `ttl` (integer).
+- `adapters.directory` — String (default: `adapters`).
 - `server.port` — Integer or string.
 - `server.log_level` — Integer, 1–4.
-- `server.queries.cache` — `enabled` (boolean), `ttl` (integer).
 - `build.out` / `build.out_dir` — String.
 - `build.clean_dir` — Boolean.
-- `framework.app_dir` — String.
 
 ### Adapter (`adapter.terse.schema.json`)
 
@@ -73,11 +75,11 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `use` — String or string[].
 - `statement` — String.
 - `inputs` — Map of typed definitions.
-- `data` — Map of typed definitions.
-- `scripts` — `handler`, `input_transform`, `output_transform`.
+- `handler` — Optional script handler path (`path#exportName` supported; defaults to `export default`).
+- `mappers` — Optional `input` / `output` mapper paths (`path#exportName` supported; defaults to `export default`).
 - `auth` — `plugin`, `policy`.
 - `cache` — `enabled`, `ttl`.
-- **Constraint:** `use` or `scripts.handler` required (enforced via `allOf`).
+- **Constraint:** `use` or `handler` required (enforced via `allOf`).
 
 ## Keeping schemas in sync
 

@@ -26,11 +26,10 @@ Caching is controlled at two levels: global defaults in the root config and per-
 Set default caching in `.hyperterse`:
 
 ```yaml
-server:
-  queries:
-    cache:
-      enabled: true
-      ttl: 60
+tools:
+  cache:
+    enabled: true
+    ttl: 60
 ```
 
 | Field     | Type    | Default | Description                                |
@@ -54,8 +53,8 @@ cache:
 ### Precedence
 
 1. Tool-level config (highest priority).
-2. Global server config.
-3. Framework defaults (`enabled: false`, `ttl: 120`).
+2. Global root config (`tools.cache`).
+3. Runtime defaults (`enabled: false`, `ttl: 120`).
 
 ## Behavior
 

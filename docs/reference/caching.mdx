@@ -17,21 +17,18 @@ So the same query with different substituted statements creates separate cache e
 ## Global cache config
 
 ```yaml
-server:
-  queries:
-    cache:
-      enabled: true
-      ttl: 60
+tools:
+  cache:
+    enabled: true
+    ttl: 60
 ```
 
-## Per-query override
+## Per-tool override
 
 ```yaml
-queries:
-  list-users:
-    cache:
-      enabled: true
-      ttl: 30
+cache:
+  enabled: true
+  ttl: 30
 ```
 
 Or disable for one tool/query:
@@ -43,8 +40,8 @@ cache:
 
 ## Policy precedence
 
-1. Query/tool-level cache config
-2. Server-level cache config
+1. Tool-level cache config
+2. Root `tools.cache` config
 3. Defaults
 
 Default TTL is `120` seconds when enabled and no TTL override is supplied.

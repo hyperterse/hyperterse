@@ -4,32 +4,32 @@ package hyperterse;
 
 option go_package = "github.com/hyperterse/hyperterse/core/proto/runtime";
 
-// QueryService provides endpoints for executing queries
-service QueryService {
-  // ExecuteQuery executes a query by name with provided inputs
-  // REST: POST /query/{query_name}
-  rpc ExecuteQuery(ExecuteQueryRequest) returns (ExecuteQueryResponse);
+// ToolService provides endpoints for executing tools
+service ToolService {
+  // ExecuteTool executes a tool by name with provided inputs
+  // REST: POST /tool/{tool_name}
+  rpc ExecuteTool(ExecuteToolRequest) returns (ExecuteToolResponse);
 }
 
 // MCPService provides MCP protocol endpoints
 service MCPService {
-  // ListTools returns all available tools (queries) as MCP tools
+// ListTools returns all available tools as MCP tools
   // JSON-RPC 2.0: POST /mcp with method "tools/list"
   rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
 
-  // CallTool executes a tool (query) by name
+  // CallTool executes a tool by name
   // JSON-RPC 2.0: POST /mcp with method "tools/call"
   rpc CallTool(CallToolRequest) returns (CallToolResponse);
 }
 
-// ExecuteQueryRequest contains the query name and input parameters
-message ExecuteQueryRequest {
-  string query_name = 1; // Required
+// ExecuteToolRequest contains the tool name and input parameters
+message ExecuteToolRequest {
+  string tool_name = 1; // Required
   map<string, string> inputs = 2; // JSON-encoded values
 }
 
-// ExecuteQueryResponse contains the query results
-message ExecuteQueryResponse {
+// ExecuteToolResponse contains the tool results
+message ExecuteToolResponse {
   repeated ResultRow results = 1; // JSON-encoded rows
   string error = 2;
   bool success = 3;
@@ -45,11 +45,11 @@ message ListToolsRequest {}
 
 // ListToolsResponse contains all available tools
 message ListToolsResponse {
-  repeated Tool tools = 1;
+  repeated ListedTool tools = 1;
 }
 
-// Tool represents an MCP tool (query)
-message Tool {
+// ListedTool represents an MCP tool in list responses.
+message ListedTool {
   string name = 1; // Required
   string description = 2; // Required
   map<string, ToolInput> inputs = 3;

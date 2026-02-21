@@ -110,8 +110,7 @@ inputs:
 
 ```yaml
 description: "Get weather"
-scripts:
-  handler: "./weather-handler.ts"
+handler: "./weather-handler.ts"
 ```
 
 ## CLI commands

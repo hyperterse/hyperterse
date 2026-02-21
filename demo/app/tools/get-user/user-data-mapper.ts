@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 
 type Row = Record<string, unknown>;
 
-export async function outputTransform(payload: { results?: Row[] }) {
+export default async function outputTransform(payload: { results?: Row[] }) {
   const rows = payload?.results ?? [];
   console.log("outputTransform", rows);
   return rows.map((row) => ({

@@ -38,10 +38,10 @@ func (e *Engine) GetTool(toolName string) *Tool {
 	return e.project.Tools[toolName]
 }
 
-func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[string]any) ([]map[string]any, error) {
-	tool := e.GetTool(queryName)
+func (e *Engine) Execute(ctx context.Context, toolName string, userInputs map[string]any) ([]map[string]any, error) {
+	tool := e.GetTool(toolName)
 	if tool == nil {
-		return e.executor.ExecuteQuery(ctx, queryName, userInputs)
+		return e.executor.ExecuteTool(ctx, toolName, userInputs)
 	}
 
 	if err := e.authRegistry.Authorize(ctx, tool); err != nil {
@@ -50,12 +50,16 @@ func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[s
 
 	currentInputs := userInputs
 	if bundlePath := tool.BundleOutputs["input_transform"]; bundlePath != "" {
-		transformed, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, "inputTransform", map[string]any{
+		exportName := tool.Scripts.InputTransformExport
+		if exportName == "" {
+			exportName = "default"
+		}
+		transformed, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, exportName, map[string]any{
 			"inputs": userInputs,
 			"tool":   tool.ToolPath,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("input transform failed for tool %s: %w", queryName, err)
+			return nil, fmt.Errorf("input transform failed for tool %s: %w", toolName, err)
 		}
 		if m, ok := transformed.(map[string]any); ok {
 			currentInputs = m
@@ -64,16 +68,20 @@ func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[s
 
 	var results []map[string]any
 	if bundlePath := tool.BundleOutputs["handler"]; bundlePath != "" {
-		customResult, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, "handler", map[string]any{
+		exportName := tool.Scripts.HandlerExport
+		if exportName == "" {
+			exportName = "default"
+		}
+		customResult, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, exportName, map[string]any{
 			"inputs": currentInputs,
 			"tool":   tool.ToolPath,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("handler script failed for tool %s: %w", queryName, err)
+			return nil, fmt.Errorf("handler script failed for tool %s: %w", toolName, err)
 		}
 		results = coerceResults(customResult)
 	} else {
-		dbResults, err := e.executor.ExecuteQuery(ctx, queryName, currentInputs)
+		dbResults, err := e.executor.ExecuteTool(ctx, toolName, currentInputs)
 		if err != nil {
 			return nil, err
 		}
@@ -81,12 +89,16 @@ func (e *Engine) Execute(ctx context.Context, queryName string, userInputs map[s
 	}
 
 	if bundlePath := tool.BundleOutputs["output_transform"]; bundlePath != "" {
-		transformed, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, "outputTransform", map[string]any{
+		exportName := tool.Scripts.OutputTransformExport
+		if exportName == "" {
+			exportName = "default"
+		}
+		transformed, err := e.scriptRT.Invoke(ctx, e.projectVendorPath(), bundlePath, exportName, map[string]any{
 			"results": results,
 			"tool":    tool.ToolPath,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("output transform failed for tool %s: %w", queryName, err)
+			return nil, fmt.Errorf("output transform failed for tool %s: %w", toolName, err)
 		}
 		results = coerceResults(transformed)
 	}

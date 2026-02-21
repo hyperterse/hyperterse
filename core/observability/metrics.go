@@ -15,12 +15,12 @@ import (
 )
 
 type metrics struct {
-	httpRequestsTotal    metric.Int64Counter
-	httpRequestDuration  metric.Float64Histogram
-	queryExecutionsTotal metric.Int64Counter
-	queryDuration        metric.Float64Histogram
-	connectorOpsTotal    metric.Int64Counter
-	connectorOpDuration  metric.Float64Histogram
+	httpRequestsTotal   metric.Int64Counter
+	httpRequestDuration metric.Float64Histogram
+	toolExecutionsTotal metric.Int64Counter
+	toolDuration        metric.Float64Histogram
+	connectorOpsTotal   metric.Int64Counter
+	connectorOpDuration metric.Float64Histogram
 }
 
 var (
@@ -67,8 +67,8 @@ func initInstruments() {
 		meter := otel.Meter("hyperterse/runtime")
 		m.httpRequestsTotal, _ = meter.Int64Counter("hyperterse.http.server.requests_total")
 		m.httpRequestDuration, _ = meter.Float64Histogram("hyperterse.http.server.request_duration_ms")
-		m.queryExecutionsTotal, _ = meter.Int64Counter("hyperterse.query.executions_total")
-		m.queryDuration, _ = meter.Float64Histogram("hyperterse.query.execution_duration_ms")
+		m.toolExecutionsTotal, _ = meter.Int64Counter("hyperterse.tool.executions_total")
+		m.toolDuration, _ = meter.Float64Histogram("hyperterse.tool.execution_duration_ms")
 		m.connectorOpsTotal, _ = meter.Int64Counter("hyperterse.connector.operations_total")
 		m.connectorOpDuration, _ = meter.Float64Histogram("hyperterse.connector.operation_duration_ms")
 	})
@@ -85,14 +85,14 @@ func RecordHTTPRequest(ctx context.Context, method, endpoint string, status int,
 	m.httpRequestDuration.Record(ctx, durationMS, attrs)
 }
 
-func RecordQueryExecution(ctx context.Context, queryName string, success bool, durationMS float64) {
+func RecordToolExecution(ctx context.Context, toolName string, success bool, durationMS float64) {
 	initInstruments()
 	attrs := metric.WithAttributes(
-		attribute.String(AttrQueryName, queryName),
+		attribute.String(AttrToolName, toolName),
 		attribute.Bool("success", success),
 	)
-	m.queryExecutionsTotal.Add(ctx, 1, attrs)
-	m.queryDuration.Record(ctx, durationMS, attrs)
+	m.toolExecutionsTotal.Add(ctx, 1, attrs)
+	m.toolDuration.Record(ctx, durationMS, attrs)
 }
 
 func RecordConnectorOperation(ctx context.Context, adapterName, connectorType, operation string, success bool, durationMS float64) {

@@ -21,21 +21,21 @@ func (e *ValidationError) Error() string {
 	return fmt.Sprintf("validation error for field '%s': %s", e.Field, e.Message)
 }
 
-// ValidateInputs validates user-provided inputs against query input definitions
-func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[string]any, error) {
+// ValidateInputs validates user-provided inputs against tool input definitions
+func ValidateInputs(tool *hyperterse.Tool, userInputs map[string]any) (map[string]any, error) {
 	log := logger.New("executor")
-	log.Debugf("Validating %d user input(s) against %d query input definition(s)", len(userInputs), len(query.Inputs))
+	log.Debugf("Validating %d user input(s) against %d tool input definition(s)", len(userInputs), len(tool.Inputs))
 
 	validated := make(map[string]any)
-	queryInputMap := make(map[string]*hyperterse.Input)
+	toolInputMap := make(map[string]*hyperterse.Input)
 
-	// Build map of query inputs for quick lookup
-	for _, input := range query.Inputs {
-		queryInputMap[input.Name] = input
+	// Build map of tool inputs for quick lookup
+	for _, input := range tool.Inputs {
+		toolInputMap[input.Name] = input
 	}
 
 	// Check all required inputs are provided
-	for _, input := range query.Inputs {
+	for _, input := range tool.Inputs {
 		if !input.Optional {
 			if _, exists := userInputs[input.Name]; !exists {
 				// Check if default value is provided
@@ -53,7 +53,7 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[str
 
 	// Validate and convert each user input
 	for key, value := range userInputs {
-		inputDef, exists := queryInputMap[key]
+		inputDef, exists := toolInputMap[key]
 		if !exists {
 			log.Debugf("Unknown input field: %s", key)
 			return nil, &ValidationError{
@@ -77,7 +77,7 @@ func ValidateInputs(query *hyperterse.Query, userInputs map[string]any) (map[str
 	}
 
 	// Apply default values for optional inputs that weren't provided
-	for _, input := range query.Inputs {
+	for _, input := range tool.Inputs {
 		if _, exists := validated[input.Name]; !exists {
 			if input.DefaultValue != "" {
 				log.Debugf("Applying default value for optional input '%s'", input.Name)

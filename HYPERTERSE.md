@@ -39,9 +39,9 @@ Hyperterse now supports a framework-style app router for MCP tools:
 - Route folders under `app/` define MCP tools.
 - Each route has its own route-level `.terse`.
 - Optional TypeScript scripts add:
-  - custom handlers (`scripts.handler`)
-  - input transforms (`scripts.input_transform`)
-  - output transforms (`scripts.output_transform`)
+  - custom handlers (`handler`)
+  - input mappers (`mappers.input`)
+  - output mappers (`mappers.output`)
 - MCP route behavior is filesystem-driven under `app/routes/*/config.terse`.
 - TypeScript route scripts are bundled at startup using native `esbuild` Go API.
 
@@ -381,7 +381,7 @@ adapters:
     options:
       max_connections: "10"
 
-queries:
+tools:
   get-user:
     use: my_database
     description: "Get user by email"
@@ -393,13 +393,6 @@ queries:
       email:
         type: string
         description: "User email address"
-    data:
-      id:
-        type: int
-      name:
-        type: string
-      email:
-        type: string
 ```
 
 #### DSL Format (`.hyperterse`)
@@ -413,7 +406,7 @@ adapter my_database {
   }
 }
 
-query get-user {
+tool get-user {
   use: my_database
   description: "Get user by email"
   statement: "SELECT id, name, email FROM users WHERE email = {{ inputs.email }}"
@@ -421,17 +414,6 @@ query get-user {
     email: {
       type: string
       description: "User email address"
-    }
-  }
-  data: {
-    id: {
-      type: int
-    }
-    name: {
-      type: string
-    }
-    email: {
-      type: string
     }
   }
 }
@@ -457,17 +439,16 @@ server:
 ### Naming Conventions
 
 - **Adapter Names**: `lower-kebab-case` or `lower_snake_case`, must start with letter
-- **Query Names**: `lower-kebab-case` or `lower_snake_case`, must start with letter
+- **Tool Names**: `lower-kebab-case` or `lower_snake_case`, must start with letter
 - **Input Names**: Any valid identifier
-- **Data Names**: Any valid identifier
 
 ### Validation Rules
 
 - At least one adapter required
-- At least one query required
+- At least one tool required
 - Adapter names must be unique
-- Query names must be unique
-- Query `use` must reference valid adapter(s)
+- Tool names must be unique
+- Tool `use` must reference valid adapter(s)
 - All `{{ inputs.x }}` references must be defined in inputs
 - Optional inputs must have default values
 - All types must be valid primitives

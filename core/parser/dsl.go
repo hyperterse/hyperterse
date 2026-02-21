@@ -36,12 +36,12 @@ func (p *Parser) Parse() (*hyperterse.Model, error) {
 				return nil, err
 			}
 			model.Adapters = append(model.Adapters, adapter)
-		} else if strings.HasPrefix(p.input[p.pos:], "query") {
-			query, err := p.parseQuery()
+		} else if strings.HasPrefix(p.input[p.pos:], "tool") {
+			tool, err := p.parseTool()
 			if err != nil {
 				return nil, err
 			}
-			model.Queries = append(model.Queries, query)
+			model.Tools = append(model.Tools, tool)
 		} else {
 			return nil, fmt.Errorf("unexpected token at position %d: %s", p.pos, p.peek(10))
 		}
@@ -157,9 +157,9 @@ func (p *Parser) parseAdapterOptions() (*hyperterse.AdapterOptions, error) {
 	return opts, nil
 }
 
-func (p *Parser) parseQuery() (*hyperterse.Query, error) {
-	if !p.consume("query") {
-		return nil, fmt.Errorf("expected 'query'")
+func (p *Parser) parseTool() (*hyperterse.Tool, error) {
+	if !p.consume("tool") {
+		return nil, fmt.Errorf("expected 'tool'")
 	}
 	p.skipWhitespace()
 	name, err := p.parseIdentifier()
@@ -171,7 +171,7 @@ func (p *Parser) parseQuery() (*hyperterse.Query, error) {
 		return nil, fmt.Errorf("expected '{'")
 	}
 
-	query := &hyperterse.Query{Name: name}
+	tool := &hyperterse.Tool{Name: name}
 
 	for {
 		p.skipWhitespace()
@@ -195,36 +195,30 @@ func (p *Parser) parseQuery() (*hyperterse.Query, error) {
 			if err != nil {
 				return nil, err
 			}
-			query.Use = append(query.Use, val)
+			tool.Use = append(tool.Use, val)
 		case "statement":
 			val, err := p.parseStringLiteral()
 			if err != nil {
 				return nil, err
 			}
-			query.Statement = val
+			tool.Statement = val
 		case "description":
 			val, err := p.parseStringLiteral()
 			if err != nil {
 				return nil, err
 			}
-			query.Description = val
+			tool.Description = val
 		case "inputs":
 			inputs, err := p.parseInputs()
 			if err != nil {
 				return nil, err
 			}
-			query.Inputs = inputs
-		case "data":
-			data, err := p.parseData()
-			if err != nil {
-				return nil, err
-			}
-			query.Data = data
+			tool.Inputs = inputs
 		default:
-			return nil, fmt.Errorf("unknown query field: %s", key)
+			return nil, fmt.Errorf("unknown tool field: %s", key)
 		}
 	}
-	return query, nil
+	return tool, nil
 }
 
 func (p *Parser) parseInputs() ([]*hyperterse.Input, error) {
@@ -319,80 +313,6 @@ func (p *Parser) parseInputs() ([]*hyperterse.Input, error) {
 		inputs = append(inputs, input)
 	}
 	return inputs, nil
-}
-
-func (p *Parser) parseData() ([]*hyperterse.Data, error) {
-	if !p.consume("{") {
-		return nil, fmt.Errorf("expected '{' for data")
-	}
-	var dataList []*hyperterse.Data
-	for {
-		p.skipWhitespace()
-		if p.consume("}") {
-			break
-		}
-		name, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		optional := false
-		if p.consume("?") {
-			optional = true
-		}
-		p.skipWhitespace()
-		if !p.consume(":") {
-			return nil, fmt.Errorf("expected ':'")
-		}
-		p.skipWhitespace()
-		if !p.consume("{") {
-			return nil, fmt.Errorf("expected '{'")
-		}
-
-		d := &hyperterse.Data{
-			Name:     name,
-			Optional: optional,
-		}
-
-		for {
-			p.skipWhitespace()
-			if p.consume("}") {
-				break
-			}
-			k, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			p.skipWhitespace()
-			p.consume(":")
-			p.skipWhitespace()
-
-			if k == "type" {
-				val, err := p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-				dataType, err := types.StringToPrimitiveEnum(val)
-				if err != nil {
-					return nil, err
-				}
-				d.Type = dataType
-			} else if k == "description" {
-				val, err := p.parseStringLiteral()
-				if err != nil {
-					return nil, err
-				}
-				d.Description = val
-			} else if k == "map_to" {
-				val, err := p.parseStringLiteral()
-				if err != nil {
-					return nil, err
-				}
-				d.MapTo = val
-			}
-		}
-		dataList = append(dataList, d)
-	}
-	return dataList, nil
 }
 
 // Helper methods

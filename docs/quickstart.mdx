@@ -94,8 +94,8 @@ inputs:
   userId:
     type: int
     description: "User ID provided by the agent."
-scripts:
-  output_transform: "user-data-mapper.ts"
+mappers:
+  output: "user-data-mapper.ts"
 auth:
   plugin: allow_all
 ```
