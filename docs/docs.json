@@ -28,7 +28,11 @@
   },
   "seo": {
     "metatags": {
-      "og:image": "/assets/og.png"
+      "og:title": "Hyperterse — Declarative MCP framework.",
+      "twitter:title": "Hyperterse — Declarative MCP framework.",
+      "og:description": "Production grade MCP tools that scale. Build declarative, deploy-ready AI tooling. No glue code.",
+      "twitter:description": "Production grade MCP tools that scale. Build declarative, deploy-ready AI tooling. No glue code.",
+      "og:image": "assets/og.png"
     }
   },
   "navigation": {
