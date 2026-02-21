@@ -246,11 +246,7 @@ const adapterSchema = {
       type: "object" as const,
       description: "Connector-specific options.",
       additionalProperties: {
-        oneOf: [
-          { type: "string" as const },
-          { type: "boolean" as const },
-          { type: "number" as const },
-        ],
+        type: ["string", "boolean", "number"] as const,
       },
     },
   },
@@ -279,14 +275,8 @@ const toolSchema = {
     },
     use: {
       description: "Adapter binding for DB-backed tools.",
-      oneOf: [
-        { type: "string" as const, minLength: 1 },
-        {
-          type: "array" as const,
-          items: { type: "string" as const, minLength: 1 },
-          minItems: 1,
-        },
-      ],
+      type: "string" as const,
+      minLength: 1,
     },
     statement: {
       type: "string" as const,
@@ -335,14 +325,7 @@ const toolSchema = {
       additionalProperties: false,
     },
   },
-  allOf: [
-    {
-      anyOf: [
-        { required: ["use"] },
-        { required: ["handler"] },
-      ],
-    },
-  ],
+  oneOf: [{ required: ["use"] }, { required: ["handler"] }],
   additionalProperties: false,
 };
 

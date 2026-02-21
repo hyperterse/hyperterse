@@ -48,11 +48,18 @@ cache:
   Strongly recommended for agent discoverability.
 </ParamField>
 
-<ParamField body="use" type="string | string[]">
-  Adapter name(s) for statement execution. References adapter identifiers defined in `app/adapters/`.
+<ParamField body="use" type="string">
+  Adapter name for statement execution. References an adapter identifier defined in `app/adapters/`.
+
+{' '}
+
+<Tip>
+  `use` must be a single adapter name. Array values are rejected during
+  validation.
+</Tip>
 
   <Warning>
-  Required if `handler` is not set. A tool must have either `use` or `handler` (or both).
+  Exactly one of `use` or `handler` must be set. A tool cannot define both.
   </Warning>
 </ParamField>
 
@@ -95,8 +102,9 @@ statement: |
   Optional handler script path for fully script-backed tools. When set, it replaces
   database execution entirely. The handler receives inputs and returns results directly.
 
-  Use `path#exportName` to call a non-default export.
-  Without `#exportName`, Hyperterse calls the script's `export default` (function name ignored).
+Use `path#exportName` to call a non-default export.
+Without `#exportName`, Hyperterse calls the script's `export default` (function name ignored).
+
 </ParamField>
 
 <ParamField body="mappers" type="object">
@@ -166,13 +174,13 @@ statement: |
 
 ## Validity rules
 
-A tool is valid when at least one of these conditions is met:
+A tool is valid when exactly one of these conditions is met:
 
 1. `use` is defined (database-backed tool).
 2. `handler` is defined (script-backed tool).
 
 <Warning>
-  Tools with neither `use` nor `handler` are rejected during
+  Tools with neither `use` nor `handler` — or with both — are rejected during
   validation.
 </Warning>
 

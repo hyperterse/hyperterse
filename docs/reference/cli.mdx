@@ -222,7 +222,7 @@ hyperterse validate [path] [flags]
 
 - Root config schema compliance
 - Adapter completeness (`connector` and `connection_string` required)
-- Tool validity (`use` or `handler` present)
+- Tool validity (exactly one of `use` or `handler`)
 - Adapter name uniqueness
 - Input type correctness
 - Script file resolution
@@ -252,12 +252,12 @@ hyperterse init
 
 ### Created files
 
-| Path                             | Content                   |
-| -------------------------------- | ------------------------- |
-| `.hyperterse`                    | Root config with defaults |
-| `app/adapters/my-database.terse` | Placeholder adapter       |
-| `app/tools/hello-world/config.terse` | Hello world DB-backed tool |
-| `app/tools/hello-world/user-data-mapper.ts` | Output data mapper |
+| Path                                        | Content                    |
+| ------------------------------------------- | -------------------------- |
+| `.hyperterse`                               | Root config with defaults  |
+| `app/adapters/my-database.terse`            | Placeholder adapter        |
+| `app/tools/hello-world/config.terse`        | Hello world DB-backed tool |
+| `app/tools/hello-world/user-data-mapper.ts` | Output data mapper         |
 
 <Note>Does not overwrite existing files.</Note>
 

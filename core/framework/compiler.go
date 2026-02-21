@@ -329,6 +329,9 @@ func applyToolScriptConventions(tool *Tool) {
 	if err != nil {
 		return
 	}
+	// DB-backed tools should not auto-discover handler scripts. Handler convention
+	// discovery is only for script-backed tools (no adapter binding).
+	allowHandlerConvention := len(tool.Definition.Use) == 0
 	for _, entry := range entries {
 		if entry.IsDir() || !tsConventionPattern.MatchString(entry.Name()) {
 			continue
@@ -336,7 +339,7 @@ func applyToolScriptConventions(tool *Tool) {
 		fileName := strings.ToLower(entry.Name())
 		baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 		fullPath := filepath.Join(tool.Directory, entry.Name())
-		if tool.Scripts.Handler == "" && (baseName == "handler" || strings.Contains(fileName, "handler")) {
+		if allowHandlerConvention && tool.Scripts.Handler == "" && (baseName == "handler" || strings.Contains(fileName, "handler")) {
 			tool.Scripts.Handler = fullPath
 			if tool.Scripts.HandlerExport == "" {
 				tool.Scripts.HandlerExport = "default"
@@ -366,6 +369,26 @@ func strictYAMLUnmarshal(content []byte, out any) error {
 	return decoder.Decode(out)
 }
 
+func parseToolUseBinding(raw any) ([]string, error) {
+	switch v := raw.(type) {
+	case nil:
+		return nil, nil
+	case string:
+		binding := strings.TrimSpace(v)
+		if binding == "" {
+			return nil, nil
+		}
+		return []string{binding}, nil
+	case []any:
+		if len(v) == 0 {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("field 'use' must be a single adapter name (string), arrays are not supported")
+	default:
+		return nil, fmt.Errorf("field 'use' must be a string")
+	}
+}
+
 func toolConfigToProto(toolName string, cfg ToolFileConfig) (*hyperterse.Tool, error) {
 	tool := &hyperterse.Tool{
 		Name:        toolName,
@@ -382,17 +405,16 @@ func toolConfigToProto(toolName string, cfg ToolFileConfig) (*hyperterse.Tool, e
 		tool.Statement = "SELECT 1"
 	}
 
-	switch v := cfg.Use.(type) {
-	case string:
-		if v != "" {
-			tool.Use = []string{v}
-		}
-	case []any:
-		for _, item := range v {
-			if s, ok := item.(string); ok && s != "" {
-				tool.Use = append(tool.Use, s)
-			}
-		}
+	useBindings, err := parseToolUseBinding(cfg.Use)
+	if err != nil {
+		return nil, err
+	}
+	tool.Use = useBindings
+
+	hasUse := len(useBindings) > 0
+	hasHandler := strings.TrimSpace(cfg.Handler) != ""
+	if hasUse && hasHandler {
+		return nil, fmt.Errorf("tool cannot define both 'use' and 'handler'; choose one")
 	}
 
 	for name, inputSpec := range cfg.Inputs {

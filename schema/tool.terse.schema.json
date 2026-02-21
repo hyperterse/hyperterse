@@ -18,20 +18,8 @@
     },
     "use": {
       "description": "Adapter binding for DB-backed tools.",
-      "oneOf": [
-        {
-          "type": "string",
-          "minLength": 1
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "minItems": 1
-        }
-      ]
+      "type": "string",
+      "minLength": 1
     },
     "statement": {
       "type": "string",
@@ -196,19 +184,15 @@
       "additionalProperties": false
     }
   },
-  "allOf": [
+  "oneOf": [
     {
-      "anyOf": [
-        {
-          "required": [
-            "use"
-          ]
-        },
-        {
-          "required": [
-            "handler"
-          ]
-        }
+      "required": [
+        "use"
+      ]
+    },
+    {
+      "required": [
+        "handler"
       ]
     }
   ],

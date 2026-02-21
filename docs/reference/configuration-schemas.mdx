@@ -72,14 +72,14 @@ Each schema enforces required fields, value constraints, and structural rules fo
 ### Tool (`tool.terse.schema.json`)
 
 - `description` — Required string.
-- `use` — String or string[].
+- `use` — String.
 - `statement` — String.
 - `inputs` — Map of typed definitions.
 - `handler` — Optional script handler path (`path#exportName` supported; defaults to `export default`).
 - `mappers` — Optional `input` / `output` mapper paths (`path#exportName` supported; defaults to `export default`).
 - `auth` — `plugin`, `policy`.
 - `cache` — `enabled`, `ttl`.
-- **Constraint:** `use` or `handler` required (enforced via `allOf`).
+- **Constraint:** exactly one of `use` or `handler` is required (enforced via `oneOf`).
 
 ## Keeping schemas in sync
 

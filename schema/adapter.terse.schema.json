@@ -30,16 +30,10 @@
       "type": "object",
       "description": "Connector-specific options.",
       "additionalProperties": {
-        "oneOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "number"
-          }
+        "type": [
+          "string",
+          "boolean",
+          "number"
         ]
       }
     }

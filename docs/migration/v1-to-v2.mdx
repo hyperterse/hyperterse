@@ -145,12 +145,13 @@ hyperterse validate
 
 Common issues:
 
-| Error                                        | Resolution                                        |
-| -------------------------------------------- | ------------------------------------------------- |
-| Tool has neither `use` nor `handler` | Add adapter reference or handler.                 |
-| Adapter name not found                       | Verify `use` matches filename or explicit `name`. |
-| Unknown connector type                       | Use `postgres`, `mysql`, `mongodb`, or `redis`.   |
-| Script file not found                        | Verify paths are relative to tool directory.      |
+| Error                                 | Resolution                                              |
+| ------------------------------------- | ------------------------------------------------------- |
+| Tool has neither `use` nor `handler`  | Add adapter reference or handler.                       |
+| Tool defines both `use` and `handler` | Choose one execution mode (DB-backed or script-backed). |
+| Adapter name not found                | Verify `use` matches filename or explicit `name`.       |
+| Unknown connector type                | Use `postgres`, `mysql`, `mongodb`, or `redis`.         |
+| Script file not found                 | Verify paths are relative to tool directory.            |
 
 ### Test
 

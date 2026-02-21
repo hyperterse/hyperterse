@@ -7,7 +7,9 @@ import (
 )
 
 // ValidateModel performs v2-aware model validation.
-// It allows handler-only tools without adapter bindings.
+// Each tool must define exactly one execution mode:
+// - adapter-backed (`use`)
+// - script-backed (`handler`)
 func ValidateModel(model *hyperterse.Model, project *Project) error {
 	if model == nil {
 		return fmt.Errorf("model is nil")
@@ -20,8 +22,8 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 		return nil
 	}
 
-	// v2 path: ensure at least one tool exists and each tool has either statement/use
-	// or a custom handler script.
+	// v2 path: ensure at least one tool exists and each tool has exactly one
+	// execution mode.
 	if len(project.Tools) == 0 {
 		return fmt.Errorf("project root exists but no tool .terse files were discovered")
 	}
@@ -29,8 +31,14 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 		if tool.Definition == nil {
 			return fmt.Errorf("tool '%s' did not compile a tool definition", toolName)
 		}
-		if tool.Scripts.Handler == "" && len(tool.Definition.Use) == 0 {
-			return fmt.Errorf("tool '%s' requires either handler or use adapter binding", toolName)
+		hasHandler := tool.Scripts.Handler != ""
+		hasUse := len(tool.Definition.Use) > 0
+
+		if hasHandler && hasUse {
+			return fmt.Errorf("tool '%s' cannot define both handler and use adapter binding", toolName)
+		}
+		if !hasHandler && !hasUse {
+			return fmt.Errorf("tool '%s' requires exactly one of handler or use adapter binding", toolName)
 		}
 	}
 	return nil
