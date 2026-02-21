@@ -26,6 +26,11 @@
       "bluesky": "https://bsky.app/profile/hyperterse.com"
     }
   },
+  "seo": {
+    "metatags": {
+      "og:image": "/assets/og.png"
+    }
+  },
   "navigation": {
     "tabs": [
       {
