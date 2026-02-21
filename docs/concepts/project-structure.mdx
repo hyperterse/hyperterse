@@ -9,23 +9,44 @@ Hyperterse uses the filesystem as the source of truth. You define database conne
 
 A typical project looks like this:
 
-```
-project-root/
-├── .hyperterse                        # Root service configuration
-├── package.json                       # npm dependencies for scripts (optional)
-├── app/
-│   ├── adapters/
-│   │   ├── primary-db.terse           # Adapter: PostgreSQL
-│   │   └── cache-store.terse          # Adapter: Redis
-│   └── tools/
-│       ├── get-user/
-│       │   ├── config.terse           # Tool configuration
-│       │   ├── input-validator.ts     # Input transform script
-│       │   └── data-mapper.ts         # Output transform script
-│       └── get-weather/
-│           ├── config.terse           # Tool configuration
-│           └── handler.ts             # Custom handler script
-```
+<Card>
+  <Tree>
+    <Tree.File name=".hyperterse" />
+    <Tree.File name="package.json" />
+    <Tree.Folder
+      name="app"
+      defaultOpen
+    >
+      <Tree.Folder
+        name="adapters"
+        defaultOpen
+      >
+        <Tree.File name="primary-db.terse" />
+        <Tree.File name="cache-store.terse" />
+      </Tree.Folder>
+      <Tree.Folder
+        name="tools"
+        defaultOpen
+      >
+        <Tree.Folder
+          name="get-user"
+          defaultOpen
+        >
+          <Tree.File name="config.terse" />
+          <Tree.File name="input-validator.ts" />
+          <Tree.File name="data-mapper.ts" />
+        </Tree.Folder>
+        <Tree.Folder
+          name="get-weather"
+          defaultOpen
+        >
+          <Tree.File name="config.terse" />
+          <Tree.File name="handler.ts" />
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree>
+</Card>
 
 ## Root configuration
 
