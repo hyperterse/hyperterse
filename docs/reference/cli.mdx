@@ -180,18 +180,22 @@ Without arguments, loads `.hyperterse` from the current directory.
 
 ### Output
 
-```
-dist/
-├── hyperterse          # Runtime binary
-├── model.bin           # Serialized manifest
-└── build/
-    ├── vendor.js       # Shared dependency bundle
-    └── tools/
-        └── <name>/
-            ├── handler.js
-            ├── input_transform.js
-            └── output_transform.js
-```
+<Tree>
+  <Tree.Folder name="dist" defaultOpen>
+    <Tree.File name="hyperterse" comment="Runtime binary" />
+    <Tree.File name="model.bin" comment="Serialized manifest" />
+    <Tree.Folder name="build" defaultOpen>
+      <Tree.File name="vendor.js" comment="Shared dependency bundle" />
+      <Tree.Folder name="tools" defaultOpen>
+        <Tree.Folder name="<name>" defaultOpen>
+          <Tree.File name="handler.js" />
+          <Tree.File name="input_transform.js" />
+          <Tree.File name="output_transform.js" />
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
 
 ### Examples
 

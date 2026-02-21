@@ -205,28 +205,35 @@ curl -X POST http://localhost:8080/mcp \
 
 **V1:**
 
-```
-my-api/
-  .hyperterse       # Everything in one file
-```
+<Tree>
+  <Tree.Folder name="my-api" defaultOpen>
+    <Tree.File name=".hyperterse" comment="Everything in one file" />
+  </Tree.Folder>
+</Tree>
 
 **V2:**
 
-```
-my-api/
-  .hyperterse       # Service settings only
-  package.json      # npm deps (optional)
-  app/
-    adapters/
-      main-db.terse
-    tools/
-      get-user/
-        config.terse
-        validate.ts        # optional
-        format.ts          # optional
-      list-orders/
-        config.terse
-```
+<Tree>
+  <Tree.Folder name="my-api" defaultOpen>
+    <Tree.File name=".hyperterse" comment="Service settings only" />
+    <Tree.File name="package.json" comment="npm deps (optional)" />
+    <Tree.Folder name="app" defaultOpen>
+      <Tree.Folder name="adapters" defaultOpen>
+        <Tree.File name="main-db.terse" />
+      </Tree.Folder>
+      <Tree.Folder name="tools" defaultOpen>
+        <Tree.Folder name="get-user" defaultOpen>
+          <Tree.File name="config.terse" />
+          <Tree.File name="validate.ts" comment="optional" />
+          <Tree.File name="format.ts" comment="optional" />
+        </Tree.Folder>
+        <Tree.Folder name="list-orders" defaultOpen>
+          <Tree.File name="config.terse" />
+        </Tree.Folder>
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
 
 ## Breaking changes
 

@@ -128,12 +128,15 @@ Redis commands return results in JSON format. Multiple values are returned as ar
 
 Use separate Redis adapters for distinct purposes:
 
-```
-app/adapters/
-  session-store.terse   # Redis DB 0 — session data
-  rate-limiter.terse    # Redis DB 1 — rate limit counters
-  feature-flags.terse   # Redis DB 2 — feature flag values
-```
+<Tree>
+  <Tree.Folder name="app" defaultOpen>
+    <Tree.Folder name="adapters" defaultOpen>
+      <Tree.File name="session-store.terse" comment="Redis DB 0 — session data" />
+      <Tree.File name="rate-limiter.terse" comment="Redis DB 1 — rate limit counters" />
+      <Tree.File name="feature-flags.terse" comment="Redis DB 2 — feature flag values" />
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
 
 Each adapter can connect to a different Redis database number or a different Redis instance entirely. Tools reference the appropriate adapter by name.
 

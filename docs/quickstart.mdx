@@ -13,16 +13,20 @@ hyperterse init
 
 This generates the starter structure:
 
-```
-.hyperterse
-app/
-  adapters/
-    my-database.terse
-  tools/
-    hello-world/
-      config.terse
-      user-data-mapper.ts
-```
+<Tree>
+  <Tree.File name=".hyperterse" />
+  <Tree.Folder name="app" defaultOpen>
+    <Tree.Folder name="adapters" defaultOpen>
+      <Tree.File name="my-database.terse" />
+    </Tree.Folder>
+    <Tree.Folder name="tools" defaultOpen>
+      <Tree.Folder name="hello-world" defaultOpen>
+        <Tree.File name="config.terse" />
+        <Tree.File name="user-data-mapper.ts" />
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
 
 `.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/tools/hello-world/` contains a DB-backed tool and its TypeScript output mapper.
 
