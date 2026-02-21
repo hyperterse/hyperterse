@@ -1,14 +1,11 @@
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-light.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-dark.svg">
-    <img alt="Hyperterse" src="docs/assets/logo-dark.svg" width="256" />
+    <img alt="Hyperterse - connect your data to your agents." src="docs/assets/og.png" />
   </picture>
 </div>
-
-<p align="center"><strong>The declarative framework for performant MCP servers.</strong></p>
-
+<br />
 <p align="center">
+  <strong>The declarative framework for performant MCP servers.</strong><br />
   <a href="https://hyperterse.com">Website</a>
   •
   <a href="https://docs.hyperterse.com">Documentation</a>
@@ -22,11 +19,7 @@
 
 ---
 
-# Hyperterse
-
-Framework for building MCP tools from declarative data tools.
-
-Hyperterse turns tool configs in `app/tools/*/config.terse` into callable tools, with:
+Hyperterse turns tool configs into callable tools, with:
 
 - filesystem-based tool discovery,
 - pluggable adapters (Postgres, MySQL, MongoDB, Redis),
@@ -39,13 +32,6 @@ Hyperterse turns tool configs in `app/tools/*/config.terse` into callable tools,
 - **Declarative runtime**: root config + adapter files + tool files.
 - **Extensible execution pipeline**: auth -> input transform -> execute -> output transform.
 - **Embedded scripting**: script hooks run in a sandboxed runtime; bundled at compile time.
-
-## Runtime surface
-
-Current server endpoints exposed by runtime:
-
-- `GET/POST/DELETE /mcp`
-- `GET /heartbeat`
 
 ## Quick start
 
