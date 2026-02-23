@@ -5,7 +5,7 @@ description: Build MCP tool servers from declarative configuration with built-in
 
 Every AI agent that queries a database, calls an API, or runs business logic needs the same infrastructure: connection management, input validation, authentication, caching, observability, and a transport protocol that LLMs understand.
 
-With Hyperterse, you define your tools in YAML configuration files. The framework compiles, validates, bundles, and serves them as a standards-compliant [Model Context Protocol](https://modelcontextprotocol.io/) server. You own the data and the logic — the framework handles everything else.
+With Hyperterse, you define your tools in declarative configuration files. The framework compiles, validates, bundles, and serves them as a standards-compliant [Model Context Protocol](https://modelcontextprotocol.io/) server. You own the data and the logic — the framework handles everything else.
 
 ## What you can build
 
@@ -31,7 +31,7 @@ This configuration creates an MCP tool called `get-user` that queries your datab
 
 <Steps>
   <Step title="Define your tools">
-    Create `.terse` YAML files for your database connections and tools. Each
+    Create configuration files for your database connections and tools. Each
     directory under `app/tools/` becomes one MCP tool.
   </Step>
   <Step title="Compile your project">

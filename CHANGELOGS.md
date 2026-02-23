@@ -451,7 +451,7 @@ Hyperterse is a high-performance runtime server that transforms database queries
 
 ### Configuration
 
-- **YAML Format** — Simple, readable configuration files (`.yaml`, `.yml`)
+- **Declarative Format** — Simple, readable `.terse` configuration files
 - **Comprehensive Validation** — Catches configuration errors before startup
 
 ### CLI Commands
