@@ -26,8 +26,10 @@ type searchIndexEntry struct {
 	tool                   *hyperterse.Tool
 	nameText               string
 	descriptionText        string
+	statementText          string
 	nameTokens             tokenSet
 	descriptionTokens      tokenSet
+	statementTokens        tokenSet
 	inputNameTokens        tokenSet
 	inputDescriptionTokens tokenSet
 	combinedNGrams         tokenSet
@@ -48,9 +50,10 @@ func newToolSearchIndex(tools []*hyperterse.Tool) *toolSearchIndex {
 
 		nameText := normalizeText(tool.Name)
 		descriptionText := normalizeText(tool.Description)
+		statementText := normalizeText(tool.Statement)
 		inputNamesText, inputDescriptionsText := normalizeInputText(tool.Inputs)
 		combinedText := strings.TrimSpace(strings.Join(
-			[]string{nameText, descriptionText, inputNamesText, inputDescriptionsText},
+			[]string{nameText, descriptionText, statementText, inputNamesText, inputDescriptionsText},
 			" ",
 		))
 
@@ -58,8 +61,10 @@ func newToolSearchIndex(tools []*hyperterse.Tool) *toolSearchIndex {
 			tool:                   tool,
 			nameText:               nameText,
 			descriptionText:        descriptionText,
+			statementText:          statementText,
 			nameTokens:             toTokenSet(tokenize(nameText)),
 			descriptionTokens:      toTokenSet(tokenize(descriptionText)),
+			statementTokens:        toTokenSet(tokenize(statementText)),
 			inputNameTokens:        toTokenSet(tokenize(inputNamesText)),
 			inputDescriptionTokens: toTokenSet(tokenize(inputDescriptionsText)),
 			combinedNGrams:         buildNGramSet(combinedText, searchNGramSize),
@@ -118,20 +123,24 @@ func (idx *toolSearchIndex) Search(query string, limit int) []searchHit {
 func scoreEntry(query string, queryTokens []string, queryNGrams tokenSet, entry searchIndexEntry) float64 {
 	nameScore := coverageScore(queryTokens, entry.nameTokens)
 	descriptionScore := coverageScore(queryTokens, entry.descriptionTokens)
+	statementScore := coverageScore(queryTokens, entry.statementTokens)
 	inputNameScore := coverageScore(queryTokens, entry.inputNameTokens)
 	inputDescriptionScore := coverageScore(queryTokens, entry.inputDescriptionTokens)
 	ngramScore := jaccardSimilarity(queryNGrams, entry.combinedNGrams)
 
-	raw := (nameScore * 0.45) +
-		(inputNameScore * 0.25) +
-		(descriptionScore * 0.20) +
-		(inputDescriptionScore * 0.10) +
-		(ngramScore * 0.15)
+	raw := (nameScore * 0.30) +
+		(statementScore * 0.25) +
+		(inputNameScore * 0.18) +
+		(descriptionScore * 0.14) +
+		(inputDescriptionScore * 0.08) +
+		(ngramScore * 0.05)
 
 	if strings.Contains(entry.nameText, query) {
-		raw += 0.15
+		raw += 0.10
+	} else if strings.Contains(entry.statementText, query) {
+		raw += 0.08
 	} else if strings.Contains(entry.descriptionText, query) {
-		raw += 0.05
+		raw += 0.03
 	}
 
 	if raw > 1 {

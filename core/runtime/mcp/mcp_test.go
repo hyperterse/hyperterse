@@ -98,6 +98,13 @@ func TestAdapter_ListToolsSearchAndExecute(t *testing.T) {
 	if first["name"] != "get-orders" {
 		t.Fatalf("expected first search hit to be get-orders, got %#v", first["name"])
 	}
+	statement, ok := first["statement"].(string)
+	if !ok {
+		t.Fatalf("expected statement to be a string, got %T", first["statement"])
+	}
+	if statement == "" {
+		t.Fatalf("expected statement to be present in search result")
+	}
 	score, ok := first["relevance_score"].(float64)
 	if !ok {
 		t.Fatalf("expected relevance_score to be numeric, got %T", first["relevance_score"])
@@ -196,6 +203,41 @@ func TestAdapter_SearchRespectsConfiguredLimit(t *testing.T) {
 	}
 	if len(searchRows) != 1 {
 		t.Fatalf("expected exactly one search result due to configured limit, got %d", len(searchRows))
+	}
+}
+
+func TestAdapter_SearchUsesStatementTextForRanking(t *testing.T) {
+	_, _, session, cleanup := setupMCPToolTest(t, false, 0)
+	defer cleanup()
+
+	ctx := context.Background()
+	searchRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{
+		Name: "search",
+		Arguments: map[string]any{
+			"query": "where email",
+		},
+	})
+	if err != nil {
+		t.Fatalf("search CallTool failed: %v", err)
+	}
+	if searchRes.IsError {
+		t.Fatalf("expected successful search call, got error payload: %#v", searchRes.Content)
+	}
+
+	searchText, ok := searchRes.Content[0].(*mcpsdk.TextContent)
+	if !ok {
+		t.Fatalf("expected first search content entry to be text, got %T", searchRes.Content[0])
+	}
+
+	var searchRows []map[string]any
+	if err := json.Unmarshal([]byte(searchText.Text), &searchRows); err != nil {
+		t.Fatalf("search payload is not valid JSON array: %v", err)
+	}
+	if len(searchRows) == 0 {
+		t.Fatalf("expected at least one search result")
+	}
+	if searchRows[0]["name"] != "get-users" {
+		t.Fatalf("expected statement-focused query to rank get-users first, got %#v", searchRows[0]["name"])
 	}
 }
 

@@ -125,6 +125,7 @@ func (a *Adapter) callSearchTool(ctx context.Context, req *mcpsdk.CallToolReques
 			"name":              hit.Tool.Name,
 			relevanceScoreField: hit.RelevanceScore,
 			"description":       hit.Tool.Description,
+			"statement":         hit.Tool.Statement,
 			"inputs":            buildInputMetadata(hit.Tool),
 		})
 	}
