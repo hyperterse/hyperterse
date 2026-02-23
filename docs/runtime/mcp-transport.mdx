@@ -14,7 +14,10 @@ Hyperterse is an MCP server. All tool interaction â€” discovery and execution â€
 
 ## `tools/list`
 
-Returns all registered tools with their input schemas.
+Returns exactly two tools:
+
+- `search`: discovers relevant tools using ranked metadata matching.
+- `execute`: executes a selected tool by name with a structured input payload.
 
 **Request:**
 
@@ -35,17 +38,35 @@ Returns all registered tools with their input schemas.
   "result": {
     "tools": [
       {
-        "name": "get-user",
-        "description": "Retrieve a user by their identifier",
+        "name": "search",
+        "description": "Search available tools by natural-language intent and tool metadata.",
         "inputSchema": {
           "type": "object",
           "properties": {
-            "user_id": {
-              "type": "integer",
-              "description": "Primary key of the user record"
+            "query": {
+              "type": "string",
+              "description": "Natural-language query used to find relevant tools."
             }
           },
-          "required": ["user_id"]
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "execute",
+        "description": "Execute a tool by name using a structured input object.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "tool": {
+              "type": "string",
+              "description": "Name of the target tool to execute."
+            },
+            "inputs": {
+              "type": "object",
+              "description": "Structured inputs for the target tool."
+            }
+          },
+          "required": ["tool", "inputs"]
         }
       }
     ]
@@ -53,41 +74,43 @@ Returns all registered tools with their input schemas.
 }
 ```
 
-### Schema generation
+### Search result limit
 
-Input schemas are generated from the tool's `inputs` block:
+`search` does not accept a caller-provided limit. Result count is controlled by root config:
 
-| `.terse` type | JSON Schema type |
-| ------------- | ---------------- |
-| `string`      | `"string"`       |
-| `int`         | `"integer"`      |
-| `float`       | `"number"`       |
-| `boolean`     | `"boolean"`      |
-| `datetime`    | `"string"`       |
+```yaml .hyperterse
+tools:
+  search:
+    limit: 10
+```
 
-Required inputs (non-optional, no default) appear in the `required` array.
+If omitted, the runtime default is `10`.
 
 ## `tools/call`
 
-Executes a tool with the provided arguments.
+Typical flow:
 
-**Request:**
+1. Call `search` with a natural-language query.
+2. Pick a returned tool name.
+3. Call `execute` with `tool` + `inputs`.
+
+### `search` request
 
 ```json
 {
   "jsonrpc": "2.0",
   "method": "tools/call",
   "params": {
-    "name": "get-user",
+    "name": "search",
     "arguments": {
-      "user_id": 42
+      "query": "find orders by status"
     }
   },
   "id": 2
 }
 ```
 
-**Successful response:**
+### `search` successful response
 
 ```json
 {
@@ -97,14 +120,57 @@ Executes a tool with the provided arguments.
     "content": [
       {
         "type": "text",
-        "text": "[{\"id\":42,\"name\":\"Jane Doe\",\"email\":\"jane@example.com\"}]"
+        "text": "[{\"name\":\"get-orders\",\"relevance_score\":97,\"description\":\"Returns orders by status\",\"inputs\":[{\"name\":\"status\",\"type\":\"string\",\"optional\":false,\"description\":\"order status\"}]}]"
       }
     ]
   }
 }
 ```
 
-The `content` array contains one text entry with JSON-encoded tool results.
+Each search hit includes:
+
+- `name`
+- `relevance_score` (integer `1..100`, higher = more relevant)
+- `description`
+- `inputs`
+
+### `execute` request
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "execute",
+    "arguments": {
+      "tool": "get-orders",
+      "inputs": {
+        "status": "pending"
+      }
+    }
+  },
+  "id": 3
+}
+```
+
+### `execute` successful response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[{\"status\":\"pending\",\"statement\":\"SELECT * FROM orders WHERE status = pending\"}]"
+      }
+    ]
+  }
+}
+```
+
+The `content` array always contains one text entry with JSON-encoded tool results.
 
 **Error response:**
 
@@ -119,7 +185,7 @@ The `content` array contains one text entry with JSON-encoded tool results.
 }
 ```
 
-Errors from auth failures, input validation, connector execution, and script exceptions are returned as JSON-RPC error objects. Stack traces are logged but not exposed.
+Errors from auth failures, input validation, connector execution, and script exceptions are returned through MCP tool error payloads. Stack traces are logged but not exposed.
 
 ## Heartbeat
 

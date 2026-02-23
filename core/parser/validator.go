@@ -69,6 +69,17 @@ func Validate(model *hyperterse.Model) error {
 		}
 	}
 
+	// 0c. Validate optional tools.search configuration
+	if model.ToolDefaults != nil && model.ToolDefaults.Search != nil {
+		search := model.ToolDefaults.Search
+		if !search.HasLimit {
+			errors = append(errors, "tools.search.limit is required when tools.search is specified")
+		}
+		if search.HasLimit && search.Limit <= 0 {
+			errors = append(errors, "tools.search.limit must be greater than 0 when specified")
+		}
+	}
+
 	// 1. Validate adapters is required and has at least one entry
 	if len(model.Adapters) == 0 {
 		errors = append(errors, "adapters is required and should have at least one entry")

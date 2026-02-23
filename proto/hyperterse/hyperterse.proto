@@ -21,8 +21,14 @@ message CacheConfig {
   bool has_ttl = 4; // Internal parser flag to detect explicit 'ttl' presence
 }
 
+message SearchConfig {
+  int32 limit = 1; // Maximum number of search results (default: 10 when omitted)
+  bool has_limit = 2; // Internal parser flag to detect explicit 'limit' presence
+}
+
 message ToolDefaultsConfig {
   CacheConfig cache = 1; // Global/default tool cache settings
+  SearchConfig search = 2; // Global/default tool search configuration
 }
 
 // Export Configuration

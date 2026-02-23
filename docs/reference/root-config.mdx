@@ -15,6 +15,8 @@ root: app
 
 tools:
   directory: tools
+  search:
+    limit: 10
   cache:
     enabled: true
     ttl: 60
@@ -72,6 +74,16 @@ build:
 
         <ParamField body="ttl" type="integer" default="120">
           Default TTL in seconds for cached tool results.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+
+    <ParamField body="search" type="object">
+      Global search defaults for MCP `search` results.
+
+      <Expandable title="properties">
+        <ParamField body="limit" type="integer" default="10">
+          Maximum number of ranked tools returned from a single MCP `search` call.
         </ParamField>
       </Expandable>
     </ParamField>

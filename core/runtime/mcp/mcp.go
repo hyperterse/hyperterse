@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
@@ -16,17 +17,24 @@ import (
 )
 
 const (
-	serverName    = "hyperterse"
-	serverVersion = "1.0.0"
+	serverName          = "hyperterse"
+	serverVersion       = "1.0.0"
+	searchToolName      = "search"
+	executeToolName     = "execute"
+	executeToolParam    = "tool"
+	executeInputsParam  = "inputs"
+	searchQueryParam    = "query"
+	relevanceScoreField = "relevance_score"
 )
 
 // Adapter configures and exposes an MCP SDK server backed by the existing
 // Hyperterse execution stack (framework engine + tool executor).
 type Adapter struct {
-	model    *hyperterse.Model
-	executor *executor.Executor
-	engine   *framework.Engine
-	server   *mcpsdk.Server
+	model       *hyperterse.Model
+	executor    *executor.Executor
+	engine      *framework.Engine
+	server      *mcpsdk.Server
+	searchIndex *toolSearchIndex
 }
 
 // New creates an MCP SDK adapter and registers all tools.
@@ -44,10 +52,11 @@ func New(model *hyperterse.Model, exec *executor.Executor, eng *framework.Engine
 	}, nil)
 
 	adapter := &Adapter{
-		model:    model,
-		executor: exec,
-		engine:   eng,
-		server:   server,
+		model:       model,
+		executor:    exec,
+		engine:      eng,
+		server:      server,
+		searchIndex: newToolSearchIndex(model.Tools),
 	}
 
 	if err := adapter.registerTools(); err != nil {
@@ -63,30 +72,72 @@ func (a *Adapter) Server() *mcpsdk.Server {
 
 func (a *Adapter) registerTools() error {
 	log := logger.New("mcp")
-	for _, tool := range a.model.Tools {
-		if tool == nil {
-			continue
-		}
 
-		tool := tool
-		a.server.AddTool(&mcpsdk.Tool{
-			Name:        tool.Name,
-			Description: tool.Description,
-			InputSchema: buildInputSchema(tool),
-		}, func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
-			return a.callTool(ctx, req, tool)
-		})
+	a.server.AddTool(&mcpsdk.Tool{
+		Name:        searchToolName,
+		Description: "Search available tools by natural-language intent and tool metadata.",
+		InputSchema: buildSearchInputSchema(),
+	}, a.callSearchTool)
+	log.Debugf("Registered MCP tool: %s", searchToolName)
 
-		log.Debugf("Registered MCP tool: %s", tool.Name)
-	}
+	a.server.AddTool(&mcpsdk.Tool{
+		Name:        executeToolName,
+		Description: "Execute a tool by name using a structured input object.",
+		InputSchema: buildExecuteInputSchema(),
+	}, a.callExecuteTool)
+	log.Debugf("Registered MCP tool: %s", executeToolName)
+
 	return nil
 }
 
-func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, tool *hyperterse.Tool) (*mcpsdk.CallToolResult, error) {
+func (a *Adapter) callSearchTool(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	log := logger.New("mcp")
 	log.InfofCtx(ctx, map[string]any{
-		observability.AttrToolName: tool.Name,
-	}, "Calling MCP tool: %s", tool.Name)
+		observability.AttrToolName: searchToolName,
+	}, "Calling MCP tool: %s", searchToolName)
+
+	inputs, invalidParamsErr := parseArguments(req)
+	if invalidParamsErr != nil {
+		return invalidParamsErr, nil
+	}
+
+	queryRaw, ok := inputs[searchQueryParam]
+	if !ok {
+		return toolError(
+			fmt.Sprintf("invalid params: missing required field '%s'", searchQueryParam),
+			jsonrpcsdk.CodeInvalidParams,
+		), nil
+	}
+
+	query, ok := queryRaw.(string)
+	if !ok || strings.TrimSpace(query) == "" {
+		return toolError(
+			fmt.Sprintf("invalid params: field '%s' must be a non-empty string", searchQueryParam),
+			jsonrpcsdk.CodeInvalidParams,
+		), nil
+	}
+
+	limit := a.searchLimit()
+	hits := a.searchIndex.Search(query, limit)
+	results := make([]map[string]any, 0, len(hits))
+	for _, hit := range hits {
+		results = append(results, map[string]any{
+			"name":              hit.Tool.Name,
+			relevanceScoreField: hit.RelevanceScore,
+			"description":       hit.Tool.Description,
+			"inputs":            buildInputMetadata(hit.Tool),
+		})
+	}
+
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrToolName: searchToolName,
+	}, "MCP tool call completed successfully")
+
+	return resultPayload(results), nil
+}
+
+func (a *Adapter) callExecuteTool(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+	log := logger.New("mcp")
 
 	// Preserve tool-level auth behavior by forwarding incoming HTTP headers from
 	// transport metadata into the framework auth context.
@@ -94,45 +145,93 @@ func (a *Adapter) callTool(ctx context.Context, req *mcpsdk.CallToolRequest, too
 		ctx = framework.WithRequestHeaders(ctx, extra.Header)
 	}
 
-	var inputs map[string]any
-	if len(req.Params.Arguments) > 0 {
-		if err := json.Unmarshal(req.Params.Arguments, &inputs); err != nil {
-			return toolError(
-				fmt.Sprintf("invalid params: %v", err),
-				jsonrpcsdk.CodeInvalidParams,
-			), nil
-		}
-	} else {
-		inputs = map[string]any{}
+	inputs, invalidParamsErr := parseArguments(req)
+	if invalidParamsErr != nil {
+		return invalidParamsErr, nil
 	}
 
-	var (
-		results []map[string]any
-		err     error
-	)
-	if a.engine != nil {
-		results, err = a.engine.Execute(ctx, tool.Name, inputs)
-	} else {
-		results, err = a.executor.ExecuteTool(ctx, tool.Name, inputs)
+	toolNameRaw, ok := inputs[executeToolParam]
+	if !ok {
+		return toolError(
+			fmt.Sprintf("invalid params: missing required field '%s'", executeToolParam),
+			jsonrpcsdk.CodeInvalidParams,
+		), nil
 	}
+	toolName, ok := toolNameRaw.(string)
+	if !ok || strings.TrimSpace(toolName) == "" {
+		return toolError(
+			fmt.Sprintf("invalid params: field '%s' must be a non-empty string", executeToolParam),
+			jsonrpcsdk.CodeInvalidParams,
+		), nil
+	}
+
+	toolInputsRaw, ok := inputs[executeInputsParam]
+	if !ok {
+		return toolError(
+			fmt.Sprintf("invalid params: missing required field '%s'", executeInputsParam),
+			jsonrpcsdk.CodeInvalidParams,
+		), nil
+	}
+
+	toolInputs, ok := toolInputsRaw.(map[string]any)
+	if !ok {
+		return toolError(
+			fmt.Sprintf("invalid params: field '%s' must be an object", executeInputsParam),
+			jsonrpcsdk.CodeInvalidParams,
+		), nil
+	}
+
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrToolName: toolName,
+	}, "Calling MCP tool: %s", toolName)
+
+	results, err := a.executeTool(ctx, toolName, toolInputs)
 	if err != nil {
 		return toolError(err.Error(), jsonrpcsdk.CodeInternalError), nil
 	}
 
-	resultsJSON, err := json.Marshal(results)
-	if err != nil {
-		return toolError("failed to serialize results", jsonrpcsdk.CodeInternalError), nil
-	}
-
 	log.InfofCtx(ctx, map[string]any{
-		observability.AttrToolName: tool.Name,
+		observability.AttrToolName: toolName,
 	}, "MCP tool call completed successfully")
 
+	return resultPayload(results), nil
+}
+
+func (a *Adapter) executeTool(ctx context.Context, toolName string, inputs map[string]any) ([]map[string]any, error) {
+	if a.engine != nil {
+		return a.engine.Execute(ctx, toolName, inputs)
+	}
+	return a.executor.ExecuteTool(ctx, toolName, inputs)
+}
+
+func parseArguments(req *mcpsdk.CallToolRequest) (map[string]any, *mcpsdk.CallToolResult) {
+	if len(req.Params.Arguments) == 0 {
+		return map[string]any{}, nil
+	}
+
+	var inputs map[string]any
+	if err := json.Unmarshal(req.Params.Arguments, &inputs); err != nil {
+		return nil, toolError(
+			fmt.Sprintf("invalid params: %v", err),
+			jsonrpcsdk.CodeInvalidParams,
+		)
+	}
+	if inputs == nil {
+		return map[string]any{}, nil
+	}
+	return inputs, nil
+}
+
+func resultPayload(results []map[string]any) *mcpsdk.CallToolResult {
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		return toolError("failed to serialize results", jsonrpcsdk.CodeInternalError)
+	}
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{
 			&mcpsdk.TextContent{Text: string(resultsJSON)},
 		},
-	}, nil
+	}
 }
 
 func toolError(message string, code int) *mcpsdk.CallToolResult {
@@ -153,85 +252,71 @@ func toolError(message string, code int) *mcpsdk.CallToolResult {
 	}
 }
 
-func buildInputSchema(tool *hyperterse.Tool) map[string]any {
-	properties := make(map[string]any)
-	required := make([]string, 0, len(tool.Inputs))
+func (a *Adapter) searchLimit() int {
+	if a.model == nil || a.model.ToolDefaults == nil || a.model.ToolDefaults.Search == nil {
+		return defaultSearchLimit
+	}
+	searchDefaults := a.model.ToolDefaults.Search
+	if searchDefaults.HasLimit && searchDefaults.Limit > 0 {
+		return int(searchDefaults.Limit)
+	}
+	return defaultSearchLimit
+}
 
+func buildSearchInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			searchQueryParam: map[string]any{
+				"type":        "string",
+				"description": "Natural-language query used to find relevant tools.",
+			},
+		},
+		"required":             []string{searchQueryParam},
+		"additionalProperties": false,
+	}
+}
+
+func buildExecuteInputSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			executeToolParam: map[string]any{
+				"type":        "string",
+				"description": "Name of the target tool to execute.",
+			},
+			executeInputsParam: map[string]any{
+				"type":        "object",
+				"description": "Structured inputs for the target tool.",
+			},
+		},
+		"required":             []string{executeToolParam, executeInputsParam},
+		"additionalProperties": false,
+	}
+}
+
+func buildInputMetadata(tool *hyperterse.Tool) []map[string]any {
+	if tool == nil || len(tool.Inputs) == 0 {
+		return []map[string]any{}
+	}
+
+	metadata := make([]map[string]any, 0, len(tool.Inputs))
 	for _, input := range tool.Inputs {
 		if input == nil {
 			continue
 		}
-
-		primitiveType := types.PrimitiveEnumToString(input.Type)
-		schemaType, schemaFormat := primitiveToJSONSchema(primitiveType)
-		prop := map[string]any{
-			"type": schemaType,
-		}
-		if schemaFormat != "" {
-			prop["format"] = schemaFormat
+		entry := map[string]any{
+			"name":     input.Name,
+			"type":     types.PrimitiveEnumToString(input.Type),
+			"optional": input.Optional,
 		}
 		if input.Description != "" {
-			prop["description"] = input.Description
+			entry["description"] = input.Description
 		}
 		if input.DefaultValue != "" {
-			prop["default"] = parseDefaultValue(input.DefaultValue, primitiveType)
+			entry["default_value"] = input.DefaultValue
 		}
-
-		properties[input.Name] = prop
-		if !input.Optional {
-			required = append(required, input.Name)
-		}
+		metadata = append(metadata, entry)
 	}
-
-	inputSchema := map[string]any{
-		"type":       "object",
-		"properties": properties,
-	}
-	if len(required) > 0 {
-		inputSchema["required"] = required
-	}
-	return inputSchema
-}
-
-func primitiveToJSONSchema(primitiveType string) (schemaType string, schemaFormat string) {
-	switch primitiveType {
-	case "boolean":
-		return "boolean", ""
-	case "int":
-		return "integer", ""
-	case "float":
-		return "number", ""
-	case "datetime":
-		return "string", "date-time"
-	case "string":
-		return "string", ""
-	default:
-		// Unknown primitives fall back to string to keep tools callable.
-		return "string", ""
-	}
-}
-
-func parseDefaultValue(valueStr, primitiveType string) any {
-	switch primitiveType {
-	case "int":
-		var v int64
-		if err := json.Unmarshal([]byte(valueStr), &v); err == nil {
-			return v
-		}
-		return valueStr
-	case "float":
-		var v float64
-		if err := json.Unmarshal([]byte(valueStr), &v); err == nil {
-			return v
-		}
-		return valueStr
-	case "boolean":
-		var v bool
-		if err := json.Unmarshal([]byte(valueStr), &v); err == nil {
-			return v
-		}
-		return valueStr
-	default:
-		return valueStr
-	}
+	return metadata
 }

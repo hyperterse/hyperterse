@@ -162,12 +162,24 @@ const rootSchema = {
     },
     tools: {
       type: "object" as const,
-      description: "Tool discovery and global tool cache settings.",
+      description: "Tool discovery and global tool cache/search settings.",
       properties: {
         directory: {
           type: "string" as const,
           description: "Tools directory relative to `root` (defaults to `tools`).",
           minLength: 1,
+        },
+        search: {
+          type: "object" as const,
+          description: "Global/default MCP tool search configuration.",
+          properties: {
+            limit: {
+              type: "integer" as const,
+              minimum: 1,
+              description: "Maximum number of MCP search results returned (default: 10).",
+            },
+          },
+          additionalProperties: false,
         },
         cache: {
           type: "object" as const,

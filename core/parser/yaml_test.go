@@ -8,6 +8,8 @@ tools:
   cache:
     enabled: true
     ttl: 30
+  search:
+    limit: 7
 adapters:
   directory: adapters
 `)
@@ -28,5 +30,11 @@ adapters:
 	}
 	if model.ToolDefaults.Cache.Ttl != 30 || !model.ToolDefaults.Cache.HasTtl {
 		t.Fatalf("expected global cache ttl=30 with has_ttl flag set")
+	}
+	if model.ToolDefaults.Search == nil {
+		t.Fatalf("expected tools.search to populate global search config")
+	}
+	if model.ToolDefaults.Search.Limit != 7 || !model.ToolDefaults.Search.HasLimit {
+		t.Fatalf("expected global search limit=7 with has_limit flag set")
 	}
 }

@@ -44,12 +44,24 @@
     },
     "tools": {
       "type": "object",
-      "description": "Tool discovery and global tool cache settings.",
+      "description": "Tool discovery and global tool cache/search settings.",
       "properties": {
         "directory": {
           "type": "string",
           "description": "Tools directory relative to `root` (defaults to `tools`).",
           "minLength": 1
+        },
+        "search": {
+          "type": "object",
+          "description": "Global/default MCP tool search configuration.",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum number of MCP search results returned (default: 10)."
+            }
+          },
+          "additionalProperties": false
         },
         "cache": {
           "type": "object",

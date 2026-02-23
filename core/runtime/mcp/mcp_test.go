@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"math"
+	"slices"
 	"sync"
 	"testing"
 
@@ -43,8 +45,8 @@ func (f *fakeConnector) callCount() int {
 	return f.calls
 }
 
-func TestAdapter_ListToolsAndCallTool(t *testing.T) {
-	_, fake, session, cleanup := setupMCPToolTest(t, false)
+func TestAdapter_ListToolsSearchAndExecute(t *testing.T) {
+	_, fake, session, cleanup := setupMCPToolTest(t, false, 0)
 	defer cleanup()
 
 	ctx := context.Background()
@@ -52,75 +54,108 @@ func TestAdapter_ListToolsAndCallTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools failed: %v", err)
 	}
-	if len(listRes.Tools) != 1 {
-		t.Fatalf("expected one tool, got %d", len(listRes.Tools))
+	if len(listRes.Tools) != 2 {
+		t.Fatalf("expected exactly two tools, got %d", len(listRes.Tools))
 	}
 
-	tool := listRes.Tools[0]
-	if tool.Name != "get-orders" {
-		t.Fatalf("unexpected tool name: %s", tool.Name)
+	toolNames := []string{listRes.Tools[0].Name, listRes.Tools[1].Name}
+	slices.Sort(toolNames)
+	expectedNames := []string{"execute", "search"}
+	if !slices.Equal(toolNames, expectedNames) {
+		t.Fatalf("unexpected tools listed: got=%v want=%v", toolNames, expectedNames)
 	}
 
-	inputSchema, ok := tool.InputSchema.(map[string]any)
-	if !ok {
-		t.Fatalf("tool input schema should be a map, got %T", tool.InputSchema)
-	}
-	properties, ok := inputSchema["properties"].(map[string]any)
-	if !ok {
-		t.Fatalf("input schema properties should be a map, got %T", inputSchema["properties"])
-	}
-	statusProp, ok := properties["status"].(map[string]any)
-	if !ok {
-		t.Fatalf("status property should be a map, got %T", properties["status"])
-	}
-	if statusProp["type"] != "string" {
-		t.Fatalf("expected status type string, got %#v", statusProp["type"])
-	}
-
-	callRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{
-		Name: "get-orders",
+	searchRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{
+		Name: "search",
 		Arguments: map[string]any{
-			"status": "pending",
+			"query": "orders",
 		},
 	})
 	if err != nil {
-		t.Fatalf("CallTool failed: %v", err)
+		t.Fatalf("search CallTool failed: %v", err)
 	}
-	if callRes.IsError {
-		t.Fatalf("expected successful tool call, got error payload: %#v", callRes.Content)
+	if searchRes.IsError {
+		t.Fatalf("expected successful search call, got error payload: %#v", searchRes.Content)
 	}
-	if len(callRes.Content) == 0 {
-		t.Fatalf("expected content in tool call response")
+	if len(searchRes.Content) == 0 {
+		t.Fatalf("expected content in search response")
 	}
 
-	text, ok := callRes.Content[0].(*mcpsdk.TextContent)
+	searchText, ok := searchRes.Content[0].(*mcpsdk.TextContent)
 	if !ok {
-		t.Fatalf("expected first content entry to be text, got %T", callRes.Content[0])
+		t.Fatalf("expected first search content entry to be text, got %T", searchRes.Content[0])
 	}
 
-	var rows []map[string]any
-	if err := json.Unmarshal([]byte(text.Text), &rows); err != nil {
-		t.Fatalf("response payload is not valid JSON array: %v", err)
+	var searchRows []map[string]any
+	if err := json.Unmarshal([]byte(searchText.Text), &searchRows); err != nil {
+		t.Fatalf("search payload is not valid JSON array: %v", err)
 	}
-	if len(rows) != 1 {
-		t.Fatalf("expected one result row, got %d", len(rows))
+	if len(searchRows) == 0 {
+		t.Fatalf("expected at least one search result")
 	}
-	if rows[0]["status"] != "pending" {
-		t.Fatalf("expected status to round-trip, got %#v", rows[0]["status"])
+
+	first := searchRows[0]
+	if first["name"] != "get-orders" {
+		t.Fatalf("expected first search hit to be get-orders, got %#v", first["name"])
+	}
+	score, ok := first["relevance_score"].(float64)
+	if !ok {
+		t.Fatalf("expected relevance_score to be numeric, got %T", first["relevance_score"])
+	}
+	if score < 1 || score > 100 || math.Trunc(score) != score {
+		t.Fatalf("expected relevance_score to be integer in [1..100], got %#v", score)
+	}
+
+	executeRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{
+		Name: "execute",
+		Arguments: map[string]any{
+			"tool": "get-orders",
+			"inputs": map[string]any{
+				"status": "pending",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("execute CallTool failed: %v", err)
+	}
+	if executeRes.IsError {
+		t.Fatalf("expected successful execute call, got error payload: %#v", executeRes.Content)
+	}
+	if len(executeRes.Content) == 0 {
+		t.Fatalf("expected content in execute response")
+	}
+
+	executeText, ok := executeRes.Content[0].(*mcpsdk.TextContent)
+	if !ok {
+		t.Fatalf("expected first execute content entry to be text, got %T", executeRes.Content[0])
+	}
+
+	var executeRows []map[string]any
+	if err := json.Unmarshal([]byte(executeText.Text), &executeRows); err != nil {
+		t.Fatalf("execute response payload is not valid JSON array: %v", err)
+	}
+	if len(executeRows) != 1 {
+		t.Fatalf("expected one execute result row, got %d", len(executeRows))
+	}
+	if executeRows[0]["status"] != "pending" {
+		t.Fatalf("expected status to round-trip, got %#v", executeRows[0]["status"])
 	}
 	if fake.callCount() != 1 {
 		t.Fatalf("expected connector to be called once, got %d", fake.callCount())
 	}
 }
 
-func TestAdapter_CallToolErrorPath(t *testing.T) {
-	_, fake, session, cleanup := setupMCPToolTest(t, false)
+func TestAdapter_ExecuteErrorPath(t *testing.T) {
+	_, fake, session, cleanup := setupMCPToolTest(t, false, 0)
 	defer cleanup()
 
 	ctx := context.Background()
 	callRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{
-		Name:      "get-orders",
-		Arguments: map[string]any{},
+		Name: "execute",
+		Arguments: map[string]any{
+			"tool":   "get-orders",
+			"inputs": map[string]any{},
+		},
 	})
 	if err != nil {
 		t.Fatalf("CallTool failed: %v", err)
@@ -133,15 +168,49 @@ func TestAdapter_CallToolErrorPath(t *testing.T) {
 	}
 }
 
+func TestAdapter_SearchRespectsConfiguredLimit(t *testing.T) {
+	_, _, session, cleanup := setupMCPToolTest(t, false, 1)
+	defer cleanup()
+
+	ctx := context.Background()
+	searchRes, err := session.CallTool(ctx, &mcpsdk.CallToolParams{
+		Name: "search",
+		Arguments: map[string]any{
+			"query": "get",
+		},
+	})
+	if err != nil {
+		t.Fatalf("search CallTool failed: %v", err)
+	}
+	if searchRes.IsError {
+		t.Fatalf("expected successful search call, got error payload: %#v", searchRes.Content)
+	}
+
+	searchText, ok := searchRes.Content[0].(*mcpsdk.TextContent)
+	if !ok {
+		t.Fatalf("expected first search content entry to be text, got %T", searchRes.Content[0])
+	}
+	var searchRows []map[string]any
+	if err := json.Unmarshal([]byte(searchText.Text), &searchRows); err != nil {
+		t.Fatalf("search payload is not valid JSON array: %v", err)
+	}
+	if len(searchRows) != 1 {
+		t.Fatalf("expected exactly one search result due to configured limit, got %d", len(searchRows))
+	}
+}
+
 func TestAdapter_CachePreservesConnectorBehavior(t *testing.T) {
-	_, fake, session, cleanup := setupMCPToolTest(t, true)
+	_, fake, session, cleanup := setupMCPToolTest(t, true, 0)
 	defer cleanup()
 
 	ctx := context.Background()
 	params := &mcpsdk.CallToolParams{
-		Name: "get-orders",
+		Name: "execute",
 		Arguments: map[string]any{
-			"status": "pending",
+			"tool": "get-orders",
+			"inputs": map[string]any{
+				"status": "pending",
+			},
 		},
 	}
 
@@ -166,7 +235,7 @@ func TestAdapter_CachePreservesConnectorBehavior(t *testing.T) {
 	}
 }
 
-func setupMCPToolTest(t *testing.T, enableCache bool) (*Adapter, *fakeConnector, *mcpsdk.ClientSession, func()) {
+func setupMCPToolTest(t *testing.T, enableCache bool, searchLimit int32) (*Adapter, *fakeConnector, *mcpsdk.ClientSession, func()) {
 	t.Helper()
 
 	model := &hyperterse.Model{
@@ -193,17 +262,38 @@ func setupMCPToolTest(t *testing.T, enableCache bool) (*Adapter, *fakeConnector,
 					},
 				},
 			},
+			{
+				Name:        "get-users",
+				Description: "Returns users by email",
+				Use:         []string{"primary"},
+				Statement:   "SELECT * FROM users WHERE email = {{ inputs.email }}",
+				Inputs: []*hyperterse.Input{
+					{
+						Name:        "email",
+						Type:        primitives.Primitive_PRIMITIVE_STRING,
+						Description: "user email",
+						Optional:    false,
+					},
+				},
+			},
 		},
 	}
 
+	if enableCache || searchLimit > 0 {
+		model.ToolDefaults = &hyperterse.ToolDefaultsConfig{}
+	}
 	if enableCache {
-		model.ToolDefaults = &hyperterse.ToolDefaultsConfig{
-			Cache: &hyperterse.CacheConfig{
-				Enabled:    true,
-				HasEnabled: true,
-				Ttl:        60,
-				HasTtl:     true,
-			},
+		model.ToolDefaults.Cache = &hyperterse.CacheConfig{
+			Enabled:    true,
+			HasEnabled: true,
+			Ttl:        60,
+			HasTtl:     true,
+		}
+	}
+	if searchLimit > 0 {
+		model.ToolDefaults.Search = &hyperterse.SearchConfig{
+			Limit:    searchLimit,
+			HasLimit: true,
 		}
 	}
 

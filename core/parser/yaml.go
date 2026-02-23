@@ -83,8 +83,8 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 		model.Server = serverConfig
 	}
 
-	// Parse tools root config (v2 discovery + global cache defaults).
-	// This maps tools.cache into model.tool_defaults.
+	// Parse tools root config (v2 discovery + global defaults).
+	// This maps tools.cache/tools.search into model.tool_defaults.
 	if toolsRaw, ok := raw["tools"].(map[string]any); ok {
 		if cacheRaw, ok := toolsRaw["cache"].(map[string]any); ok {
 			cacheConfig := parseCacheConfig(cacheRaw)
@@ -93,6 +93,15 @@ func ParseYAMLWithConfig(data []byte) (*hyperterse.Model, error) {
 					model.ToolDefaults = &hyperterse.ToolDefaultsConfig{}
 				}
 				model.ToolDefaults.Cache = cacheConfig
+			}
+		}
+		if searchRaw, ok := toolsRaw["search"].(map[string]any); ok {
+			searchConfig := parseSearchConfig(searchRaw)
+			if searchConfig != nil {
+				if model.ToolDefaults == nil {
+					model.ToolDefaults = &hyperterse.ToolDefaultsConfig{}
+				}
+				model.ToolDefaults.Search = searchConfig
 			}
 		}
 	}
@@ -130,4 +139,28 @@ func parseCacheConfig(cacheRaw map[string]any) *hyperterse.CacheConfig {
 	}
 
 	return cacheConfig
+}
+
+func parseSearchConfig(searchRaw map[string]any) *hyperterse.SearchConfig {
+	searchConfig := &hyperterse.SearchConfig{}
+	hasAnyField := false
+
+	if limitRaw, ok := searchRaw["limit"]; ok {
+		switch v := limitRaw.(type) {
+		case int:
+			searchConfig.Limit = int32(v)
+			searchConfig.HasLimit = true
+			hasAnyField = true
+		case float64:
+			searchConfig.Limit = int32(v)
+			searchConfig.HasLimit = true
+			hasAnyField = true
+		}
+	}
+
+	if !hasAnyField {
+		return nil
+	}
+
+	return searchConfig
 }
