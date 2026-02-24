@@ -1,3 +1,44 @@
+# v2.0.0
+
+Timestamp: 2026-02-24
+
+🎉 **Hyperterse v2.0.0 — Tool-First MCP Framework**
+
+Hyperterse v2 is a breaking redesign. The framework shifts from a single-file query gateway to a compiled, filesystem-based MCP framework. Define tools in declarative config, add optional TypeScript handlers, and serve them as a standards-compliant MCP server over Streamable HTTP.
+
+## ✨ Features
+
+- **Filesystem-based tool discovery** — Each directory under `app/tools/` maps to one MCP tool; no manual registration
+- **Declarative tool config** — Root config + `app/adapters/*.terse` + `app/tools/*/config.terse` for clear separation of concerns
+- **Embedded scripting** — TypeScript handlers and input/output transforms for logic that config alone cannot express; scripts bundled at compile time
+- **Per-tool authentication** — Pluggable auth per tool: `allow_all`, `api_key`, or custom plugins
+- **Build and serve pipeline** — `hyperterse build` compiles config and scripts into a deployable artifact; `hyperterse serve` runs from the artifact
+- **Search tool** — Built-in MCP search tool with configurable result limit and statement support for tool discovery
+- **Graceful shutdown** — BaseContext-based shutdown for in-flight handlers to complete before exit
+
+## 🔧 Improvements
+
+- **MCP-only transport** — Tools exposed exclusively via MCP Streamable HTTP (`/mcp`); `/query/{name}` removed
+- **Per-tool caching** — Global cache config plus per-tool override for TTL and behavior
+- **OpenTelemetry observability** — Distributed tracing, metrics, and structured logging out of the box
+- **CLI commands** — `start` (with optional `--watch`), `build`, `serve`, `validate`, `init`; `run` replaced by `start`
+- **Project convention** — `.hyperterse` root config; `hyperterse start` for development
+
+## ⚠️ Breaking Changes
+
+| Change                    | Impact                           | Action                                |
+| ------------------------- | -------------------------------- | ------------------------------------- |
+| Inline `adapters` removed | Config will not parse            | Extract to `app/adapters/*.terse`     |
+| Inline `queries` removed  | Config will not parse            | Extract to `app/tools/*/config.terse` |
+| `/query/{name}` removed   | HTTP clients break               | Migrate to MCP `tools/call`           |
+| Auth now per-tool         | Tools unauthenticated by default | Add `auth` blocks                     |
+| DSL parser deprecated     | Text-format blocks unsupported   | Convert to YAML                       |
+| Build step introduced     | Direct interpretation replaced   | Add `build` + `serve` to pipeline     |
+
+See the [v1 to v2 migration guide](https://docs.hyperterse.com/migration/v1-to-v2) for step-by-step migration instructions.
+
+---
+
 # v1.4.0
 
 Timestamp: 2026-02-12
