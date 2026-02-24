@@ -129,6 +129,11 @@ func (r *Runtime) StartAsync() error {
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 0, // Disable write timeout for SSE connections (they're long-lived)
 		IdleTimeout:  60 * time.Second,
+		// BaseContext ties all request/connection contexts to shutdownCtx. When shutdownCancel()
+		// is called during Stop(), in-flight handlers see context cancellation and return promptly,
+		// allowing server.Shutdown() to complete within the timeout instead of waiting for
+		// long-lived connections (e.g. MCP streaming) to close naturally.
+		BaseContext: func(net.Listener) context.Context { return r.shutdownCtx },
 	}
 
 	log.Debugf("Engine configuration: ReadTimeout=15s, WriteTimeout=0 (unlimited), IdleTimeout=60s")
@@ -245,27 +250,18 @@ func (r *Runtime) Stop() error {
 	log.Infof("Shutting down engine")
 	log.Debugf("Initiating graceful shutdown")
 
-	// Signal shutdown to all SSE connections and other long-lived handlers
+	// Signal shutdown: cancels BaseContext, so all in-flight request contexts are cancelled.
+	// Handlers (MCP, etc.) that respect context will return promptly.
 	if r.shutdownCancel != nil {
 		r.shutdownCancel()
 		log.Debugf("Shutdown signal sent to handlers")
 	}
 
-	// Give connections a moment to close gracefully
-	time.Sleep(500 * time.Millisecond)
-
-	// Create shutdown context with longer timeout for SSE connections
+	// Shutdown HTTP server first. With BaseContext cancelled, handlers return quickly.
+	// Connectors stay open until after the server drains so in-flight tool calls can complete.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// Close all connectors in parallel
-	if err := r.connectorManager.CloseAll(); err != nil {
-		log.Warnf("Errors closing connectors: %v", err)
-	} else {
-		log.Debugf("All connectors closed")
-	}
-
-	// Shutdown HTTP server
 	if r.server != nil {
 		log.Debugf("Shutting down HTTP server")
 		if err := r.server.Shutdown(ctx); err != nil {
@@ -276,6 +272,13 @@ func (r *Runtime) Stop() error {
 			return log.Errorf("failed to shutdown server gracefully: %w", err)
 		}
 		log.Debugf("Engine stopped")
+	}
+
+	// Close all connectors after server has drained
+	if err := r.connectorManager.CloseAll(); err != nil {
+		log.Warnf("Errors closing connectors: %v", err)
+	} else {
+		log.Debugf("All connectors closed")
 	}
 
 	log.Infof("Engine shutdown complete")
