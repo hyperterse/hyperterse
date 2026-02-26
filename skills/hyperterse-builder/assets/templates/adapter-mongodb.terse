@@ -1,0 +1,8 @@
+# MongoDB Adapter Template
+# Place in app/adapters/mongo-db.terse
+# Adapter name is derived from filename (mongo-db.terse -> mongo-db)
+
+connector: mongodb
+connection_string: "{{ env.MONGODB_URI }}"
+options:
+  authSource: admin

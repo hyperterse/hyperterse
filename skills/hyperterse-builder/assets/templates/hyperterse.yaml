@@ -1,0 +1,29 @@
+# Hyperterse Root Configuration Template
+# Copy this to .hyperterse in your project root
+
+name: my-project
+version: 1.0.0
+
+# Application directories (optional, defaults shown)
+root: app
+
+tools:
+  directory: tools
+  # cache:           # Uncomment to enable caching
+  #   enabled: true
+  #   ttl: 60        # seconds
+  # search:          # Uncomment to set search defaults
+  #   limit: 100
+
+adapters:
+  directory: adapters
+
+# Server configuration (optional)
+server:
+  port: 8080
+  log_level: 3  # 0=silent, 1=error, 2=warn, 3=info, 4=debug
+
+# Build configuration (optional)
+# build:
+#   out: dist
+#   clean_dir: true

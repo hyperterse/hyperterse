@@ -1,0 +1,10 @@
+# MySQL Adapter Template
+# Place in app/adapters/mysql-db.terse
+# Adapter name is derived from filename (mysql-db.terse -> mysql-db)
+
+connector: mysql
+connection_string: "{{ env.MYSQL_DSN }}"
+options:
+  charset: utf8mb4
+  parseTime: "true"
+  loc: UTC

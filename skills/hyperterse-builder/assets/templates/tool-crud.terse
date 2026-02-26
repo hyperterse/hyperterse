@@ -1,0 +1,124 @@
+# CRUD Tool Template
+# Place in app/tools/<resource>/<action>/config.terse
+
+# ============================================
+# GET - Fetch single record by ID
+# ============================================
+# description: "Get [resource] by ID"
+# use: main-db
+# statement: |
+#   SELECT id, name, created_at, updated_at
+#   FROM [table]
+#   WHERE id = {{ inputs.id }}
+# inputs:
+#   id:
+#     type: int
+#     description: "[Resource] ID"
+# auth:
+#   plugin: allow_all
+
+# ============================================
+# LIST - Paginated list
+# ============================================
+# description: "List [resources] with pagination"
+# use: main-db
+# statement: |
+#   SELECT id, name, created_at
+#   FROM [table]
+#   ORDER BY created_at DESC
+#   LIMIT {{ inputs.limit }}
+#   OFFSET {{ inputs.offset }}
+# inputs:
+#   limit:
+#     type: int
+#     optional: true
+#     default: 20
+#   offset:
+#     type: int
+#     optional: true
+#     default: 0
+# auth:
+#   plugin: allow_all
+
+# ============================================
+# CREATE - Insert new record
+# ============================================
+# description: "Create new [resource]"
+# use: main-db
+# statement: |
+#   INSERT INTO [table] (name, email)
+#   VALUES ('{{ inputs.name }}', '{{ inputs.email }}')
+#   RETURNING id, name, email, created_at
+# inputs:
+#   name:
+#     type: string
+#     description: "[Resource] name"
+#   email:
+#     type: string
+#     description: "[Resource] email"
+# auth:
+#   plugin: api_key
+#   policy:
+#     value: "{{ env.API_KEY }}"
+
+# ============================================
+# UPDATE - Modify existing record
+# ============================================
+# description: "Update [resource]"
+# use: main-db
+# statement: |
+#   UPDATE [table]
+#   SET name = '{{ inputs.name }}', updated_at = NOW()
+#   WHERE id = {{ inputs.id }}
+#   RETURNING id, name, updated_at
+# inputs:
+#   id:
+#     type: int
+#     description: "[Resource] ID"
+#   name:
+#     type: string
+#     description: "New name"
+# auth:
+#   plugin: api_key
+#   policy:
+#     value: "{{ env.API_KEY }}"
+
+# ============================================
+# DELETE - Remove record
+# ============================================
+# description: "Delete [resource]"
+# use: main-db
+# statement: |
+#   DELETE FROM [table]
+#   WHERE id = {{ inputs.id }}
+#   RETURNING id
+# inputs:
+#   id:
+#     type: int
+#     description: "[Resource] ID to delete"
+# auth:
+#   plugin: api_key
+#   policy:
+#     value: "{{ env.API_KEY }}"
+
+# ============================================
+# SEARCH - Text search
+# ============================================
+# description: "Search [resources]"
+# use: main-db
+# statement: |
+#   SELECT id, name, email
+#   FROM [table]
+#   WHERE name ILIKE '%{{ inputs.query }}%'
+#      OR email ILIKE '%{{ inputs.query }}%'
+#   LIMIT {{ inputs.limit }}
+# inputs:
+#   query:
+#     type: string
+#     description: "Search term"
+#   limit:
+#     type: int
+#     optional: true
+#     default: 20
+# auth:
+#   plugin: allow_all

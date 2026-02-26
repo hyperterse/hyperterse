@@ -1,0 +1,9 @@
+# PostgreSQL Adapter Template
+# Place in app/adapters/main-db.terse
+# Adapter name is derived from filename (main-db.terse -> main-db)
+
+connector: postgres
+connection_string: "{{ env.DATABASE_URL }}"
+options:
+  sslmode: disable  # disable, require, verify-ca, verify-full
+  max_connections: "10"
