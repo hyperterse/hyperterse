@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -20,25 +22,62 @@ const (
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
-	Use:          "init",
+	Use:          "init [folder-name]",
 	Short:        "Initialize a new Hyperterse configuration file",
 	RunE:         runInit,
 	SilenceUsage: true,
+	Args:         cobra.MaximumNArgs(1),
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().StringVarP(&initOutputFile, "output", "o", ".hyperterse", "Output file path for the configuration")
+	initCmd.Flags().StringVarP(&initOutputFile, "output", "o", "", "Output file path for the configuration (default: <folder>/.hyperterse)")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
+	var folderName string
+	if len(args) > 0 {
+		folderName = strings.TrimSpace(args[0])
+	}
+	if folderName == "" {
+		fmt.Fprint(os.Stderr, "Project folder name: ")
+		reader := bufio.NewReader(os.Stdin)
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read input: %w", err)
+		}
+		folderName = strings.TrimSpace(line)
+		if folderName == "" {
+			return fmt.Errorf("folder name is required. Use: hyperterse init <folder-name>")
+		}
+	}
+
+	baseDir := folderName
+	if baseDir == "." {
+		baseDir = ""
+	}
+	if baseDir != "" {
+		baseDir = filepath.Clean(baseDir)
+	}
+
+	outputPath := initOutputFile
+	if outputPath == "" {
+		if baseDir != "" {
+			outputPath = filepath.Join(baseDir, ".hyperterse")
+		} else {
+			outputPath = ".hyperterse"
+		}
+	} else if baseDir != "" && !filepath.IsAbs(outputPath) && filepath.Dir(outputPath) == "." {
+		outputPath = filepath.Join(baseDir, outputPath)
+	}
+
 	// Check if file already exists
-	if _, err := os.Stat(initOutputFile); err == nil {
-		return fmt.Errorf("file '%s' already exists. Use a different filename or remove the existing file", initOutputFile)
+	if _, err := os.Stat(outputPath); err == nil {
+		return fmt.Errorf("file '%s' already exists. Use a different filename or remove the existing file", outputPath)
 	}
 
 	// Create the directory if it doesn't exist
-	dir := filepath.Dir(initOutputFile)
+	dir := filepath.Dir(outputPath)
 	if dir != "." && dir != "" {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
@@ -49,13 +88,13 @@ func runInit(cmd *cobra.Command, args []string) error {
 	configContent := generateConfigTemplate()
 
 	// Write the file
-	if err := os.WriteFile(initOutputFile, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(configContent), 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
-	baseDir := filepath.Dir(initOutputFile)
-	appAdaptersDir := filepath.Join(baseDir, scaffoldRootDir, scaffoldAdaptersDir)
-	appToolDir := filepath.Join(baseDir, scaffoldRootDir, scaffoldToolsDir, "hello-world")
+	scaffoldBase := filepath.Dir(outputPath)
+	appAdaptersDir := filepath.Join(scaffoldBase, scaffoldRootDir, scaffoldAdaptersDir)
+	appToolDir := filepath.Join(scaffoldBase, scaffoldRootDir, scaffoldToolsDir, "hello-world")
 	if err := os.MkdirAll(appAdaptersDir, 0755); err != nil {
 		return fmt.Errorf("failed to create app adapters directory: %w", err)
 	}
@@ -101,12 +140,27 @@ export default async function outputTransform(payload: { results?: Row[] }) {
 		return fmt.Errorf("failed to write tool user-data-mapper.ts: %w", err)
 	}
 
-	fmt.Printf("✓ Created configuration file: %s\n", initOutputFile)
-	fmt.Printf("✓ Created adapter config: %s\n", filepath.Join(scaffoldRootDir, scaffoldAdaptersDir, "my-database.terse"))
-	fmt.Printf("✓ Created tool config: %s\n", filepath.Join(scaffoldRootDir, scaffoldToolsDir, "hello-world", "config.terse"))
+	displayBase := scaffoldBase
+	if displayBase == "." {
+		displayBase = ""
+	}
+	relAdapters := filepath.Join(scaffoldRootDir, scaffoldAdaptersDir, "my-database.terse")
+	relToolConfig := filepath.Join(scaffoldRootDir, scaffoldToolsDir, "hello-world", "config.terse")
+	if displayBase != "" {
+		relAdapters = filepath.Join(displayBase, relAdapters)
+		relToolConfig = filepath.Join(displayBase, relToolConfig)
+	}
+
+	fmt.Printf("✓ Created configuration file: %s\n", outputPath)
+	fmt.Printf("✓ Created adapter config: %s\n", relAdapters)
+	fmt.Printf("✓ Created tool config: %s\n", relToolConfig)
+	editPath := filepath.Join(scaffoldBase, scaffoldRootDir)
+	if editPath == filepath.Join(".", scaffoldRootDir) {
+		editPath = scaffoldRootDir
+	}
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  1. Edit %s and files under %s/%s + %s/%s\n", initOutputFile, scaffoldRootDir, scaffoldAdaptersDir, scaffoldRootDir, scaffoldToolsDir)
-	fmt.Printf("  2. Run: hyperterse start -f %s\n", initOutputFile)
+	fmt.Printf("  1. Edit %s and files under %s/%s + %s/%s\n", outputPath, editPath, scaffoldAdaptersDir, editPath, scaffoldToolsDir)
+	fmt.Printf("  2. Run: hyperterse start -f %s\n", outputPath)
 
 	return nil
 }
