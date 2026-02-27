@@ -25,6 +25,7 @@ connection_string: "{{ env.DATABASE_URL }}"
 ```
 
 ### Full Configuration
+
 ```yaml
 connector: postgres
 connection_string: postgresql://user:password@host:5432/database
