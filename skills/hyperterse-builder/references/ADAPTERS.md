@@ -36,6 +36,7 @@ options:
 ```
 
 ### SSL Modes
+
 | Mode | Description |
 |------|-------------|
 | `disable` | No SSL (development only) |
