@@ -2,6 +2,8 @@
 
 Adapters connect Hyperterse to databases. Each adapter is a `.terse` file in `app/adapters/`.
 
+The adapter name is derived from the filename (e.g., `main-db.terse` → `main-db`). You can optionally override with the `name` field.
+
 ## Supported Connectors
 
 | Connector | Database | Statement Format |
@@ -15,7 +17,6 @@ Adapters connect Hyperterse to databases. Each adapter is a `.terse` file in `ap
 
 ## PostgreSQL
 
-The adapter name is derived from the filename (e.g., `main-db.terse` → `main-db`). You can optionally override with the `name` field.
 
 ### Basic Configuration
 ```yaml
