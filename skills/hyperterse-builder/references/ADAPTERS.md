@@ -63,7 +63,6 @@ connector: postgres
 connection_string: "{{ env.DATABASE_URL }}"
 options:
   sslmode: require
-  max_connections: "25"
 ```
 
 **Supabase (`supabase.terse`):**
