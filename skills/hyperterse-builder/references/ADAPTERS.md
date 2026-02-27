@@ -45,9 +45,7 @@ options:
 | `verify-full` | SSL + verify CA + hostname |
 
 ### Connection String Format
-```
-postgresql://[user[:password]@][host][:port][/database][?param=value]
-```
+
 
 ### Examples
 
