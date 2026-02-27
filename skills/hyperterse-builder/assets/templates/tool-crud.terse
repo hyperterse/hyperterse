@@ -1,5 +1,5 @@
 # CRUD Tool Template
-# Place in app/tools/<resource>/<action>/config.terse
+# Place in app/tools/<tool-name>/config.terse
 
 # ============================================
 # GET - Fetch single record by ID
