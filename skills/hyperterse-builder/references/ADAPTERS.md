@@ -29,8 +29,7 @@ connector: postgres
 connection_string: postgresql://user:password@host:5432/database
 options:
   sslmode: disable          # disable, require, verify-ca, verify-full
-  max_connections: "10"
-  connect_timeout: "10"
+  connect_timeout: 10
   application_name: "hyperterse"
 ```
 
