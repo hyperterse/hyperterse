@@ -1,3 +1,20 @@
+# v2.1.0
+
+Timestamp: 2026-03-03
+
+## ✨ Features
+
+- **Init command folder support** — `hyperterse init` now accepts an optional folder name as argument; scaffolds into `<folder>/.hyperterse` by default
+- **Script-backed tool scaffolding** — Init command generates script-backed tool structure instead of adapter-based config; includes greeting handler example
+- **Agent skills documentation** — New agent skills directory with documentation for Hyperterse integration with AI agents
+
+## 🔧 Improvements
+
+- **Init output path logic** — Output file defaults to `<folder>/.hyperterse` when folder is specified; prompts for folder name when not provided
+- **Documentation updates** — Revised quickstart and CLI reference to reflect script-backed tools and new project structure
+
+---
+
 # v2.0.0
 
 Timestamp: 2026-02-24
