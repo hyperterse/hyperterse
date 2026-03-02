@@ -15,9 +15,8 @@ var (
 )
 
 const (
-	scaffoldRootDir     = "app"
-	scaffoldToolsDir    = "tools"
-	scaffoldAdaptersDir = "adapters"
+	scaffoldRootDir  = "app"
+	scaffoldToolsDir = "tools"
 )
 
 // initCmd represents the init command
@@ -93,34 +92,17 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	scaffoldBase := filepath.Dir(outputPath)
-	appAdaptersDir := filepath.Join(scaffoldBase, scaffoldRootDir, scaffoldAdaptersDir)
 	appToolDir := filepath.Join(scaffoldBase, scaffoldRootDir, scaffoldToolsDir, "hello-world")
-	if err := os.MkdirAll(appAdaptersDir, 0755); err != nil {
-		return fmt.Errorf("failed to create app adapters directory: %w", err)
-	}
 	if err := os.MkdirAll(appToolDir, 0755); err != nil {
 		return fmt.Errorf("failed to create app tool directory: %w", err)
 	}
 
-	adapterConfig := `connector: postgres
-connection_string: "postgresql://user:password@localhost:5432/dbname?sslmode=disable"
-options:
-  max_connections: "10"
-`
-	if err := os.WriteFile(filepath.Join(appAdaptersDir, "my-database.terse"), []byte(adapterConfig), 0644); err != nil {
-		return fmt.Errorf("failed to write adapter .terse: %w", err)
-	}
-
 	toolConfig := `description: "Hello world tool"
-use: my-database
-statement: |
-  SELECT first_name FROM users WHERE id = {{ inputs.userId }}
+handler: "./handler.ts"
 inputs:
-  userId:
-    type: int
-    description: "User ID provided by the agent."
-mappers:
-  output: "user-data-mapper.ts"
+  name:
+    type: string
+    description: "Name to greet."
 auth:
   plugin: allow_all
 `
@@ -128,39 +110,61 @@ auth:
 		return fmt.Errorf("failed to write tool config.terse: %w", err)
 	}
 
-	handlerTS := `type Row = Record<string, unknown>;
-
-export default async function outputTransform(payload: { results?: Row[] }) {
-  const row = payload?.results?.[0] ?? {};
-  const name = String(row.first_name ?? "there");
-  return ` + "`Hello ${name}!`" + `;
+	handlerTS := `export default function handler(payload: {
+  inputs: Record<string, unknown>
+  tool: string
+}) {
+  const name = String(payload.inputs?.name ?? "world");
+  return { message: ` + "`Hello, ${name}!`" + ` };
 }
 `
-	if err := os.WriteFile(filepath.Join(appToolDir, "user-data-mapper.ts"), []byte(handlerTS), 0644); err != nil {
-		return fmt.Errorf("failed to write tool user-data-mapper.ts: %w", err)
+	if err := os.WriteFile(filepath.Join(appToolDir, "handler.ts"), []byte(handlerTS), 0644); err != nil {
+		return fmt.Errorf("failed to write tool handler.ts: %w", err)
+	}
+
+	skillDir := filepath.Join(scaffoldBase, ".agent", "skills", "hyperterse-docs")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agent/skills/hyperterse-docs directory: %w", err)
+	}
+	skillContent := `---
+name: hyperterse-docs
+description: Hyperterse LLM integration docs. Use when building tools, adapters, or MCP integrations with Hyperterse.
+---
+
+# Hyperterse
+
+When working with Hyperterse tools, adapters, or MCP integrations, read the latest documentation from:
+
+**https://docs.hyperterse.com/llmx.txt**
+
+Fetch and use this content for accurate schema, configuration, and API reference.
+`
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
+		return fmt.Errorf("failed to write .agent/skills/hyperterse-docs/SKILL.md: %w", err)
 	}
 
 	displayBase := scaffoldBase
 	if displayBase == "." {
 		displayBase = ""
 	}
-	relAdapters := filepath.Join(scaffoldRootDir, scaffoldAdaptersDir, "my-database.terse")
 	relToolConfig := filepath.Join(scaffoldRootDir, scaffoldToolsDir, "hello-world", "config.terse")
+	relSkill := filepath.Join(".agent", "skills", "hyperterse-docs", "SKILL.md")
 	if displayBase != "" {
-		relAdapters = filepath.Join(displayBase, relAdapters)
 		relToolConfig = filepath.Join(displayBase, relToolConfig)
+		relSkill = filepath.Join(displayBase, relSkill)
 	}
 
 	fmt.Printf("✓ Created configuration file: %s\n", outputPath)
-	fmt.Printf("✓ Created adapter config: %s\n", relAdapters)
 	fmt.Printf("✓ Created tool config: %s\n", relToolConfig)
+	fmt.Printf("✓ Created agent skill: %s\n", relSkill)
 	editPath := filepath.Join(scaffoldBase, scaffoldRootDir)
 	if editPath == filepath.Join(".", scaffoldRootDir) {
 		editPath = scaffoldRootDir
 	}
 	fmt.Println("\nNext steps:")
-	fmt.Printf("  1. Edit %s and files under %s/%s + %s/%s\n", outputPath, editPath, scaffoldAdaptersDir, editPath, scaffoldToolsDir)
-	fmt.Printf("  2. Run: hyperterse start -f %s\n", outputPath)
+	fmt.Printf("  1. Edit %s and add tools under %s/%s\n", outputPath, editPath, scaffoldToolsDir)
+	fmt.Printf("  2. Add adapters in %s/adapters/ when you need database connections\n", editPath)
+	fmt.Printf("  3. Run: hyperterse start -f %s\n", outputPath)
 
 	return nil
 }
@@ -173,9 +177,6 @@ root: app
 
 tools:
   directory: tools
-
-adapters:
-  directory: adapters
 
 server:
   port: 8080

@@ -3,7 +3,7 @@ title: Quickstart
 description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
 ---
 
-This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a database-backed hello-world tool responding to `tools/call` requests.
+This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a script-backed hello-world tool responding to `tools/call` requests.
 
 ## Scaffold a project
 
@@ -15,20 +15,42 @@ This generates the starter structure:
 
 <Tree>
   <Tree.File name=".hyperterse" />
-  <Tree.Folder name="app" defaultOpen>
-    <Tree.Folder name="adapters" defaultOpen>
-      <Tree.File name="my-database.terse" />
+  <Tree.Folder
+    name=".agent"
+    defaultOpen
+  >
+    <Tree.Folder
+      name="skills"
+      defaultOpen
+    >
+      <Tree.Folder
+        name="hyperterse-docs"
+        defaultOpen
+      >
+        <Tree.File name="SKILL.md" />
+      </Tree.Folder>
     </Tree.Folder>
-    <Tree.Folder name="tools" defaultOpen>
-      <Tree.Folder name="hello-world" defaultOpen>
+  </Tree.Folder>
+  <Tree.Folder
+    name="app"
+    defaultOpen
+  >
+    <Tree.Folder
+      name="tools"
+      defaultOpen
+    >
+      <Tree.Folder
+        name="hello-world"
+        defaultOpen
+      >
         <Tree.File name="config.terse" />
-        <Tree.File name="user-data-mapper.ts" />
+        <Tree.File name="handler.ts" />
       </Tree.Folder>
     </Tree.Folder>
   </Tree.Folder>
 </Tree>
 
-`.hyperterse` is the root service configuration. `app/adapters/` holds database connection definitions. `app/tools/hello-world/` contains a DB-backed tool and its TypeScript output mapper.
+`.hyperterse` is the root service configuration. `app/tools/hello-world/` contains a script-backed tool. `.agent/skills/hyperterse-docs/` is an [Agent Skills](https://agentskills.io/home)-compliant skill that points agents to the Hyperterse docs. Add `app/adapters/` when you need database connections.
 
 ## Review the root configuration
 
@@ -90,44 +112,21 @@ The response contains a `tools` array with one entry per compiled tool. Each too
 Open `app/tools/hello-world/config.terse`:
 
 ```yaml
-description: "Hello world tool"
-use: my-database
-statement: |
-  SELECT first_name FROM users WHERE id = {{ inputs.userId }}
+description: 'Hello world tool'
+handler: './handler.ts'
 inputs:
-  userId:
-    type: int
-    description: "User ID provided by the agent."
-mappers:
-  output: "user-data-mapper.ts"
+  name:
+    type: string
+    description: 'Name to greet.'
 auth:
   plugin: allow_all
 ```
 
-This tool uses the `my-database` adapter, queries a user's first name from Postgres, and formats the response through `user-data-mapper.ts`.
+This is a script-backed tool — no adapter required. The handler returns a greeting. Add `app/adapters/` and DB-backed tools when you need database connections.
 
-## Configure the adapter and test hello-world
+## Test the tool
 
-The scaffolded project includes a placeholder adapter. Point it to a real database with a `users` table.
-
-### Configure the adapter
-
-Edit `app/adapters/my-database.terse`:
-
-```yaml
-connector: postgres
-connection_string: '{{ env.DATABASE_URL }}'
-```
-
-Set the environment variable:
-
-```bash
-export DATABASE_URL="postgresql://user:pass@localhost:5432/mydb"
-```
-
-### Test the tool
-
-Restart the server (or let `--watch` pick up the change), then call the scaffolded tool:
+Call the scaffolded tool:
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -137,7 +136,7 @@ curl -s -X POST http://localhost:8080/mcp \
     "method": "tools/call",
     "params": {
       "name": "hello-world",
-      "arguments": { "userId": 1 }
+      "arguments": { "name": "Hyperterse" }
     },
     "id": 3
   }' | jq

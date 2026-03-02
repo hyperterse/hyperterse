@@ -181,13 +181,34 @@ Without arguments, loads `.hyperterse` from the current directory.
 ### Output
 
 <Tree>
-  <Tree.Folder name="dist" defaultOpen>
-    <Tree.File name="hyperterse" comment="Runtime binary" />
-    <Tree.File name="model.bin" comment="Serialized manifest" />
-    <Tree.Folder name="build" defaultOpen>
-      <Tree.File name="vendor.js" comment="Shared dependency bundle" />
-      <Tree.Folder name="tools" defaultOpen>
-        <Tree.Folder name="<name>" defaultOpen>
+  <Tree.Folder
+    name="dist"
+    defaultOpen
+  >
+    <Tree.File
+      name="hyperterse"
+      comment="Runtime binary"
+    />
+    <Tree.File
+      name="model.bin"
+      comment="Serialized manifest"
+    />
+    <Tree.Folder
+      name="build"
+      defaultOpen
+    >
+      <Tree.File
+        name="vendor.js"
+        comment="Shared dependency bundle"
+      />
+      <Tree.Folder
+        name="tools"
+        defaultOpen
+      >
+        <Tree.Folder
+          name="<name>"
+          defaultOpen
+        >
           <Tree.File name="handler.js" />
           <Tree.File name="input_transform.js" />
           <Tree.File name="output_transform.js" />
@@ -256,12 +277,12 @@ hyperterse init
 
 ### Created files
 
-| Path                                        | Content                    |
-| ------------------------------------------- | -------------------------- |
-| `.hyperterse`                               | Root config with defaults  |
-| `app/adapters/my-database.terse`            | Placeholder adapter        |
-| `app/tools/hello-world/config.terse`        | Hello world DB-backed tool |
-| `app/tools/hello-world/user-data-mapper.ts` | Output data mapper         |
+| Path                                     | Content                             |
+| ---------------------------------------- | ----------------------------------- |
+| `.hyperterse`                            | Root config with defaults           |
+| `app/tools/hello-world/config.terse`     | Hello world script-backed tool      |
+| `app/tools/hello-world/handler.ts`       | TypeScript handler                  |
+| `.agent/skills/hyperterse-docs/SKILL.md` | Agent Skills skill pointing to docs |
 
 <Note>Does not overwrite existing files.</Note>
 
