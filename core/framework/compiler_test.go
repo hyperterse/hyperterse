@@ -324,3 +324,145 @@ statement: "SELECT 1"
 		t.Fatalf("expected single-adapter use error, got: %v", err)
 	}
 }
+
+func TestCompileProjectIfPresent_DiscoversAgentsWithInheritedToolAccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, ".hyperterse")
+
+	rootConfig := `name: test-service
+agents:
+  directory: bots
+  tool_access:
+    mode: allow_list
+    tools:
+      - weather
+`
+	if err := os.WriteFile(configPath, []byte(rootConfig), 0o644); err != nil {
+		t.Fatalf("failed to write root config: %v", err)
+	}
+
+	toolDir := filepath.Join(tmpDir, "app", "tools", "weather")
+	agentDir := filepath.Join(tmpDir, "app", "bots", "support")
+	if err := os.MkdirAll(toolDir, 0o755); err != nil {
+		t.Fatalf("failed to create tool dir: %v", err)
+	}
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatalf("failed to create agent dir: %v", err)
+	}
+
+	toolConfig := `description: "Weather tool"
+handler: "./handler.ts"
+`
+	if err := os.WriteFile(filepath.Join(toolDir, "config.terse"), []byte(toolConfig), 0o644); err != nil {
+		t.Fatalf("failed to write tool config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(toolDir, "handler.ts"), []byte("export default async () => []"), 0o644); err != nil {
+		t.Fatalf("failed to write handler script: %v", err)
+	}
+
+	agentConfig := `name: support
+description: "Support assistant"
+instruction: "Help users with support requests."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+tool_access:
+  mode: inherit
+`
+	if err := os.WriteFile(filepath.Join(agentDir, "config.terse"), []byte(agentConfig), 0o644); err != nil {
+		t.Fatalf("failed to write agent config: %v", err)
+	}
+
+	model := &hyperterse.Model{Name: "test-service"}
+	project, err := CompileProjectIfPresent(configPath, model)
+	if err != nil {
+		t.Fatalf("CompileProjectIfPresent returned error: %v", err)
+	}
+	if project == nil {
+		t.Fatalf("expected project to be discovered")
+	}
+	if len(project.Agents) != 1 {
+		t.Fatalf("expected one discovered agent, got %d", len(project.Agents))
+	}
+	if len(model.Agents) != 1 {
+		t.Fatalf("expected one agent in model, got %d", len(model.Agents))
+	}
+
+	agent := project.Agents["support"]
+	if agent == nil {
+		t.Fatalf("expected discovered agent 'support'")
+	}
+	if !agent.ToolAccess.Inherited {
+		t.Fatalf("expected agent tool access to inherit project default")
+	}
+	if agent.ToolAccess.EffectiveMode != AgentToolAccessModeAllowList {
+		t.Fatalf("expected effective tool access mode allow_list, got %q", agent.ToolAccess.EffectiveMode)
+	}
+	if len(agent.ToolAccess.EffectiveTools) != 1 || agent.ToolAccess.EffectiveTools[0] != "weather" {
+		t.Fatalf("expected inherited tool list [weather], got %#v", agent.ToolAccess.EffectiveTools)
+	}
+
+	compiledAgent := model.Agents[0]
+	if compiledAgent.ToolAccess == nil {
+		t.Fatalf("expected compiled agent tool access")
+	}
+	if compiledAgent.ToolAccess.Mode != string(AgentToolAccessModeAllowList) {
+		t.Fatalf("expected compiled mode allow_list, got %q", compiledAgent.ToolAccess.Mode)
+	}
+	if len(compiledAgent.ToolAccess.Tools) != 1 || compiledAgent.ToolAccess.Tools[0] != "weather" {
+		t.Fatalf("expected compiled allow_list tools [weather], got %#v", compiledAgent.ToolAccess.Tools)
+	}
+}
+
+func TestCompileProjectIfPresent_RejectsAgentAllowListUnknownTool(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, ".hyperterse")
+
+	rootConfig := `name: test-service
+`
+	if err := os.WriteFile(configPath, []byte(rootConfig), 0o644); err != nil {
+		t.Fatalf("failed to write root config: %v", err)
+	}
+
+	toolDir := filepath.Join(tmpDir, "app", "tools", "known-tool")
+	agentDir := filepath.Join(tmpDir, "app", "agents", "assistant")
+	if err := os.MkdirAll(toolDir, 0o755); err != nil {
+		t.Fatalf("failed to create tool dir: %v", err)
+	}
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatalf("failed to create agent dir: %v", err)
+	}
+
+	toolConfig := `description: "Known tool"
+handler: "./handler.ts"
+`
+	if err := os.WriteFile(filepath.Join(toolDir, "config.terse"), []byte(toolConfig), 0o644); err != nil {
+		t.Fatalf("failed to write tool config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(toolDir, "handler.ts"), []byte("export default async () => []"), 0o644); err != nil {
+		t.Fatalf("failed to write handler script: %v", err)
+	}
+
+	agentConfig := `name: assistant
+instruction: "Be helpful."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+tool_access:
+  mode: allow_list
+  tools:
+    - missing_tool
+`
+	if err := os.WriteFile(filepath.Join(agentDir, "config.terse"), []byte(agentConfig), 0o644); err != nil {
+		t.Fatalf("failed to write agent config: %v", err)
+	}
+
+	model := &hyperterse.Model{Name: "test-service"}
+	_, err := CompileProjectIfPresent(configPath, model)
+	if err == nil {
+		t.Fatalf("expected compile to fail when agent references unknown tool")
+	}
+	if !strings.Contains(err.Error(), "unknown tools") && !strings.Contains(err.Error(), "unknown tool") {
+		t.Fatalf("expected unknown tool validation error, got: %v", err)
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	runtimeAgents "github.com/hyperterse/hyperterse/core/runtime/agents"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
 	runtimeMCP "github.com/hyperterse/hyperterse/core/runtime/mcp"
@@ -36,6 +37,7 @@ type Runtime struct {
 	port             string
 	mux              *http.ServeMux
 	mcpAdapter       *runtimeMCP.Adapter
+	agentRegistry    *runtimeAgents.Registry
 	project          *framework.Project
 	shutdownCtx      context.Context
 	shutdownCancel   context.CancelFunc
@@ -93,6 +95,11 @@ func NewRuntime(model *hyperterse.Model, port string, serviceVersion string, opt
 	if err != nil {
 		_ = manager.CloseAll()
 		return nil, log.Errorf("failed to initialize mcp server adapter: %w", err)
+	}
+	runtimeInstance.agentRegistry, err = runtimeAgents.NewRegistry(runtimeInstance.model, runtimeInstance.engine)
+	if err != nil {
+		_ = manager.CloseAll()
+		return nil, log.Errorf("failed to initialize agent runtime adapter: %w", err)
 	}
 
 	log.Infof("Runtime initialized successfully")
@@ -184,6 +191,18 @@ func (r *Runtime) registerEndpoints() {
 	})))
 	utilityEndpoints = append(utilityEndpoints, "GET /heartbeat")
 
+	if r.agentRegistry != nil {
+		for _, agentName := range r.agentRegistry.Names() {
+			handler := r.agentRegistry.Handler(agentName)
+			if handler == nil {
+				continue
+			}
+			prefix := fmt.Sprintf("/agent/%s", agentName)
+			r.mux.Handle(prefix+"/", r.instrumentHandler(prefix, r.withCORS(http.StripPrefix(prefix, handler))))
+			utilityEndpoints = append(utilityEndpoints, fmt.Sprintf("POST %s/* (ADK REST)", prefix))
+		}
+	}
+
 	// Log all registered endpoints.
 	log.Infof("Endpoints registered: %d utility", len(utilityEndpoints))
 	log.Debugf("Utility endpoints:")
@@ -225,6 +244,11 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 		return log.Errorf("failed to rebuild mcp adapter: %w", err)
 	}
 	r.mcpAdapter = mcpAdapter
+	agentRegistry, err := runtimeAgents.NewRegistry(r.model, r.engine)
+	if err != nil {
+		return log.Errorf("failed to rebuild agent runtime adapter: %w", err)
+	}
+	r.agentRegistry = agentRegistry
 	log.Debugf("MCP server adapter recreated")
 
 	// Re-register endpoints (this will update the handlers).

@@ -41,5 +41,46 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 			return fmt.Errorf("tool '%s' requires exactly one of handler or use adapter binding", toolName)
 		}
 	}
+
+	for agentName, compiledAgent := range project.Agents {
+		if compiledAgent.Definition == nil {
+			return fmt.Errorf("agent '%s' did not compile an agent definition", agentName)
+		}
+		definition := compiledAgent.Definition
+		if definition.Name == "" {
+			return fmt.Errorf("agent '%s' is missing name", agentName)
+		}
+		if definition.Instruction == "" {
+			return fmt.Errorf("agent '%s' is missing instruction", agentName)
+		}
+		if definition.Model == nil {
+			return fmt.Errorf("agent '%s' is missing model configuration", agentName)
+		}
+		if definition.Model.Provider == "" {
+			return fmt.Errorf("agent '%s' is missing model.provider", agentName)
+		}
+		if definition.Model.Model == "" {
+			return fmt.Errorf("agent '%s' is missing model.model", agentName)
+		}
+		if definition.ToolAccess == nil {
+			return fmt.Errorf("agent '%s' is missing tool access configuration", agentName)
+		}
+		switch AgentToolAccessMode(definition.ToolAccess.Mode) {
+		case AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone:
+			// no-op
+		case AgentToolAccessModeAllowList:
+			if len(definition.ToolAccess.Tools) == 0 {
+				return fmt.Errorf("agent '%s' has allow_list tool access mode but empty tool list", agentName)
+			}
+		default:
+			return fmt.Errorf("agent '%s' has unsupported tool access mode %q", agentName, definition.ToolAccess.Mode)
+		}
+
+		for _, toolName := range definition.ToolAccess.Tools {
+			if _, exists := project.Tools[toolName]; !exists {
+				return fmt.Errorf("agent '%s' references unknown tool %q", agentName, toolName)
+			}
+		}
+	}
 	return nil
 }

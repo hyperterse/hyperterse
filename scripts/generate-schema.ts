@@ -48,6 +48,13 @@ const schemaBaseURL =
   "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema";
 const namePattern = "^[a-zA-Z][a-zA-Z0-9_-]*$";
 const toolNamePattern = "^[a-z][a-z0-9_-]*$";
+const rootAgentToolAccessModes = ["allow_all", "allow_none", "allow_list"] as const;
+const agentToolAccessModes = [
+  "inherit",
+  "allow_all",
+  "allow_none",
+  "allow_list",
+] as const;
 
 function inputSpecSchema(requireDefaultWhenOptional: boolean) {
   const typedDefaultRules: Array<Record<string, any>> = [
@@ -111,6 +118,35 @@ function inputSpecSchema(requireDefaultWhenOptional: boolean) {
     },
     required: ["type"],
     allOf,
+    additionalProperties: false,
+  };
+}
+
+function toolAccessPolicySchema(modes: readonly string[]) {
+  return {
+    type: "object" as const,
+    properties: {
+      mode: {
+        type: "string" as const,
+        enum: [...modes],
+      },
+      tools: {
+        type: "array" as const,
+        items: { type: "string" as const, pattern: toolNamePattern },
+        minItems: 1,
+        uniqueItems: true,
+      },
+    },
+    required: ["mode"],
+    allOf: [
+      {
+        if: {
+          properties: { mode: { const: "allow_list" } },
+          required: ["mode"],
+        },
+        then: { required: ["tools"] },
+      },
+    ],
     additionalProperties: false,
   };
 }
@@ -201,6 +237,23 @@ const rootSchema = {
           type: "string" as const,
           description: "Adapters directory relative to `root` (defaults to `adapters`).",
           minLength: 1,
+        },
+      },
+      additionalProperties: false,
+    },
+    agents: {
+      type: "object" as const,
+      description: "Agent discovery and default tool access settings.",
+      properties: {
+        directory: {
+          type: "string" as const,
+          description: "Agents directory relative to `root` (defaults to `agents`).",
+          minLength: 1,
+        },
+        tool_access: {
+          ...toolAccessPolicySchema(rootAgentToolAccessModes),
+          description:
+            "Default tool access policy for agents discovered from this project.",
         },
       },
       additionalProperties: false,
@@ -341,10 +394,71 @@ const toolSchema = {
   additionalProperties: false,
 };
 
+const agentSchema = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  $id: `${schemaBaseURL}/agent.terse.schema.json`,
+  title: "HyperterseAgentConfig",
+  description:
+    "Schema for agent-level `.terse` files. This schema validates declarative ADK-backed agent definitions.",
+  type: "object" as const,
+  properties: {
+    name: {
+      type: "string" as const,
+      description: "Agent name exposed under `/agent/{name}`.",
+      pattern: toolNamePattern,
+      minLength: 1,
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional agent description used in app listings.",
+      minLength: 1,
+    },
+    instruction: {
+      type: "string" as const,
+      description: "Primary model instruction for this agent.",
+      minLength: 1,
+    },
+    model: {
+      type: "object" as const,
+      description: "Model provider configuration for this agent.",
+      properties: {
+        provider: {
+          type: "string" as const,
+          description:
+            "Model provider identifier (for example: gemini, vertex, openai_compatible).",
+          minLength: 1,
+        },
+        model: {
+          type: "string" as const,
+          description: "Provider-specific model identifier.",
+          minLength: 1,
+        },
+        options: {
+          type: "object" as const,
+          description: "Provider-specific model options.",
+          additionalProperties: {
+            type: ["string", "number", "boolean"] as const,
+          },
+        },
+      },
+      required: ["provider", "model"],
+      additionalProperties: false,
+    },
+    tool_access: {
+      ...toolAccessPolicySchema(agentToolAccessModes),
+      description:
+        "Agent tool access policy. `inherit` uses project-level defaults from `.hyperterse`.",
+    },
+  },
+  required: ["name", "instruction", "model", "tool_access"],
+  additionalProperties: false,
+};
+
 const outputs = [
   { fileName: "root.terse.schema.json", schema: rootSchema },
   { fileName: "adapter.terse.schema.json", schema: adapterSchema },
   { fileName: "tool.terse.schema.json", schema: toolSchema },
+  { fileName: "agent.terse.schema.json", schema: agentSchema },
 ];
 
 for (const output of outputs) {

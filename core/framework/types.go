@@ -17,8 +17,11 @@ type Project struct {
 	AppDir       string
 	AdaptersDir  string
 	ToolsDir     string
+	AgentsDir    string
 	BuildDir     string
 	Tools        map[string]*Tool
+	Agents       map[string]*Agent
+	AgentToolAccessDefaults AgentToolAccessPolicy
 	VendorBundle string
 }
 
@@ -32,6 +35,15 @@ type Tool struct {
 	Scripts       ToolScripts
 	Auth          ToolAuth
 	BundleOutputs map[string]string
+}
+
+// Agent contains compiled metadata for a filesystem agent and associated proto definition.
+type Agent struct {
+	AgentName string
+	Directory string
+	TerseFile string
+	Definition *hyperterse.Agent
+	ToolAccess AgentToolAccessMetadata
 }
 
 // ToolScripts are optional script entrypoints declared by tool .terse files.
@@ -70,6 +82,26 @@ type AdapterFileConfig struct {
 	Options          map[string]any `yaml:"options"`
 }
 
+// AgentFileConfig is the schema for agent-level .terse files.
+type AgentFileConfig struct {
+	Name        string               `yaml:"name"`
+	Description string               `yaml:"description"`
+	Instruction string               `yaml:"instruction"`
+	Model       *agentModelSpec      `yaml:"model"`
+	ToolAccess  *agentToolAccessSpec `yaml:"tool_access"`
+}
+
+type agentModelSpec struct {
+	Provider string         `yaml:"provider"`
+	Model    string         `yaml:"model"`
+	Options  map[string]any `yaml:"options"`
+}
+
+type agentToolAccessSpec struct {
+	Mode  string   `yaml:"mode"`
+	Tools []string `yaml:"tools"`
+}
+
 type toolInputSpec struct {
 	Type        string `yaml:"type"`
 	Description string `yaml:"description"`
@@ -85,6 +117,28 @@ type toolMapperSpec struct {
 type toolAuthSpec struct {
 	Plugin string            `yaml:"plugin"`
 	Policy map[string]string `yaml:"policy"`
+}
+
+type AgentToolAccessMode string
+
+const (
+	AgentToolAccessModeInherit  AgentToolAccessMode = "inherit"
+	AgentToolAccessModeAllowAll AgentToolAccessMode = "allow_all"
+	AgentToolAccessModeAllowNone AgentToolAccessMode = "allow_none"
+	AgentToolAccessModeAllowList AgentToolAccessMode = "allow_list"
+)
+
+type AgentToolAccessPolicy struct {
+	Mode  AgentToolAccessMode
+	Tools []string
+}
+
+type AgentToolAccessMetadata struct {
+	DeclaredMode  AgentToolAccessMode
+	DeclaredTools []string
+	EffectiveMode AgentToolAccessMode
+	EffectiveTools []string
+	Inherited     bool
 }
 
 func normalizeToolSegment(segment string) string {

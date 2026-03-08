@@ -139,7 +139,7 @@ If a section is not applicable, you can mark it as N/A or remove it.
 - [ ] Invalid configurations produce helpful error messages
 - [ ] Schema validation works
 - [ ] Backward compatibility maintained (if applicable)
-- [ ] JSON schemas updated (`schema/root.terse.schema.json`, `schema/adapter.terse.schema.json`, `schema/tool.terse.schema.json`)
+- [ ] JSON schemas updated (`schema/root.terse.schema.json`, `schema/adapter.terse.schema.json`, `schema/tool.terse.schema.json`, `schema/agent.terse.schema.json`)
 - [ ] Configuration schema docs updated (`docs/reference/configuration-schemas.mdx`)
 
 ### Connector Changes
