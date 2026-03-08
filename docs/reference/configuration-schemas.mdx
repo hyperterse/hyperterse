@@ -3,13 +3,14 @@ title: Configuration schemas
 description: JSON Schema files for editor-time validation of .hyperterse and .terse configuration files.
 ---
 
-Hyperterse ships three role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
+Hyperterse ships four role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
 
 | Schema file                        | Target files               | Purpose                    |
 | ---------------------------------- | -------------------------- | -------------------------- |
 | `schema/root.terse.schema.json`    | `.hyperterse`              | Root service configuration |
 | `schema/adapter.terse.schema.json` | `app/adapters/*.terse`     | Adapter definitions        |
 | `schema/tool.terse.schema.json`    | `app/tools/*/config.terse` | Tool definitions           |
+| `schema/agent.terse.schema.json`   | `app/agents/*/config.terse` | Agent definitions          |
 
 ## Generation
 
@@ -34,7 +35,8 @@ Add to `.vscode/settings.json`:
   "yaml.schemas": {
     "schema/root.terse.schema.json": "**/.hyperterse",
     "schema/adapter.terse.schema.json": "**/adapters/*.terse",
-    "schema/tool.terse.schema.json": "**/tools/**/config.terse"
+    "schema/tool.terse.schema.json": "**/tools/**/config.terse",
+    "schema/agent.terse.schema.json": "**/agents/**/config.terse"
   }
 }
 ```
@@ -58,6 +60,9 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `tools.cache` — `enabled` (boolean), `ttl` (integer).
 - `tools.search.limit` — Integer (default: `10`) controlling max MCP `search` results.
 - `adapters.directory` — String (default: `adapters`).
+- `agents.directory` — String (default: `agents`).
+- `agents.tool_access.mode` — Enum: `allow_all`, `allow_none`, `allow_list`.
+- `agents.tool_access.tools` — Array of tool names; required when `mode=allow_list`.
 - `server.port` — Integer or string.
 - `server.log_level` — Integer, 1–4.
 - `build.out` / `build.out_dir` — String.
@@ -82,6 +87,25 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `cache` — `enabled`, `ttl`.
 - **Constraint:** exactly one of `use` or `handler` is required (enforced via `oneOf`).
 
+### Agent (`agent.terse.schema.json`)
+
+- `name` — Required string. Pattern: `^[a-z][a-z0-9_-]*$`.
+- `description` — Optional string.
+- `instruction` — Required string.
+- `model.provider` — Required string provider identifier.
+- `model.model` — Required provider-specific model name.
+- `model.options` — Optional scalar map (`string`/`number`/`boolean`) for provider options.
+- `tool_access` — Required object.
+- `tool_access.mode` — Enum: `inherit`, `allow_all`, `allow_none`, `allow_list`.
+- `tool_access.tools` — Optional array of tool names, required when `mode=allow_list`.
+
+## Role ownership
+
+- Root scope (`.hyperterse`) owns service-level defaults and discovery wiring (`root`, `tools`, `adapters`, `agents`).
+- Adapter scope (`app/adapters/*.terse`) owns connector and connection configuration.
+- Tool scope (`app/tools/**/config.terse`) owns execution/query behavior and auth/cache controls.
+- Agent scope (`app/agents/**/config.terse`) owns LLM runtime behavior (`instruction`, model, and tool access policy).
+
 ## Keeping schemas in sync
 
 When configuration shapes change, schemas and documentation must update in the same change:
@@ -89,4 +113,4 @@ When configuration shapes change, schemas and documentation must update in the s
 1. Regenerate schema artifacts in `schema/`.
 2. Update field definitions in reference documentation.
 3. Update `.vscode/settings.json` globs if file-role matching changed.
-4. Verify the change includes current schema files.
+4. Verify the change includes current schema files (`root`, `adapter`, `tool`, `agent`).

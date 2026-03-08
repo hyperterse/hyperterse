@@ -1,0 +1,150 @@
+---
+title: Tool access
+description: Practical playbooks for choosing and rolling out agent tool permissions.
+---
+
+This page focuses on **how to choose and roll out** tool permissions for agents safely.
+For exact field definitions, schema constraints, and every option, use
+[Agent configuration reference](/reference/agent-config).
+
+## Why this matters
+
+Tool permissions are where most production incidents happen:
+
+- agents can call more tools than intended
+- broad permissions can hide prompt mistakes
+- late permission validation can break deployments
+
+Hyperterse helps by resolving effective permissions at compile time, but you still need
+good policy design.
+
+## Use one of these playbooks
+
+### Playbook A: safest default (recommended)
+
+Use this when you're introducing agents into an existing system.
+
+```yaml .hyperterse
+agents:
+  tool_access:
+    mode: allow_none
+```
+
+Then grant access agent-by-agent:
+
+```yaml app/agents/refunds/config.terse
+name: refunds
+instruction: "Handle refund requests."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+tool_access:
+  mode: allow_list
+  tools:
+    - get-order-status
+    - issue-refund
+```
+
+Why this works:
+
+- no accidental broad access
+- explicit change review when a new tool is added
+- easy audit trail of agent capabilities
+
+### Playbook B: shared baseline for many agents
+
+Use this when multiple agents need the same small capability set.
+
+```yaml .hyperterse
+agents:
+  tool_access:
+    mode: allow_list
+    tools:
+      - get-order-status
+      - search-orders
+```
+
+Agents can inherit the baseline:
+
+```yaml app/agents/support/config.terse
+name: support
+instruction: "Answer support requests."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+tool_access:
+  mode: inherit
+```
+
+Override only when needed:
+
+```yaml app/agents/disputes/config.terse
+name: disputes
+instruction: "Handle dispute workflows."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+tool_access:
+  mode: allow_list
+  tools:
+    - get-order-status
+    - create-dispute
+```
+
+### Playbook C: broad access for internal-only agents
+
+Use this only for controlled internal workflows.
+
+```yaml app/agents/internal-ops/config.terse
+name: internal-ops
+instruction: "Support internal operations."
+model:
+  provider: vertex_ai
+  model: gemini-2.5-pro
+tool_access:
+  mode: allow_all
+```
+
+<Warning>
+  `allow_all` is convenient but high risk. Prefer explicit allowlists in production.
+</Warning>
+
+## Rollout checklist
+
+Before enabling an agent in production:
+
+1. Start from `allow_none` at root or a minimal shared allowlist.
+2. Grant only task-specific tools per agent.
+3. Verify no hidden dependency on undeclared tools.
+4. Test one successful and one denied tool path.
+5. Review changes to allowlists in code review.
+
+## Common mistakes
+
+### Mistake: using `allow_all` early
+
+This often hides prompt/tool routing problems until late.
+
+### Mistake: setting `allow_list` but forgetting one tool
+
+Compilation catches unknown tools and missing lists, but runtime behavior can still
+be confusing without tests.
+
+### Mistake: treating this page as schema docs
+
+This is intentionally guide-oriented. Use [Agent configuration reference](/reference/agent-config)
+for field-level specification.
+
+## Quick troubleshooting
+
+If a tool call is blocked unexpectedly:
+
+- check effective policy in the agent config (`inherit` vs override)
+- check root defaults in `.hyperterse`
+- confirm tool name matches discovered tool folder/name
+
+## Next steps
+
+- [Quickstart](/agents/quickstart)
+- [Runtime API](/agents/runtime-api)
+- [Agent configuration reference](/reference/agent-config)

@@ -1,0 +1,120 @@
+---
+title: Model providers
+description: Configure Gemini, Vertex AI, and OpenAI-compatible providers for declarative agents.
+---
+
+Hyperterse resolves model providers per agent from `model.provider`, `model.model`, and `model.options`.
+
+## Provider matrix
+
+| Provider value | Runtime target |
+| --- | --- |
+| `gemini`, `google_ai_studio` | Gemini via Google AI Studio |
+| `vertex`, `vertex_ai` | Gemini via Vertex AI |
+| `openai_compatible`, `openai` | OpenAI-compatible `/chat/completions` endpoint |
+
+## Option keys and env behavior
+
+| Key | Purpose |
+| --- | --- |
+| `api_key` | Inline API key (not recommended for production). |
+| `api_key_env` | Env var name containing API key. |
+| `base_url` | Base URL for OpenAI-compatible endpoint. |
+| `project` | Vertex project id override. |
+| `location` | Vertex location override. |
+
+## Gemini (Google AI Studio)
+
+```yaml
+model:
+  provider: gemini
+  model: gemini-2.5-flash
+  options:
+    api_key_env: GOOGLE_API_KEY
+```
+
+Supported auth options:
+
+- `api_key` (inline)
+- `api_key_env` (recommended)
+- fallback env: `GOOGLE_API_KEY`
+
+## Vertex AI
+
+```yaml
+model:
+  provider: vertex_ai
+  model: gemini-2.5-pro
+  options:
+    project: my-gcp-project
+    location: us-central1
+```
+
+Resolution behavior:
+
+- `project` option or env `GOOGLE_CLOUD_PROJECT`
+- `location` option or env `GOOGLE_CLOUD_LOCATION`, fallback `GOOGLE_CLOUD_REGION`
+- optional `api_key` / `api_key_env` support
+
+## OpenAI-compatible
+
+```yaml
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+  options:
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+```
+
+Resolution behavior:
+
+- `base_url` defaults to `https://api.openai.com/v1`
+- key from `api_key`, or `api_key_env`, or `OPENAI_API_KEY`
+
+## Production-safe examples
+
+### Gemini with env-managed key
+
+```yaml
+model:
+  provider: gemini
+  model: gemini-2.5-flash
+  options:
+    api_key_env: GOOGLE_API_KEY
+```
+
+### Vertex with explicit project/location
+
+```yaml
+model:
+  provider: vertex_ai
+  model: gemini-2.5-pro
+  options:
+    project: my-gcp-project
+    location: us-central1
+```
+
+### OpenAI-compatible with custom gateway
+
+```yaml
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+  options:
+    base_url: https://my-gateway.example.com/v1
+    api_key_env: OPENAI_API_KEY
+```
+
+## Recommended patterns
+
+- Keep secrets in env vars (`api_key_env`) instead of inline literals.
+- Pin `model` values deliberately per agent role (cheap vs reasoning-heavy).
+- Add one agent per workflow role rather than reusing a single all-purpose prompt.
+
+<Warning>
+  Avoid committing inline `api_key` values to source control. Prefer `api_key_env`
+  and managed secret injection in deployment.
+</Warning>
+
+For full agent shape, see [Agent configuration reference](/reference/agent-config) and [Quickstart](/agents/quickstart).

@@ -24,6 +24,11 @@ tools:
 adapters:
   directory: adapters
 
+agents:
+  directory: agents
+  tool_access:
+    mode: allow_none
+
 server:
   port: 8080
   log_level: 3
@@ -96,6 +101,32 @@ build:
   <Expandable title="properties">
     <ParamField body="directory" type="string" default="adapters">
       Adapters directory relative to `root`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="agents" type="object">
+  Agent discovery settings and project-level default tool access policy.
+
+  <Expandable title="properties">
+    <ParamField body="directory" type="string" default="agents">
+      Agents directory relative to `root`.
+    </ParamField>
+
+    <ParamField body="tool_access" type="object">
+      Default tool access policy for agents. Individual agents can override this
+      in `config.terse`.
+
+      <Expandable title="properties">
+        <ParamField body="mode" type="string" default="allow_none">
+          One of `allow_all`, `allow_none`, `allow_list`.
+        </ParamField>
+
+        <ParamField body="tools" type="string[]">
+          Required when `mode=allow_list`. Contains the allowed project tool
+          names.
+        </ParamField>
+      </Expandable>
     </ParamField>
   </Expandable>
 </ParamField>

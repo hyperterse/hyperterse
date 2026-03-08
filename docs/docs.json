@@ -58,6 +58,17 @@
             ]
           },
           {
+            "group": "Agents",
+            "icon": "robot",
+            "pages": [
+              "agents/overview",
+              "agents/quickstart",
+              "agents/tool-access",
+              "agents/runtime-api",
+              "agents/model-providers"
+            ]
+          },
+          {
             "group": "Runtime",
             "icon": "run",
             "pages": [
@@ -135,6 +146,7 @@
               "reference/root-config",
               "reference/adapter-config",
               "reference/tool-config",
+              "reference/agent-config",
               "reference/environment-variables",
               "reference/configuration-schemas"
             ]
