@@ -17,12 +17,12 @@ Provider values are normalized at runtime (lowercased; `-` converted to `_`).
 
 ## Option keys and env behavior
 
-| Key           | Used by                    | Behavior / fallback |
-| ------------- | -------------------------- | ------------------- |
-| `api_key`     | Gemini, Vertex, OpenAI-compatible | Inline key value. Supports `{{ env.VAR_NAME }}` substitution. If unset, runtime falls back to provider default env var. |
-| `base_url`    | OpenAI-compatible          | Base URL; defaults to `https://api.openai.com/v1` when unset. |
-| `project`     | Vertex                     | Vertex project id; fallback `GOOGLE_CLOUD_PROJECT`. |
-| `location`    | Vertex                     | Vertex location; fallback `GOOGLE_CLOUD_LOCATION`, then `GOOGLE_CLOUD_REGION`. |
+| Key        | Used by                           | Behavior / fallback                                                                                                     |
+| ---------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `api_key`  | Gemini, Vertex, OpenAI-compatible | Inline key value. Supports `{{ env.VAR_NAME }}` substitution. If unset, runtime falls back to provider default env var. |
+| `base_url` | OpenAI-compatible                 | Base URL; defaults to `https://api.openai.com/v1` when unset.                                                           |
+| `project`  | Vertex                            | Vertex project id; fallback `GOOGLE_CLOUD_PROJECT`.                                                                     |
+| `location` | Vertex                            | Vertex location; fallback `GOOGLE_CLOUD_LOCATION`, then `GOOGLE_CLOUD_REGION`.                                          |
 
 Model option string values support `{{ env.VAR_NAME }}` substitution at runtime model initialization.
 
@@ -64,7 +64,7 @@ model:
   model: gpt-4o-mini
   options:
     base_url: https://api.openai.com/v1
-    api_key: "{{ env.OPENAI_API_KEY }}"
+    api_key: '{{ env.OPENAI_API_KEY }}'
 ```
 
 Resolution behavior:
@@ -72,55 +72,61 @@ Resolution behavior:
 - `base_url` defaults to `https://api.openai.com/v1`
 - key from `api_key`, fallback `OPENAI_API_KEY`
 
-### OpenAI compatibility
+## Other popular providers
 
-From the runtime implementation, this bucket is based on **request/response contract**,
-not a hardcoded vendor list.
-
-#### Provider identifiers accepted by runtime
-
-After normalization (lowercase + `-` becomes `_`), Hyperterse accepts:
-
-- `openai_compatible` (canonical)
-- `openai` (alias)
-
-#### Adapter contract (what must match)
-
-Hyperterse's OpenAI-compatible adapter expects:
-
-- `POST {base_url}/chat/completions`
-- `Authorization: Bearer <token>`
-- OpenAI-style chat payload/response shape
-- OpenAI-style tool-call shape when tools are used
-
-#### What falls under this bucket
-
-A backend falls under this bucket if it satisfies the contract above. In practice, this
-usually means one of:
-
-- OpenAI's own API endpoint
-- provider endpoints exposing OpenAI Chat Completions compatibility
-- OpenAI-compatible gateways/proxies (for example LiteLLM)
-
-#### When you need a compatibility gateway
-
-Use a gateway when any of these differ:
-
-- endpoint path
-- auth requirements (for example non-Bearer or mandatory extra headers)
-- payload/response/tool-call schema
-
-#### Quick decision table
-
-| Check | Decision |
-| --- | --- |
-| Supports `/chat/completions`, Bearer auth, and OpenAI-style payloads? | Use `openai_compatible` directly. |
-| Any mismatch in path/auth/schema? | Put a compatibility gateway in front and use its `base_url`. |
+Direct means you can use `openai_compatible` with that provider's
+OpenAI-compatible endpoint directly. Indirect means you should put a compatibility
+gateway in front first.
 
 <Tip>
   For production, run a quick smoke test with your exact model and one tool call
   before rollout.
 </Tip>
+
+| Provider        |                                 Status |
+| --------------- | -------------------------------------: |
+| OpenAI Platform |    <Badge color="green">Direct</Badge> |
+| OpenRouter      |    <Badge color="green">Direct</Badge> |
+| Together AI     |    <Badge color="green">Direct</Badge> |
+| Groq            |    <Badge color="green">Direct</Badge> |
+| Fireworks AI    |    <Badge color="green">Direct</Badge> |
+| DeepSeek        |    <Badge color="green">Direct</Badge> |
+| Mistral         |    <Badge color="green">Direct</Badge> |
+| Perplexity      |    <Badge color="green">Direct</Badge> |
+| xAI             |    <Badge color="green">Direct</Badge> |
+| LiteLLM gateway |    <Badge color="green">Direct</Badge> |
+| Azure OpenAI    | <Badge color="yellow">Indirect</Badge> |
+| Anthropic       | <Badge color="yellow">Indirect</Badge> |
+| Gemini / Vertex | <Badge color="yellow">Indirect</Badge> |
+
+### OpenAI compatibility
+
+`openai_compatible` is defined by protocol behavior, not by vendor name.
+
+#### Accepted provider identifiers
+
+After normalization (lowercase, with `-` converted to `_`), runtime accepts:
+
+- `openai_compatible` (canonical)
+- `openai` (alias)
+
+#### Required protocol contract
+
+For direct integration, the target endpoint must support:
+
+- `POST {base_url}/chat/completions`
+- `Authorization: Bearer <token>`
+- OpenAI-compatible request/response payloads
+- OpenAI-compatible tool-call payloads when tools are enabled
+
+#### Direct vs indirect usage
+
+Use `openai_compatible` directly only when the contract above is satisfied.
+Use a compatibility gateway when any of these differ:
+
+- endpoint path
+- auth mechanism (for example non-Bearer or required custom headers)
+- payload/response/tool-call schema
 
 ## Production-safe examples
 
