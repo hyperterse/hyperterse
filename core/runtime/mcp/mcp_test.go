@@ -98,12 +98,8 @@ func TestAdapter_ListToolsSearchAndExecute(t *testing.T) {
 	if first["name"] != "get-orders" {
 		t.Fatalf("expected first search hit to be get-orders, got %#v", first["name"])
 	}
-	statement, ok := first["statement"].(string)
-	if !ok {
-		t.Fatalf("expected statement to be a string, got %T", first["statement"])
-	}
-	if statement == "" {
-		t.Fatalf("expected statement to be present in search result")
+	if _, exists := first["statement"]; exists {
+		t.Fatalf("did not expect statement in search result payload")
 	}
 	score, ok := first["relevance_score"].(float64)
 	if !ok {

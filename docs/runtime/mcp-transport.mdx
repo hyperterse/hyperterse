@@ -120,7 +120,7 @@ Typical flow:
     "content": [
       {
         "type": "text",
-        "text": "[{\"name\":\"get-orders\",\"relevance_score\":97,\"description\":\"Returns orders by status\",\"statement\":\"SELECT * FROM orders WHERE status = {{ inputs.status }}\",\"inputs\":[{\"name\":\"status\",\"type\":\"string\",\"optional\":false,\"description\":\"order status\"}]}]"
+        "text": "[{\"name\":\"get-orders\",\"relevance_score\":97,\"description\":\"Returns orders by status\",\"inputs\":[{\"name\":\"status\",\"type\":\"string\",\"optional\":false,\"description\":\"order status\"}]}]"
       }
     ]
   }
@@ -132,7 +132,6 @@ Each search hit includes:
 - `name`
 - `relevance_score` (integer `1..100`, higher = more relevant)
 - `description`
-- `statement`
 - `inputs`
 
 ### `execute` request
