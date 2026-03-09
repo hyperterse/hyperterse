@@ -7,21 +7,24 @@ Hyperterse resolves model providers per agent from `model.provider`, `model.mode
 
 ## Provider matrix
 
-| Provider value | Runtime target |
-| --- | --- |
-| `gemini`, `google_ai_studio` | Gemini via Google AI Studio |
-| `vertex`, `vertex_ai` | Gemini via Vertex AI |
+| Provider value                | Runtime target                                 |
+| ----------------------------- | ---------------------------------------------- |
+| `gemini`, `google_ai_studio`  | Gemini via Google AI Studio                    |
+| `vertex`, `vertex_ai`         | Gemini via Vertex AI                           |
 | `openai_compatible`, `openai` | OpenAI-compatible `/chat/completions` endpoint |
+
+Provider values are normalized at runtime (lowercased; `-` converted to `_`).
 
 ## Option keys and env behavior
 
-| Key | Purpose |
-| --- | --- |
-| `api_key` | Inline API key (not recommended for production). |
-| `api_key_env` | Env var name containing API key. |
-| `base_url` | Base URL for OpenAI-compatible endpoint. |
-| `project` | Vertex project id override. |
-| `location` | Vertex location override. |
+| Key           | Used by                    | Behavior / fallback |
+| ------------- | -------------------------- | ------------------- |
+| `api_key`     | Gemini, Vertex, OpenAI-compatible | Inline key value. Supports `{{ env.VAR_NAME }}` substitution. If unset, runtime falls back to provider default env var. |
+| `base_url`    | OpenAI-compatible          | Base URL; defaults to `https://api.openai.com/v1` when unset. |
+| `project`     | Vertex                     | Vertex project id; fallback `GOOGLE_CLOUD_PROJECT`. |
+| `location`    | Vertex                     | Vertex location; fallback `GOOGLE_CLOUD_LOCATION`, then `GOOGLE_CLOUD_REGION`. |
+
+Model option string values support `{{ env.VAR_NAME }}` substitution at runtime model initialization.
 
 ## Gemini (Google AI Studio)
 
@@ -29,15 +32,12 @@ Hyperterse resolves model providers per agent from `model.provider`, `model.mode
 model:
   provider: gemini
   model: gemini-2.5-flash
-  options:
-    api_key_env: GOOGLE_API_KEY
 ```
 
 Supported auth options:
 
-- `api_key` (inline)
-- `api_key_env` (recommended)
-- fallback env: `GOOGLE_API_KEY`
+- `api_key` (inline or `{{ env.VAR_NAME }}` substitution)
+- fallback env: `GOOGLE_API_KEY` (recommended)
 
 ## Vertex AI
 
@@ -54,7 +54,7 @@ Resolution behavior:
 
 - `project` option or env `GOOGLE_CLOUD_PROJECT`
 - `location` option or env `GOOGLE_CLOUD_LOCATION`, fallback `GOOGLE_CLOUD_REGION`
-- optional `api_key` / `api_key_env` support
+- optional `api_key` support, fallback `GOOGLE_API_KEY`
 
 ## OpenAI-compatible
 
@@ -64,13 +64,63 @@ model:
   model: gpt-4o-mini
   options:
     base_url: https://api.openai.com/v1
-    api_key_env: OPENAI_API_KEY
+    api_key: "{{ env.OPENAI_API_KEY }}"
 ```
 
 Resolution behavior:
 
 - `base_url` defaults to `https://api.openai.com/v1`
-- key from `api_key`, or `api_key_env`, or `OPENAI_API_KEY`
+- key from `api_key`, fallback `OPENAI_API_KEY`
+
+### OpenAI compatibility
+
+From the runtime implementation, this bucket is based on **request/response contract**,
+not a hardcoded vendor list.
+
+#### Provider identifiers accepted by runtime
+
+After normalization (lowercase + `-` becomes `_`), Hyperterse accepts:
+
+- `openai_compatible` (canonical)
+- `openai` (alias)
+
+#### Adapter contract (what must match)
+
+Hyperterse's OpenAI-compatible adapter expects:
+
+- `POST {base_url}/chat/completions`
+- `Authorization: Bearer <token>`
+- OpenAI-style chat payload/response shape
+- OpenAI-style tool-call shape when tools are used
+
+#### What falls under this bucket
+
+A backend falls under this bucket if it satisfies the contract above. In practice, this
+usually means one of:
+
+- OpenAI's own API endpoint
+- provider endpoints exposing OpenAI Chat Completions compatibility
+- OpenAI-compatible gateways/proxies (for example LiteLLM)
+
+#### When you need a compatibility gateway
+
+Use a gateway when any of these differ:
+
+- endpoint path
+- auth requirements (for example non-Bearer or mandatory extra headers)
+- payload/response/tool-call schema
+
+#### Quick decision table
+
+| Check | Decision |
+| --- | --- |
+| Supports `/chat/completions`, Bearer auth, and OpenAI-style payloads? | Use `openai_compatible` directly. |
+| Any mismatch in path/auth/schema? | Put a compatibility gateway in front and use its `base_url`. |
+
+<Tip>
+  For production, run a quick smoke test with your exact model and one tool call
+  before rollout.
+</Tip>
 
 ## Production-safe examples
 
@@ -80,8 +130,6 @@ Resolution behavior:
 model:
   provider: gemini
   model: gemini-2.5-flash
-  options:
-    api_key_env: GOOGLE_API_KEY
 ```
 
 ### Vertex with explicit project/location
@@ -103,18 +151,17 @@ model:
   model: gpt-4o-mini
   options:
     base_url: https://my-gateway.example.com/v1
-    api_key_env: OPENAI_API_KEY
 ```
 
 ## Recommended patterns
 
-- Keep secrets in env vars (`api_key_env`) instead of inline literals.
+- Keep secrets in provider default env vars (`OPENAI_API_KEY`, `GOOGLE_API_KEY`) instead of inline literals.
 - Pin `model` values deliberately per agent role (cheap vs reasoning-heavy).
 - Add one agent per workflow role rather than reusing a single all-purpose prompt.
 
 <Warning>
-  Avoid committing inline `api_key` values to source control. Prefer `api_key_env`
-  and managed secret injection in deployment.
+  Avoid committing inline `api_key` values to source control. Prefer provider
+  default env vars and managed secret injection in deployment.
 </Warning>
 
 For full agent shape, see [Agent configuration reference](/reference/agent-config) and [Quickstart](/agents/quickstart).

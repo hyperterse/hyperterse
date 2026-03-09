@@ -53,12 +53,14 @@ model:
   model: gpt-4o-mini
   options:
     base_url: "https://api.openai.com/v1"
-    api_key_env: OPENAI_API_KEY
 tool_access:
   mode: allow_list
   tools:
     - get-orders
 ```
+
+If you are unsure what `openai_compatible` covers, see
+[OpenAI compatibility](/agents/model-providers#openai-compatibility).
 
 ## Start runtime
 
