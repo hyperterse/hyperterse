@@ -1,3 +1,23 @@
+# v2.2.0
+
+Timestamp: 2026-03-10
+
+## ✨ Features
+
+- **Smarter MCP search relevance ranking** — Search scoring now adapts to the metadata each tool actually has, improving hit quality across SQL-backed and handler-only tools
+
+## 🔧 Improvements
+
+- **Handler-only tool relevance** — Handler-only tools no longer receive statement-based relevance from synthetic placeholder statements (for example, `SELECT 1`)
+- **Conversational query matching** — Token scoring now applies a soft miss penalty so intent-heavy natural language prompts rank more accurately
+- **Search ranking test coverage** — Added targeted tests for handler-only scoring, conversational queries, and active-weight normalization
+
+## Bug fixes
+
+- **Search payload shape update** — MCP search results no longer include `statement`; clients should rely on `name`, `description`, `relevance_score`, and `inputs`
+
+---
+
 # v2.1.0
 
 Timestamp: 2026-03-03
