@@ -12,9 +12,30 @@ import (
 const (
 	defaultSearchLimit = 10
 	searchNGramSize    = 3
+	// Conversational prompts often include filler words. Penalize unmatched query
+	// tokens softly so strong keyword matches are still ranked highly.
+	coverageMissPenalty = 0.10
 )
 
 type tokenSet map[string]struct{}
+
+// scoreComponent is one scoring signal in the final relevance computation.
+//
+// score:
+//   normalized similarity for this signal in [0..1]
+// weight:
+//   default importance before dynamic normalization
+// active:
+//   whether this signal should participate for the current tool
+//
+// Signals are marked inactive when the corresponding tool field is effectively
+// unavailable. Example: handler-only tools have no meaningful SQL statement,
+// so statement scoring is disabled entirely.
+type scoreComponent struct {
+	score  float64
+	weight float64
+	active bool
+}
 
 type searchHit struct {
 	Tool           *hyperterse.Tool
@@ -39,6 +60,8 @@ type toolSearchIndex struct {
 	entries []searchIndexEntry
 }
 
+// newToolSearchIndex precomputes normalized text, token sets, and n-grams for
+// each tool so runtime search only needs query-time scoring.
 func newToolSearchIndex(tools []*hyperterse.Tool) *toolSearchIndex {
 	index := &toolSearchIndex{
 		entries: make([]searchIndexEntry, 0, len(tools)),
@@ -51,6 +74,15 @@ func newToolSearchIndex(tools []*hyperterse.Tool) *toolSearchIndex {
 		nameText := normalizeText(tool.Name)
 		descriptionText := normalizeText(tool.Description)
 		statementText := normalizeText(tool.Statement)
+		// Handler-only tools (no adapter bindings) should not be ranked by SQL
+		// statement content because statements are synthetic placeholders
+		// (e.g., "SELECT 1") for executor compatibility.
+		//
+		// Clearing statementText here ensures statement tokens and statement bonus
+		// are both disabled downstream.
+		if len(tool.Use) == 0 {
+			statementText = ""
+		}
 		inputNamesText, inputDescriptionsText := normalizeInputText(tool.Inputs)
 		combinedText := strings.TrimSpace(strings.Join(
 			[]string{nameText, descriptionText, statementText, inputNamesText, inputDescriptionsText},
@@ -120,6 +152,16 @@ func (idx *toolSearchIndex) Search(query string, limit int) []searchHit {
 	return hits
 }
 
+// scoreEntry computes the per-tool raw relevance in [0..1] using:
+//   1) token-coverage signals across name/statement/inputs/description
+//   2) character n-gram similarity over combined metadata
+//   3) exact-substring bonus for full-query containment
+//
+// Important behavior:
+// - Components without real data are marked inactive and excluded from both
+//   numerator and denominator via weight normalization.
+// - This avoids penalizing tool types that naturally omit certain fields
+//   (e.g., handler-only tools with no adapter statement or inputs).
 func scoreEntry(query string, queryTokens []string, queryNGrams tokenSet, entry searchIndexEntry) float64 {
 	nameScore := coverageScore(queryTokens, entry.nameTokens)
 	descriptionScore := coverageScore(queryTokens, entry.descriptionTokens)
@@ -128,16 +170,22 @@ func scoreEntry(query string, queryTokens []string, queryNGrams tokenSet, entry 
 	inputDescriptionScore := coverageScore(queryTokens, entry.inputDescriptionTokens)
 	ngramScore := jaccardSimilarity(queryNGrams, entry.combinedNGrams)
 
-	raw := (nameScore * 0.30) +
-		(statementScore * 0.25) +
-		(inputNameScore * 0.18) +
-		(descriptionScore * 0.14) +
-		(inputDescriptionScore * 0.08) +
-		(ngramScore * 0.05)
+	raw := combineComponentScores([]scoreComponent{
+		{score: nameScore, weight: 0.30, active: len(entry.nameTokens) > 0},
+		{score: statementScore, weight: 0.25, active: len(entry.statementTokens) > 0},
+		{score: inputNameScore, weight: 0.18, active: len(entry.inputNameTokens) > 0},
+		{score: descriptionScore, weight: 0.14, active: len(entry.descriptionTokens) > 0},
+		{score: inputDescriptionScore, weight: 0.08, active: len(entry.inputDescriptionTokens) > 0},
+		{score: ngramScore, weight: 0.05, active: len(entry.combinedNGrams) > 0},
+	})
 
+	// Bonus stage prefers explicit full-query phrase containment, with priority:
+	// name > statement > description.
+	// Statement bonus is guarded by statementTokens so handler-only placeholders
+	// never accidentally receive statement credit.
 	if strings.Contains(entry.nameText, query) {
 		raw += 0.10
-	} else if strings.Contains(entry.statementText, query) {
+	} else if len(entry.statementTokens) > 0 && strings.Contains(entry.statementText, query) {
 		raw += 0.08
 	} else if strings.Contains(entry.descriptionText, query) {
 		raw += 0.03
@@ -149,6 +197,64 @@ func scoreEntry(query string, queryTokens []string, queryNGrams tokenSet, entry 
 	return raw
 }
 
+// combineComponentScores normalizes active component weights to sum to 1.0,
+// then returns the weighted sum of component scores.
+//
+// This makes weighting consistent across heterogeneous tools:
+// - if statement/input fields are absent, their weight is redistributed to the
+//   remaining active signals instead of reducing the final score ceiling.
+func combineComponentScores(components []scoreComponent) float64 {
+	normalizedComponents := normalizeActiveComponentWeights(components)
+	weightedScore := 0.0
+	for _, component := range normalizedComponents {
+		if !component.active {
+			continue
+		}
+		weightedScore += component.score * component.weight
+	}
+
+	return weightedScore
+}
+
+// normalizeActiveComponentWeights rescales only active component weights so
+// active weights sum to exactly 1.0.
+//
+// Inactive components are always forced to weight 0.
+// If no component is active, all weights remain 0 and the caller receives 0.
+func normalizeActiveComponentWeights(components []scoreComponent) []scoreComponent {
+	out := make([]scoreComponent, len(components))
+	copy(out, components)
+
+	totalWeight := 0.0
+	for _, component := range out {
+		if !component.active {
+			continue
+		}
+		totalWeight += component.weight
+	}
+
+	if totalWeight <= 0 {
+		for i := range out {
+			out[i].weight = 0
+		}
+		return out
+	}
+
+	for i := range out {
+		if !out[i].active {
+			out[i].weight = 0
+			continue
+		}
+		out[i].weight = out[i].weight / totalWeight
+	}
+
+	return out
+}
+
+// toRelevanceScore maps raw [0..1] to user-facing integer [1..100].
+//
+// We intentionally reserve 0 (never returned) to simplify clients that treat
+// 0 as "unset" and to keep every returned hit explicitly non-zero relevance.
 func toRelevanceScore(rawScore float64) int {
 	scaled := int(math.Round(rawScore*99)) + 1
 	if scaled < 1 {
@@ -236,12 +342,26 @@ func toTokenSet(tokens []string) tokenSet {
 	return out
 }
 
+// coverageScore measures token overlap quality between query and target.
+//
+// Match credit:
+// - exact token match:   +1.0
+// - partial token match: +0.6 (prefix/contains both directions)
+// - miss: no direct score, but contributes soft denominator penalty
+//
+// Final form:
+//   score / (score + misses * coverageMissPenalty)
+//
+// This "soft miss penalty" handles conversational queries better than dividing
+// by query token count. Strong intent tokens (e.g., "weather") remain dominant
+// even when prompts include filler language.
 func coverageScore(queryTokens []string, target tokenSet) float64 {
 	if len(queryTokens) == 0 || len(target) == 0 {
 		return 0
 	}
 
 	score := 0.0
+	misses := 0.0
 	for _, queryToken := range queryTokens {
 		if _, exact := target[queryToken]; exact {
 			score += 1
@@ -249,12 +369,25 @@ func coverageScore(queryTokens []string, target tokenSet) float64 {
 		}
 		if hasPartialTokenMatch(queryToken, target) {
 			score += 0.6
+			continue
 		}
+		misses += 1
 	}
 
-	return score / float64(len(queryTokens))
+	if score <= 0 {
+		return 0
+	}
+
+	denominator := score + (misses * coverageMissPenalty)
+	if denominator <= 0 {
+		return 0
+	}
+
+	return score / denominator
 }
 
+// hasPartialTokenMatch allows fuzzy lexical overlap without a full edit-distance
+// engine. It is intentionally simple and fast for small metadata vocabularies.
 func hasPartialTokenMatch(queryToken string, target tokenSet) bool {
 	for token := range target {
 		if strings.HasPrefix(token, queryToken) ||
@@ -267,6 +400,8 @@ func hasPartialTokenMatch(queryToken string, target tokenSet) bool {
 	return false
 }
 
+// buildNGramSet creates character-level n-grams over whitespace-collapsed text.
+// N-grams provide resilience when tokenization alone misses similarity.
 func buildNGramSet(value string, n int) tokenSet {
 	if value == "" {
 		return nil
@@ -288,6 +423,7 @@ func buildNGramSet(value string, n int) tokenSet {
 	return out
 }
 
+// jaccardSimilarity computes intersection/union over n-gram sets.
 func jaccardSimilarity(a, b tokenSet) float64 {
 	if len(a) == 0 || len(b) == 0 {
 		return 0
