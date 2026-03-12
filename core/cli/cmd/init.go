@@ -122,25 +122,29 @@ auth:
 		return fmt.Errorf("failed to write tool handler.ts: %w", err)
 	}
 
-	skillDir := filepath.Join(scaffoldBase, ".agent", "skills", "hyperterse-docs")
+	skillDir := filepath.Join(scaffoldBase, ".agents", "skills", "hyperterse-docs")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .agent/skills/hyperterse-docs directory: %w", err)
+		return fmt.Errorf("failed to create .agents/skills/hyperterse-docs directory: %w", err)
 	}
 	skillContent := `---
 name: hyperterse-docs
 description: Hyperterse LLM integration docs. Use when building tools, adapters, or MCP integrations with Hyperterse.
 ---
 
+This entire project is built with Hyperterse - the declarative and performant MCP framework.
+
+You are an expert at building tools, adapters, and MCP integrations with Hyperterse. You are well versed with
+
 # Hyperterse
 
 When working with Hyperterse tools, adapters, or MCP integrations, read the latest documentation from:
 
-**https://docs.hyperterse.com/llmx.txt**
+**https://docs.hyperterse.com/llms.txt**
 
 Fetch and use this content for accurate schema, configuration, and API reference.
 `
 	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
-		return fmt.Errorf("failed to write .agent/skills/hyperterse-docs/SKILL.md: %w", err)
+		return fmt.Errorf("failed to write .agents/skills/hyperterse-docs/SKILL.md: %w", err)
 	}
 
 	displayBase := scaffoldBase
@@ -148,7 +152,7 @@ Fetch and use this content for accurate schema, configuration, and API reference
 		displayBase = ""
 	}
 	relToolConfig := filepath.Join(scaffoldRootDir, scaffoldToolsDir, "hello-world", "config.terse")
-	relSkill := filepath.Join(".agent", "skills", "hyperterse-docs", "SKILL.md")
+	relSkill := filepath.Join(".agents", "skills", "hyperterse-docs", "SKILL.md")
 	if displayBase != "" {
 		relToolConfig = filepath.Join(displayBase, relToolConfig)
 		relSkill = filepath.Join(displayBase, relSkill)
@@ -164,22 +168,22 @@ Fetch and use this content for accurate schema, configuration, and API reference
 	fmt.Println("\nNext steps:")
 	fmt.Printf("  1. Edit %s and add tools under %s/%s\n", outputPath, editPath, scaffoldToolsDir)
 	fmt.Printf("  2. Add adapters in %s/adapters/ when you need database connections\n", editPath)
-	fmt.Printf("  3. Run: hyperterse start -f %s\n", outputPath)
+	fmt.Printf("  3. Run: hyperterse start")
 
 	return nil
 }
 
 func generateConfigTemplate() string {
 	return `name: my-service
-version: 1.0.0
+
+server:
+  port: 8080
+  log_level: 3
 
 root: app
 
 tools:
   directory: tools
 
-server:
-  port: 8080
-  log_level: 3
 `
 }
