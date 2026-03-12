@@ -1,3 +1,4 @@
+<!-- Start of - Dont change this block -->
 <div align="center">
   <picture>
     <img alt="Hyperterse - connect your data to your agents." src="docs/assets/og.png" />
@@ -22,21 +23,28 @@
 
 ---
 
-Hyperterse turns tool configs into callable tools, with:
+<!-- End of - Dont change this block -->
 
-- filesystem-based tool discovery,
-- pluggable adapters (Postgres, MySQL, MongoDB, Redis),
-- optional scripts for transforms and handlers,
-- MCP runtime exposure over Streamable HTTP.
+Hyperterse is a **tool-first MCP framework** for building AI-ready backend surfaces from declarative config.
 
-## What Hyperterse is
+You define tools and adapters in the filesystem, and Hyperterse handles compile-time validation, script bundling, runtime execution, auth, caching, and observability.
 
-- **Tool-first MCP framework**: each tool config compiles into a tool.
-- **Declarative runtime**: root config + adapter files + tool files.
-- **Extensible execution pipeline**: auth -> input transform -> execute -> output transform.
-- **Embedded scripting**: script hooks run in a sandboxed runtime; bundled at compile time.
+## What Hyperterse is for
 
-## Quick start
+- Exposing database queries and custom logic as MCP tools
+- Running a production MCP server over Streamable HTTP
+- Keeping tool definitions declarative while still supporting TypeScript handlers/transforms
+
+## Core capabilities
+
+- **Filesystem discovery**: each `app/tools/*/config.terse` becomes one project tool.
+- **Execution models**: DB-backed tools (`use` + `statement`) or script-backed tools (`handler`).
+- **Database adapters**: PostgreSQL, MySQL, MongoDB, Redis.
+- **Per-tool auth**: built-in `allow_all` and `api_key`, plus custom plugins.
+- **In-memory caching**: global defaults + per-tool overrides.
+- **Observability**: OpenTelemetry tracing/metrics + structured logging.
+
+## Quick Start
 
 ### Install
 
@@ -50,93 +58,103 @@ curl -fsSL https://hyperterse.com/install | bash
 hyperterse init
 ```
 
-This scaffolds:
+Generated starter structure:
 
-- `.hyperterse`
-- `app/adapters/my-database.terse`
-- `app/tools/hello-world/config.terse`
-- `app/tools/hello-world/user-data-mapper.ts`
+```text
+.
+├── .hyperterse
+├── .agent/
+│   └── skills/
+│       └── hyperterse-docs/
+│           └── SKILL.md
+└── app/
+    └── tools/
+        └── hello-world/
+            ├── config.terse
+            └── handler.ts
+```
 
-### Run
+### Start
 
 ```bash
 hyperterse start
 ```
 
-With hot reload:
+With live reload:
 
 ```bash
 hyperterse start --watch
 ```
 
-### Test
+### Verify health
 
 ```bash
 curl http://localhost:8080/heartbeat
 ```
 
+Expected response:
+
+```json
+{ "success": true }
+```
+
+### 5) List MCP entry tools
+
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -s -X POST http://localhost:8080/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
     "method": "tools/list",
     "id": 1
-  }'
+  }' | jq
 ```
 
-## Project structure
+By design, Hyperterse exposes two transport-layer tools:
 
-```text
-my-project/
-  .hyperterse
-  app/
-    adapters/
-      main-db.terse
-    tools/
-      get-user/
-        config.terse
-        input.ts
-        output.ts
-      get-weather/
-        config.terse
-        handler.ts
+- `search` - discover project tools by natural language
+- `execute` - execute a project tool by name
+
+### 6) Discover project tools
+
+```bash
+curl -s -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "search",
+      "arguments": {
+        "query": "hello world greeting"
+      }
+    },
+    "id": 2
+  }' | jq
 ```
 
-## Tool examples
+Search hits include `name`, `description`, `relevance_score`, and `inputs`.
 
-### DB-backed tool
+### Execute a project tool
 
-```yaml
-description: "Get user by id"
-use: main-db
-statement: |
-  SELECT id, name, email
-  FROM users
-  WHERE id = {{ inputs.user_id }}
-inputs:
-  user_id:
-    type: int
+```bash
+curl -s -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "execute",
+      "arguments": {
+        "tool": "hello-world",
+        "inputs": { "name": "Hyperterse" }
+      }
+    },
+    "id": 3
+  }' | jq
 ```
 
-### Script-backed tool
-
-```yaml
-description: "Get weather"
-handler: "./weather-handler.ts"
-```
-
-## CLI commands
-
-- `start` - run runtime from config
-- `serve` - run from a compiled artifact
-- `build` - produce a deployable artifact
-- `validate` - validate config and tool scripts
-- `init` - scaffold starter project
-- `upgrade` - upgrade installed binary
-- `completion` - shell completion helper
-
-## Build and deploy
+### Validate and build
 
 ```bash
 hyperterse validate
@@ -144,15 +162,75 @@ hyperterse build -o dist
 hyperterse serve dist/
 ```
 
-The `dist/` output includes everything needed to run in production.
+## Configuration model
 
-## Configuration highlights
+### Project layout
 
-- root config: `.hyperterse`
-- adapter files: `app/adapters/*.terse`
-- tool files: `app/tools/*/config.terse`
+```text
+my-project/
+├── .hyperterse
+├── app/
+│   ├── adapters/
+│   │   └── primary-db.terse
+│   └── tools/
+│       ├── get-user/
+│       │   ├── config.terse
+│       │   ├── input.ts
+│       │   └── output.ts
+│       └── get-weather/
+│           ├── config.terse
+│           └── handler.ts
+└── package.json
+```
 
-Supported primitive types:
+### Root config (`.hyperterse`)
+
+```yaml
+name: my-service
+server:
+  port: 8080
+  log_level: 3
+tools:
+  search:
+    limit: 10
+  cache:
+    enabled: true
+    ttl: 60
+```
+
+## Tool Examples
+
+### DB-backed tool
+
+```yaml
+description: "Get user by ID"
+use: primary-db
+statement: |
+  SELECT id, name, email
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+inputs:
+  user_id:
+    type: int
+auth:
+  plugin: api_key
+  policy:
+    value: "{{ env.API_KEY }}"
+```
+
+### Script-backed tool
+
+```yaml
+description: "Get weather by city"
+handler: "./handler.ts"
+inputs:
+  city:
+    type: string
+auth:
+  plugin: allow_all
+```
+
+Supported input types:
 
 - `string`
 - `int`
@@ -160,17 +238,51 @@ Supported primitive types:
 - `boolean`
 - `datetime`
 
-## Security note
+Each tool must define exactly one execution mode:
 
-Hyperterse validates typed inputs, but statement placeholder substitution (`{{ inputs.x }}`) is raw string replacement. Use strict tool input constraints and safe query patterns for production.
+- `use` (adapter-backed), or
+- `handler` (script-backed)
+
+## Runtime model
+
+All tool interaction happens through MCP Streamable HTTP at `/mcp` (JSON-RPC 2.0).
+
+Execution pipeline:
+
+1. Tool resolution
+2. Authentication
+3. Input transform (optional)
+4. Execution (DB or handler)
+5. Output transform (optional)
+6. Response serialization
+
+## Security notes
+
+- Use `{{ env.VAR_NAME }}` for secrets and connection strings.
+- `{{ inputs.field }}` statement substitution is textual; enforce strict input schemas and safe query patterns.
+- Configure tool-level auth explicitly for production use.
+
+## Documentation map
+
+- [Documentation index (`llms.txt`)](https://docs.hyperterse.com/llms.txt)
+- [Introduction](https://docs.hyperterse.com/introduction)
+- [Quickstart](https://docs.hyperterse.com/quickstart)
+- [Project structure](https://docs.hyperterse.com/concepts/project-structure)
+- [Tools](https://docs.hyperterse.com/concepts/tools)
+- [Adapters](https://docs.hyperterse.com/concepts/adapters)
+- [Scripts](https://docs.hyperterse.com/concepts/scripts)
+- [MCP transport](https://docs.hyperterse.com/runtime/mcp-transport)
+- [Execution pipeline](https://docs.hyperterse.com/runtime/execution-pipeline)
+- [CLI reference](https://docs.hyperterse.com/reference/cli)
+- [Configuration schemas](https://docs.hyperterse.com/reference/configuration-schemas)
 
 ## Contributing
 
-1. Fork the repo
-2. Create a feature branch
-3. Add or update tests
-4. Run validation/lint/test locally
-5. Open a PR
+1. Fork the repo.
+2. Create a feature branch.
+3. Add or update tests.
+4. Run validation locally.
+5. Open a PR.
 
 See `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
 
