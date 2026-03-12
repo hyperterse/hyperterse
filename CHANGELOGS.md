@@ -1,3 +1,18 @@
+# v2.2.1
+
+Timestamp: 2026-03-12
+
+## Bug fixes
+
+- **Init command directory path** — Fixed directory references from `.agent` to `.agents` when scaffolding for Hyperterse integration with AI agents
+
+## 🔧 Improvements
+
+- **Agent skills documentation** — Updated the documentation link in SKILL.md to point to the correct resource
+- **Init output messaging** — Revised the output message for running the Hyperterse command after scaffolding
+
+---
+
 # v2.2.0
 
 Timestamp: 2026-03-10
