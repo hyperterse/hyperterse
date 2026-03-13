@@ -261,6 +261,14 @@ func isInteractive() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
+// DimText renders text in dim style when output is interactive.
+func DimText(text string) string {
+	if text == "" || !isInteractive() {
+		return text
+	}
+	return colorDim + text + colorReset
+}
+
 // formatLogEntry formats a log entry according to the new format
 // Format: TIMESTAMP  LEVEL  TAG: message
 func (l *Logger) formatLogEntry(level int, levelChar string, levelColor string, levelBgColor string, message string) string {

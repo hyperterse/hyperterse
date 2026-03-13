@@ -11,18 +11,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	adkmodel "google.golang.org/adk/model"
 	"google.golang.org/genai"
 )
 
 type openAICompatibleModel struct {
+	agentName  string
 	name       string
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
 }
 
-func newOpenAICompatibleModel(modelName, baseURL, apiKey string, httpClient *http.Client) (adkmodel.LLM, error) {
+func newOpenAICompatibleModel(agentName, modelName, baseURL, apiKey string, httpClient *http.Client) (adkmodel.LLM, error) {
 	normalizedModel := strings.TrimSpace(modelName)
 	if normalizedModel == "" {
 		return nil, fmt.Errorf("model name is required for openai_compatible provider")
@@ -35,6 +38,7 @@ func newOpenAICompatibleModel(modelName, baseURL, apiKey string, httpClient *htt
 		httpClient = &http.Client{Timeout: 45 * time.Second}
 	}
 	return &openAICompatibleModel{
+		agentName:  strings.TrimSpace(agentName),
 		name:       normalizedModel,
 		baseURL:    normalizedBaseURL,
 		apiKey:     strings.TrimSpace(apiKey),
@@ -61,18 +65,54 @@ func (m *openAICompatibleModel) generateContentOnce(
 	ctx context.Context,
 	req *adkmodel.LLMRequest,
 ) (*adkmodel.LLMResponse, error) {
+	log := logger.New("agents.model.openai")
+	baseAttrs := map[string]any{
+		observability.AttrAgentName:          m.agentName,
+		observability.AttrAgentModelProvider: "openai_compatible",
+		observability.AttrAgentModelName:     m.name,
+	}
 	requestPayload, err := m.buildRequest(req)
 	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "request_build_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "Failed to build OpenAI-compatible request")
 		return nil, err
 	}
 
 	body, err := json.Marshal(requestPayload)
 	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "request_encode_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "Failed to encode OpenAI-compatible request")
 		return nil, fmt.Errorf("failed to marshal openai-compatible request: %w", err)
 	}
+	log.DebugfCtx(ctx, baseAttrs, "Calling OpenAI-compatible model")
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName:          m.agentName,
+		observability.AttrAgentModelProvider: "openai_compatible",
+		observability.AttrAgentModelName:     m.name,
+		"endpoint":                           m.baseURL + "/chat/completions",
+		"message_count":                      len(requestPayload.Messages),
+		"tool_count":                         len(requestPayload.Tools),
+	}, "OpenAI-compatible request prepared")
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, m.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "request_construction_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "Failed to construct OpenAI-compatible request")
 		return nil, fmt.Errorf("failed to build openai-compatible request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -81,29 +121,91 @@ func (m *openAICompatibleModel) generateContentOnce(
 		httpReq.Header.Set("Authorization", "Bearer "+m.apiKey)
 	}
 
+	start := time.Now()
 	resp, err := m.httpClient.Do(httpReq)
 	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "request_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "OpenAI-compatible model request failed")
 		return nil, fmt.Errorf("openai-compatible request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "response_read_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "Failed reading OpenAI-compatible model response")
 		return nil, fmt.Errorf("failed reading openai-compatible response body: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "non_success_status",
+			observability.AttrErrorMessage:       fmt.Sprintf("status=%s", resp.Status),
+			observability.AttrHTTPStatusCode:     resp.StatusCode,
+			"response_body":                      truncateForLog(strings.TrimSpace(string(respBody)), 240),
+		}, "OpenAI-compatible model returned non-success status")
 		return nil, fmt.Errorf("openai-compatible model returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
 	}
 
 	var parsed openAICompletionResponse
 	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "response_decode_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "Failed parsing OpenAI-compatible model response")
 		return nil, fmt.Errorf("failed parsing openai-compatible response: %w", err)
 	}
 	if len(parsed.Choices) == 0 {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "empty_choices",
+			observability.AttrErrorMessage:       "response contained no choices",
+		}, "OpenAI-compatible response contained no choices")
 		return nil, fmt.Errorf("openai-compatible response returned no choices")
 	}
 
-	return convertOpenAIChoiceToLLMResponse(parsed.Choices[0])
+	log.InfofCtx(ctx, map[string]any{
+		observability.AttrAgentName:          m.agentName,
+		observability.AttrAgentModelProvider: "openai_compatible",
+		observability.AttrAgentModelName:     m.name,
+		"duration_ms":                        time.Since(start).Milliseconds(),
+	}, "OpenAI-compatible model call completed")
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName:          m.agentName,
+		observability.AttrAgentModelProvider: "openai_compatible",
+		observability.AttrAgentModelName:     m.name,
+		"choice_count":                       len(parsed.Choices),
+	}, "Parsed OpenAI-compatible model response")
+
+	response, err := convertOpenAIChoiceToLLMResponse(parsed.Choices[0])
+	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:          m.agentName,
+			observability.AttrAgentModelProvider: "openai_compatible",
+			observability.AttrAgentModelName:     m.name,
+			observability.AttrErrorType:          "response_conversion_failed",
+			observability.AttrErrorMessage:       err.Error(),
+		}, "Failed converting OpenAI-compatible model response")
+		return nil, err
+	}
+	return response, nil
 }
 
 func (m *openAICompatibleModel) buildRequest(req *adkmodel.LLMRequest) (*openAICompletionRequest, error) {
@@ -386,6 +488,16 @@ type openAIChoice struct {
 type openAIMessageResponse struct {
 	Content   string           `json:"content"`
 	ToolCalls []openAIToolCall `json:"tool_calls"`
+}
+
+func truncateForLog(value string, maxLen int) string {
+	if maxLen <= 0 {
+		return ""
+	}
+	if len(value) <= maxLen {
+		return value
+	}
+	return value[:maxLen] + "...(truncated)"
 }
 
 var _ adkmodel.LLM = (*openAICompatibleModel)(nil)

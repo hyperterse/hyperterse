@@ -21,7 +21,7 @@ func TestResolveAgentModel_SubstitutesModelOptionEnvVars(t *testing.T) {
 		},
 	}
 
-	llm, err := resolveAgentModel(context.Background(), cfg)
+	llm, err := resolveAgentModel(context.Background(), "assistant", cfg)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -46,7 +46,7 @@ func TestResolveAgentModel_FailsWhenModelOptionEnvMissing(t *testing.T) {
 		},
 	}
 
-	_, err := resolveAgentModel(context.Background(), cfg)
+	_, err := resolveAgentModel(context.Background(), "assistant", cfg)
 	if err == nil {
 		t.Fatalf("expected error when env substitution is missing")
 	}

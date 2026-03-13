@@ -1,8 +1,10 @@
 package agents
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
@@ -19,6 +21,8 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/hyperterse/hyperterse/core/framework"
+	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	protoprimitives "github.com/hyperterse/hyperterse/core/proto/primitives"
 	"github.com/hyperterse/hyperterse/core/types"
@@ -33,17 +37,21 @@ type Registry struct {
 }
 
 func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, error) {
+	log := logger.New("agents")
 	if model == nil {
 		return nil, fmt.Errorf("agent registry requires model")
 	}
+	log.Debugf("Initializing agent registry")
 
 	registry := &Registry{
 		handlers: map[string]http.Handler{},
 		names:    []string{},
 	}
 	if len(model.Agents) == 0 {
+		log.Debugf("No agent definitions found")
 		return registry, nil
 	}
+	log.Debugf("Preparing %d agent definition(s)", len(model.Agents))
 
 	toolDefinitions := make(map[string]*hyperterse.Tool, len(model.Tools))
 	for _, toolDef := range model.Tools {
@@ -57,6 +65,7 @@ func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, 
 		if agentDef == nil {
 			continue
 		}
+		log.Debugf("Registering agent runtime: %s", agentDef.Name)
 		if _, exists := registry.handlers[agentDef.Name]; exists {
 			return nil, fmt.Errorf("duplicate agent definition %q", agentDef.Name)
 		}
@@ -66,8 +75,11 @@ func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, 
 		}
 		registry.handlers[agentDef.Name] = handler
 		registry.names = append(registry.names, agentDef.Name)
+		log.Debugf("Registered agent handler: %s", agentDef.Name)
 	}
 	sort.Strings(registry.names)
+	log.Infof("Agent registry initialized successfully")
+	log.Debugf("Mounted agent runtimes: %v", registry.names)
 
 	return registry, nil
 }
@@ -93,22 +105,25 @@ func newAgentHandler(
 	toolDefinitions map[string]*hyperterse.Tool,
 	engine *framework.Engine,
 ) (http.Handler, error) {
+	log := logger.New("agents")
 	if agentDef == nil {
 		return nil, fmt.Errorf("agent definition is nil")
 	}
 	if agentDef.Model == nil {
 		return nil, fmt.Errorf("model config is required")
 	}
+	log.Debugf("Building runtime handler for agent: %s", agentDef.Name)
 
-	modelLLM, err := resolveAgentModel(context.Background(), agentDef.Model)
+	modelLLM, err := resolveAgentModel(context.Background(), agentDef.Name, agentDef.Model)
 	if err != nil {
 		return nil, err
 	}
 
-	tools, err := buildToolBridges(agentDef.ToolAccess, toolDefinitions, engine)
+	tools, err := buildToolBridges(agentDef.Name, agentDef.ToolAccess, toolDefinitions, engine)
 	if err != nil {
 		return nil, err
 	}
+	log.Debugf("Agent %s has %d bridged tool(s)", agentDef.Name, len(tools))
 
 	adkRuntimeAgent, err := llmagent.New(llmagent.Config{
 		Name:        agentDef.Name,
@@ -126,18 +141,23 @@ func newAgentHandler(
 		SessionService: adksession.InMemoryService(),
 	}
 
-	return adkrest.NewHandler(cfg, defaultSSEWriteTimeout), nil
+	handler := adkrest.NewHandler(cfg, defaultSSEWriteTimeout)
+	log.Infof("Agent runtime ready: %s", agentDef.Name)
+	return withAgentRequestLogging(agentDef.Name, handler), nil
 }
 
 func buildToolBridges(
+	agentName string,
 	toolAccess *hyperterse.AgentToolAccessConfig,
 	toolDefinitions map[string]*hyperterse.Tool,
 	engine *framework.Engine,
 ) ([]adktool.Tool, error) {
+	log := logger.New("agents")
 	if toolAccess == nil {
 		return nil, fmt.Errorf("agent tool access is required")
 	}
 	if len(toolAccess.Tools) == 0 {
+		log.Debugf("Agent %s configured with no tool access", agentName)
 		return []adktool.Tool{}, nil
 	}
 	if engine == nil {
@@ -157,15 +177,18 @@ func buildToolBridges(
 			return nil, fmt.Errorf("tool %q was not found in project model", toolName)
 		}
 		bridges = append(bridges, &hyperterseToolBridge{
+			agentName:  agentName,
 			name:       toolName,
 			definition: toolDef,
 			engine:     engine,
 		})
+		log.Debugf("Agent %s granted tool: %s", agentName, toolName)
 	}
 	return bridges, nil
 }
 
 type hyperterseToolBridge struct {
+	agentName  string
 	name       string
 	definition *hyperterse.Tool
 	engine     *framework.Engine
@@ -231,19 +254,52 @@ func (t *hyperterseToolBridge) ProcessRequest(_ adktool.Context, req *adkmodel.L
 }
 
 func (t *hyperterseToolBridge) Run(ctx adktool.Context, args any) (map[string]any, error) {
+	log := logger.New("agents.tool")
+	baseAttrs := map[string]any{
+		observability.AttrAgentName: t.agentName,
+		observability.AttrToolName:  t.name,
+	}
+	log.DebugfCtx(ctx, baseAttrs, "Agent tool call started: %s", t.name)
+
 	inputs := map[string]any{}
 	if args != nil {
 		typed, ok := args.(map[string]any)
 		if !ok {
+			log.WarnfCtx(ctx, map[string]any{
+				observability.AttrAgentName: t.agentName,
+				observability.AttrToolName:  t.name,
+				observability.AttrErrorType: "invalid_tool_args",
+				observability.AttrErrorMessage: fmt.Sprintf(
+					"unexpected args type %T",
+					args,
+				),
+			}, "Agent tool call failed: invalid args for %s", t.name)
 			return nil, fmt.Errorf("unexpected tool args type %T for %q", args, t.name)
 		}
 		inputs = typed
 	}
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName: t.agentName,
+		observability.AttrToolName:  t.name,
+		"input_count":               len(inputs),
+	}, "Agent tool call inputs prepared")
 
 	rows, err := t.engine.Execute(ctx, t.name, inputs)
 	if err != nil {
+		log.WarnfCtx(ctx, map[string]any{
+			observability.AttrAgentName:    t.agentName,
+			observability.AttrToolName:     t.name,
+			observability.AttrErrorType:    "tool_execution_failed",
+			observability.AttrErrorMessage: err.Error(),
+		}, "Agent tool call failed: %s", t.name)
 		return nil, err
 	}
+	log.InfofCtx(ctx, baseAttrs, "Agent tool call completed: %s", t.name)
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName: t.agentName,
+		observability.AttrToolName:  t.name,
+		"result_count":              len(rows),
+	}, "Agent tool call returned rows")
 	return map[string]any{"result": rows}, nil
 }
 
@@ -317,6 +373,85 @@ func parseInputDefaultValue(input *hyperterse.Input) any {
 		}
 	}
 	return raw
+}
+
+type agentStatusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *agentStatusRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (r *agentStatusRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (r *agentStatusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response writer does not support hijacking")
+	}
+	return hijacker.Hijack()
+}
+
+func (r *agentStatusRecorder) Push(target string, opts *http.PushOptions) error {
+	if pusher, ok := r.ResponseWriter.(http.Pusher); ok {
+		return pusher.Push(target, opts)
+	}
+	return http.ErrNotSupported
+}
+
+func (r *agentStatusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
+func withAgentRequestLogging(agentName string, next http.Handler) http.Handler {
+	log := logger.New("agents.http")
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		endpoint := fmt.Sprintf("/agent/%s%s", agentName, req.URL.Path)
+		if req.URL.RawQuery != "" {
+			endpoint = endpoint + "?" + req.URL.RawQuery
+		}
+		startAttrs := map[string]any{
+			observability.AttrAgentName:    agentName,
+			observability.AttrHTTPMethod:   req.Method,
+			observability.AttrHTTPEndpoint: endpoint,
+		}
+		log.DebugfCtx(req.Context(), startAttrs, "Agent endpoint requested: %s %s", logger.DimText(req.Method), endpoint)
+		log.DebugfCtx(req.Context(), map[string]any{
+			observability.AttrAgentName:    agentName,
+			observability.AttrHTTPMethod:   req.Method,
+			observability.AttrHTTPEndpoint: endpoint,
+			"user_agent":                   req.UserAgent(),
+			"remote_addr":                  req.RemoteAddr,
+			"content_type":                 req.Header.Get("Content-Type"),
+			"content_length":               req.ContentLength,
+		}, "Agent request metadata")
+
+		recorder := &agentStatusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(recorder, req)
+
+		durationMS := time.Since(start).Milliseconds()
+		completionAttrs := map[string]any{
+			observability.AttrAgentName:      agentName,
+			observability.AttrHTTPMethod:     req.Method,
+			observability.AttrHTTPEndpoint:   endpoint,
+			observability.AttrHTTPStatusCode: recorder.statusCode,
+			"duration_ms":                    durationMS,
+		}
+
+		if recorder.statusCode >= 500 {
+			log.WarnfCtx(req.Context(), completionAttrs, "Agent endpoint failed: %s %s status=%d duration=%dms", logger.DimText(req.Method), endpoint, recorder.statusCode, durationMS)
+			return
+		}
+		log.InfofCtx(req.Context(), completionAttrs, "Agent endpoint completed: %s %s status=%d duration=%dms", logger.DimText(req.Method), endpoint, recorder.statusCode, durationMS)
+	})
 }
 
 var _ adktool.Tool = (*hyperterseToolBridge)(nil)

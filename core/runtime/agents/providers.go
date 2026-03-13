@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hyperterse/hyperterse/core/logger"
+	"github.com/hyperterse/hyperterse/core/observability"
 	adkmodel "google.golang.org/adk/model"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
@@ -14,7 +16,8 @@ import (
 	runtimeutils "github.com/hyperterse/hyperterse/core/runtime/utils"
 )
 
-func resolveAgentModel(ctx context.Context, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveAgentModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+	log := logger.New("agents.model")
 	if cfg == nil {
 		return nil, fmt.Errorf("agent model config is required")
 	}
@@ -25,16 +28,30 @@ func resolveAgentModel(ctx context.Context, cfg *hyperterse.AgentModelConfig) (a
 	cfg.Options = resolvedOptions
 
 	provider := normalizeProviderName(cfg.Provider)
+	attrs := map[string]any{
+		observability.AttrAgentName:          agentName,
+		observability.AttrAgentModelProvider: provider,
+		observability.AttrAgentModelName:     strings.TrimSpace(cfg.Model),
+	}
+	log.DebugfCtx(ctx, attrs, "Resolving model provider for agent: %s", agentName)
+
+	var model adkmodel.LLM
 	switch provider {
 	case "gemini", "google_ai_studio":
-		return resolveGeminiModel(ctx, cfg)
+		model, err = resolveGeminiModel(ctx, agentName, cfg)
 	case "vertex", "vertex_ai":
-		return resolveVertexModel(ctx, cfg)
+		model, err = resolveVertexModel(ctx, agentName, cfg)
 	case "openai_compatible", "openai":
-		return resolveOpenAICompatibleModel(cfg)
+		model, err = resolveOpenAICompatibleModel(ctx, agentName, cfg)
 	default:
 		return nil, fmt.Errorf("unsupported agent model provider %q", cfg.Provider)
 	}
+	if err != nil {
+		log.WarnfCtx(ctx, attrs, "Failed to resolve model provider for agent %s: %v", agentName, err)
+		return nil, err
+	}
+	log.InfofCtx(ctx, attrs, "Resolved model provider for agent: %s", agentName)
+	return model, nil
 }
 
 func substituteModelOptionEnvVars(options map[string]string) (map[string]string, error) {
@@ -52,14 +69,20 @@ func substituteModelOptionEnvVars(options map[string]string) (map[string]string,
 	return resolved, nil
 }
 
-func resolveGeminiModel(ctx context.Context, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveGeminiModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+	log := logger.New("agents.model")
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName:          agentName,
+		observability.AttrAgentModelProvider: normalizeProviderName(cfg.Provider),
+		observability.AttrAgentModelName:     strings.TrimSpace(cfg.Model),
+	}, "Configuring Gemini model for agent: %s", agentName)
 	clientConfig := &genai.ClientConfig{
 		APIKey: resolveSecretOption(cfg.Options, "api_key", "GOOGLE_API_KEY"),
 	}
 	return gemini.NewModel(ctx, cfg.Model, clientConfig)
 }
 
-func resolveVertexModel(ctx context.Context, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveVertexModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
 	clientConfig := &genai.ClientConfig{
 		Backend: genai.BackendVertexAI,
 	}
@@ -75,16 +98,33 @@ func resolveVertexModel(ctx context.Context, cfg *hyperterse.AgentModelConfig) (
 	if apiKey := resolveSecretOption(cfg.Options, "api_key", "GOOGLE_API_KEY"); apiKey != "" {
 		clientConfig.APIKey = apiKey
 	}
+	log := logger.New("agents.model")
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName:          agentName,
+		observability.AttrAgentModelProvider: normalizeProviderName(cfg.Provider),
+		observability.AttrAgentModelName:     strings.TrimSpace(cfg.Model),
+		"project":                            clientConfig.Project,
+		"location":                           clientConfig.Location,
+		"api_key_present":                    clientConfig.APIKey != "",
+	}, "Configuring Vertex AI model for agent: %s", agentName)
 	return gemini.NewModel(ctx, cfg.Model, clientConfig)
 }
 
-func resolveOpenAICompatibleModel(cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveOpenAICompatibleModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
 	baseURL := strings.TrimSpace(resolveMapOption(cfg.Options, "base_url"))
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
 	apiKey := resolveSecretOption(cfg.Options, "api_key", "OPENAI_API_KEY")
-	return newOpenAICompatibleModel(cfg.Model, baseURL, apiKey, nil)
+	log := logger.New("agents.model")
+	log.DebugfCtx(ctx, map[string]any{
+		observability.AttrAgentName:          agentName,
+		observability.AttrAgentModelProvider: normalizeProviderName(cfg.Provider),
+		observability.AttrAgentModelName:     strings.TrimSpace(cfg.Model),
+		"base_url":                           baseURL,
+		"api_key_present":                    apiKey != "",
+	}, "Configuring OpenAI-compatible model for agent: %s", agentName)
+	return newOpenAICompatibleModel(agentName, cfg.Model, baseURL, apiKey, nil)
 }
 
 func normalizeProviderName(provider string) string {

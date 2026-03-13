@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -166,8 +167,14 @@ func (r *Runtime) registerEndpoints() {
 
 	log.Infof("Registering endpoints")
 
-	// Track endpoints for logging.
-	var utilityEndpoints []string
+	// Track endpoints for startup logging.
+	systemEndpoints := []string{}
+	mcpEndpoints := []string{}
+	type agentEndpointGroup struct {
+		name    string
+		entries []string
+	}
+	agentEndpointGroups := []agentEndpointGroup{}
 
 	mcpHTTPHandler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
 		if r.mcpAdapter == nil {
@@ -177,7 +184,11 @@ func (r *Runtime) registerEndpoints() {
 	}, &mcpsdk.StreamableHTTPOptions{})
 
 	r.mux.Handle("/mcp", r.instrumentHandler("/mcp", r.withCORS(mcpHTTPHandler)))
-	utilityEndpoints = append(utilityEndpoints, "GET/POST/DELETE /mcp (MCP SDK Streamable HTTP)")
+	mcpEndpoints = append(mcpEndpoints,
+		"GET /mcp",
+		"POST /mcp",
+		"DELETE /mcp",
+	)
 
 	// Heartbeat endpoint for health checks
 	r.mux.Handle("/heartbeat", r.instrumentHandler("/heartbeat", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -189,7 +200,7 @@ func (r *Runtime) registerEndpoints() {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"success":true}`)
 	})))
-	utilityEndpoints = append(utilityEndpoints, "GET /heartbeat")
+	systemEndpoints = append(systemEndpoints, "GET /heartbeat")
 
 	if r.agentRegistry != nil {
 		for _, agentName := range r.agentRegistry.Names() {
@@ -199,15 +210,36 @@ func (r *Runtime) registerEndpoints() {
 			}
 			prefix := fmt.Sprintf("/agent/%s", agentName)
 			r.mux.Handle(prefix+"/", r.instrumentHandler(prefix, r.withCORS(http.StripPrefix(prefix, handler))))
-			utilityEndpoints = append(utilityEndpoints, fmt.Sprintf("POST %s/* (ADK REST)", prefix))
+			agentEndpointGroups = append(agentEndpointGroups, agentEndpointGroup{
+				name:    agentName,
+				entries: runtimeAgents.RuntimeEndpointLogEntries(agentName),
+			})
 		}
 	}
 
-	// Log all registered endpoints.
-	log.Infof("Endpoints registered: %d utility", len(utilityEndpoints))
-	log.Debugf("Utility endpoints:")
-	for _, endpoint := range utilityEndpoints {
-		log.Debugf("  %s", endpoint)
+	totalAgentEndpoints := 0
+	for _, group := range agentEndpointGroups {
+		totalAgentEndpoints += len(group.entries)
+	}
+
+	// Log all registered endpoints grouped by domain.
+	log.Infof("Endpoints registered: %d total", len(systemEndpoints)+len(mcpEndpoints)+totalAgentEndpoints)
+	log.Infof("System endpoints:")
+	for _, endpoint := range systemEndpoints {
+		log.Infof("  %s", dimEndpointMethod(endpoint))
+	}
+	log.Infof("MCP endpoints:")
+	for _, endpoint := range mcpEndpoints {
+		log.Infof("  %s", dimEndpointMethod(endpoint))
+	}
+	if len(agentEndpointGroups) > 0 {
+		log.Infof("Agent endpoints:")
+		for _, group := range agentEndpointGroups {
+			log.Infof("  %s agent", group.name)
+			for _, endpoint := range group.entries {
+				log.Infof("    %s", dimEndpointMethod(endpoint))
+			}
+		}
 	}
 }
 
@@ -390,4 +422,12 @@ func (rt *Runtime) instrumentHandler(endpoint string, next http.Handler) http.Ha
 			span.SetStatus(codes.Error, "server_error")
 		}
 	})
+}
+
+func dimEndpointMethod(endpoint string) string {
+	parts := strings.SplitN(strings.TrimSpace(endpoint), " ", 2)
+	if len(parts) != 2 {
+		return endpoint
+	}
+	return logger.DimText(parts[0]) + " " + parts[1]
 }
