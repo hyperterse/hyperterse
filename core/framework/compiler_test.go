@@ -414,6 +414,75 @@ tool_access:
 	}
 }
 
+func TestCompileProjectIfPresent_AgentToolAccessDefaultsToInherit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, ".hyperterse")
+
+	rootConfig := `name: test-service
+`
+	if err := os.WriteFile(configPath, []byte(rootConfig), 0o644); err != nil {
+		t.Fatalf("failed to write root config: %v", err)
+	}
+
+	toolDir := filepath.Join(tmpDir, "app", "tools", "weather")
+	agentDir := filepath.Join(tmpDir, "app", "agents", "assistant")
+	if err := os.MkdirAll(toolDir, 0o755); err != nil {
+		t.Fatalf("failed to create tool dir: %v", err)
+	}
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatalf("failed to create agent dir: %v", err)
+	}
+
+	toolConfig := `description: "Weather tool"
+handler: "./handler.ts"
+`
+	if err := os.WriteFile(filepath.Join(toolDir, "config.terse"), []byte(toolConfig), 0o644); err != nil {
+		t.Fatalf("failed to write tool config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(toolDir, "handler.ts"), []byte("export default async () => []"), 0o644); err != nil {
+		t.Fatalf("failed to write handler script: %v", err)
+	}
+
+	agentConfig := `name: assistant
+instruction: "Be helpful."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+`
+	if err := os.WriteFile(filepath.Join(agentDir, "config.terse"), []byte(agentConfig), 0o644); err != nil {
+		t.Fatalf("failed to write agent config: %v", err)
+	}
+
+	model := &hyperterse.Model{Name: "test-service"}
+	project, err := CompileProjectIfPresent(configPath, model)
+	if err != nil {
+		t.Fatalf("CompileProjectIfPresent returned error: %v", err)
+	}
+	if project == nil {
+		t.Fatalf("expected project to be discovered")
+	}
+	if len(project.Agents) != 1 {
+		t.Fatalf("expected one discovered agent, got %d", len(project.Agents))
+	}
+
+	agent := project.Agents["assistant"]
+	if agent == nil {
+		t.Fatalf("expected discovered agent 'assistant'")
+	}
+	if agent.ToolAccess.DeclaredMode != AgentToolAccessModeInherit {
+		t.Fatalf("expected declared mode inherit when tool_access is omitted, got %q", agent.ToolAccess.DeclaredMode)
+	}
+	if !agent.ToolAccess.Inherited {
+		t.Fatalf("expected agent tool access to inherit project default")
+	}
+	if agent.ToolAccess.EffectiveMode != AgentToolAccessModeAllowAll {
+		t.Fatalf("expected effective mode allow_all (project default), got %q", agent.ToolAccess.EffectiveMode)
+	}
+	if len(agent.ToolAccess.EffectiveTools) != 1 || agent.ToolAccess.EffectiveTools[0] != "weather" {
+		t.Fatalf("expected inherited effective tools [weather], got %#v", agent.ToolAccess.EffectiveTools)
+	}
+}
+
 func TestCompileProjectIfPresent_RejectsAgentAllowListUnknownTool(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, ".hyperterse")

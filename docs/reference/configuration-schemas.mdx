@@ -95,7 +95,7 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `model.provider` — Required string provider identifier.
 - `model.model` — Required provider-specific model name.
 - `model.options` — Optional scalar map (`string`/`number`/`boolean`) for provider options.
-- `tool_access` — Required object.
+- `tool_access` — Optional object. Defaults to `inherit` when omitted.
 - `tool_access.mode` — Enum: `inherit`, `allow_all`, `allow_none`, `allow_list`.
 - `tool_access.tools` — Optional array of tool names, required when `mode=allow_list`.
 

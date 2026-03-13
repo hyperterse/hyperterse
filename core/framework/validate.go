@@ -22,10 +22,8 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 		return nil
 	}
 
-	// v2 path: ensure at least one tool exists and each tool has exactly one
-	// execution mode.
-	if len(project.Tools) == 0 {
-		return fmt.Errorf("project root exists but no tool .terse files were discovered")
+	if len(project.Tools) == 0 && len(project.Agents) == 0 {
+		return fmt.Errorf("project root exists but no tool or agent .terse files were discovered")
 	}
 	for toolName, tool := range project.Tools {
 		if tool.Definition == nil {
@@ -62,18 +60,17 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 		if definition.Model.Model == "" {
 			return fmt.Errorf("agent '%s' is missing model.model", agentName)
 		}
-		if definition.ToolAccess == nil {
-			return fmt.Errorf("agent '%s' is missing tool access configuration", agentName)
-		}
-		switch AgentToolAccessMode(definition.ToolAccess.Mode) {
-		case AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone:
-			// no-op
-		case AgentToolAccessModeAllowList:
-			if len(definition.ToolAccess.Tools) == 0 {
-				return fmt.Errorf("agent '%s' has allow_list tool access mode but empty tool list", agentName)
+		if definition.ToolAccess != nil {
+			switch AgentToolAccessMode(definition.ToolAccess.Mode) {
+			case AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone, AgentToolAccessModeInherit:
+				// no-op
+			case AgentToolAccessModeAllowList:
+				if len(definition.ToolAccess.Tools) == 0 {
+					return fmt.Errorf("agent '%s' has allow_list tool access mode but empty tool list", agentName)
+				}
+			default:
+				return fmt.Errorf("agent '%s' has unsupported tool access mode %q", agentName, definition.ToolAccess.Mode)
 			}
-		default:
-			return fmt.Errorf("agent '%s' has unsupported tool access mode %q", agentName, definition.ToolAccess.Mode)
 		}
 
 		for _, toolName := range definition.ToolAccess.Tools {

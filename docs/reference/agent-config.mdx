@@ -86,8 +86,10 @@ tool_access:
   </Expandable>
 </ParamField>
 
-<ParamField body="tool_access" type="object" required>
-  Tool access policy for this agent.
+<ParamField body="tool_access" type="object">
+  Tool access policy for this agent. Optional — defaults to `inherit` when omitted,
+  which uses the root-level defaults from `.hyperterse` (`agents.tool_access`).
+  If no root-level default is set either, the effective mode is `allow_all`.
 
   <Expandable title="properties">
     <ParamField body="mode" type="string" default="inherit">

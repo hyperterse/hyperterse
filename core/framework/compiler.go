@@ -474,7 +474,7 @@ func parseRootAgentToolAccessPolicy(spec *agentToolAccessSpec) (AgentToolAccessP
 
 func parseAgentToolAccessPolicy(spec *agentToolAccessSpec) (AgentToolAccessPolicy, error) {
 	if spec == nil {
-		return AgentToolAccessPolicy{}, fmt.Errorf("field 'tool_access' is required")
+		return AgentToolAccessPolicy{Mode: AgentToolAccessModeInherit}, nil
 	}
 	mode, err := parseAgentToolAccessMode(spec.Mode, true)
 	if err != nil {

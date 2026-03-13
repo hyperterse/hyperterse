@@ -64,7 +64,7 @@ agents:
       - search-orders
 ```
 
-Agents can inherit the baseline:
+Agents inherit the baseline by default (`tool_access` can be omitted entirely):
 
 ```yaml app/agents/support/config.terse
 name: support
@@ -72,9 +72,9 @@ instruction: "Answer support requests."
 model:
   provider: openai_compatible
   model: gpt-4o-mini
-tool_access:
-  mode: inherit
 ```
+
+This is equivalent to explicitly setting `tool_access.mode: inherit`.
 
 Override only when needed:
 
