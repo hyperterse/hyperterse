@@ -1,0 +1,11 @@
+uri_template: memory://orders-file/{id}
+name: order-file-by-id
+title: Order file by ID
+description: Resolve order JSON payloads from files by order id.
+mime_type: application/json
+file_template: ./{{ id }}.json
+arguments:
+  id:
+    description: Order identifier
+    required: true
+    completion: ["1001", "1002"]

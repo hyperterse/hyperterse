@@ -1,0 +1,11 @@
+uri_template: memory://orders/{id}
+name: order-by-id
+title: Order by ID
+description: Demo order payload resolved by order id.
+mime_type: application/json
+text_template: '{"id":"{{ id }}","status":"pending","source":"demo-resource-template"}'
+arguments:
+  id:
+    description: Order identifier
+    required: true
+    completion: ["1001", "1002", "1003"]

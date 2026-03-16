@@ -1,0 +1,17 @@
+name: summarize-release
+title: Release summary helper
+description: Summarize release notes for a target audience.
+arguments:
+  audience:
+    title: Audience
+    description: Target audience for summary tone and detail
+    required: true
+    completion: ["engineering", "product", "customers"]
+  tone:
+    description: Desired writing tone
+    completion: ["concise", "detailed"]
+messages:
+  - role: system
+    text: You summarize releases for {{ audience }}.
+  - role: user
+    text: Write a {{ tone }} release summary based on the latest notes.
