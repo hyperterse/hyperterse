@@ -53,6 +53,8 @@
               "concepts/project-structure",
               "concepts/adapters",
               "concepts/tools",
+              "concepts/prompts",
+              "concepts/resources",
               "concepts/scripts",
               "concepts/authentication"
             ]
@@ -135,6 +137,8 @@
               "reference/root-config",
               "reference/adapter-config",
               "reference/tool-config",
+              "reference/prompt-config",
+              "reference/resource-config",
               "reference/environment-variables",
               "reference/configuration-schemas"
             ]

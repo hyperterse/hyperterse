@@ -139,7 +139,7 @@ hyperterse/
 │   ├── npm/                 # NPM package
 │   └── homebrew/            # Homebrew formula
 ├── docs/                    # Documentation site (Astro)
-├── schema/                  # JSON schemas for root/adapter/route .terse files
+├── schema/                  # JSON schemas for root/adapter/tool/prompt/resource .terse files
 └── main.go                  # Application entry point
 ```
 

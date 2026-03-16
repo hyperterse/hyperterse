@@ -3,7 +3,7 @@ title: Root
 description: Complete field reference for the .hyperterse root configuration file.
 ---
 
-The root configuration file (`.hyperterse`) defines service-level settings and discovery settings. It does not contain adapter or tool definitions — those are discovered from the filesystem.
+The root configuration file (`.hyperterse`) defines service-level settings and discovery settings. Adapter and tool definitions are discovered from the filesystem, and prompts/resources can be configured through discovery directories or optional inline lists.
 
 ## Full schema
 
@@ -23,6 +23,14 @@ tools:
 
 adapters:
   directory: adapters
+
+prompts:
+  directory: prompts
+
+resources:
+  directory: resources
+
+resource_templates: []
 
 server:
   port: 8080
@@ -100,6 +108,46 @@ build:
   </Expandable>
 </ParamField>
 
+<ParamField body="prompts" type="object | array">
+  Prompt configuration:
+
+  <Expandable title="object mode (discovery)">
+    <ParamField body="directory" type="string" default="prompts">
+      Prompts directory relative to `root`.
+    </ParamField>
+  </Expandable>
+
+  <Expandable title="array mode (inline definitions)">
+    Inline prompt definitions as an array of prompt objects (`name`, optional
+    `arguments`, and required `messages`).
+  </Expandable>
+</ParamField>
+
+<ParamField body="resources" type="object | array">
+  Resource configuration:
+
+  <Expandable title="object mode (discovery)">
+    <ParamField body="directory" type="string" default="resources">
+      Resources directory relative to `root`.
+    </ParamField>
+  </Expandable>
+
+  <Expandable title="array mode (inline concrete resources)">
+    Inline concrete resources as an array of objects (`uri`, metadata, and one
+    of `text` or `file`).
+  </Expandable>
+</ParamField>
+
+<ParamField body="resource_templates" type="array">
+  Optional inline URI-template resources. Each item defines `uri_template`,
+  metadata, template content (`text_template` or `file_template`), and optional
+  `arguments`.
+</ParamField>
+
+<Tip>
+  For file-based prompt/resource configs, see [Prompt configuration](/reference/prompt-config) and [Resource configuration](/reference/resource-config).
+</Tip>
+
 <ParamField body="server" type="object">
   Server runtime settings.
 
@@ -124,7 +172,7 @@ build:
 
   <Expandable title="properties">
     <ParamField body="out" type="string" default="dist">
-      Output directory for build artifacts. Also accepts `out_dir` as an alias.
+      Output directory for build artifacts. `out_dir` is an equivalent alias.
 
       **Resolution order:** `--out` flag → `build.out` config → `dist`
     </ParamField>

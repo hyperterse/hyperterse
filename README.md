@@ -245,7 +245,7 @@ Each tool must define exactly one execution mode:
 
 ## Runtime model
 
-All tool interaction happens through MCP Streamable HTTP at `/mcp` (JSON-RPC 2.0).
+All MCP interaction happens through Streamable HTTP at `/mcp` (JSON-RPC 2.0), including tools, prompts, resources, completion, and subscriptions.
 
 Execution pipeline:
 
@@ -269,11 +269,15 @@ Execution pipeline:
 - [Quickstart](https://docs.hyperterse.com/quickstart)
 - [Project structure](https://docs.hyperterse.com/concepts/project-structure)
 - [Tools](https://docs.hyperterse.com/concepts/tools)
+- [Prompts](https://docs.hyperterse.com/concepts/prompts)
+- [Resources](https://docs.hyperterse.com/concepts/resources)
 - [Adapters](https://docs.hyperterse.com/concepts/adapters)
 - [Scripts](https://docs.hyperterse.com/concepts/scripts)
 - [MCP transport](https://docs.hyperterse.com/runtime/mcp-transport)
 - [Execution pipeline](https://docs.hyperterse.com/runtime/execution-pipeline)
 - [CLI reference](https://docs.hyperterse.com/reference/cli)
+- [Prompt config reference](https://docs.hyperterse.com/reference/prompt-config)
+- [Resource config reference](https://docs.hyperterse.com/reference/resource-config)
 - [Configuration schemas](https://docs.hyperterse.com/reference/configuration-schemas)
 
 ## Contributing

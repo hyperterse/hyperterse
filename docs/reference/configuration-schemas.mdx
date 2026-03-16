@@ -3,13 +3,15 @@ title: Configuration schemas
 description: JSON Schema files for editor-time validation of .hyperterse and .terse configuration files.
 ---
 
-Hyperterse ships three role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
+Hyperterse ships five role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
 
-| Schema file                        | Target files               | Purpose                    |
-| ---------------------------------- | -------------------------- | -------------------------- |
-| `schema/root.terse.schema.json`    | `.hyperterse`              | Root service configuration |
-| `schema/adapter.terse.schema.json` | `app/adapters/*.terse`     | Adapter definitions        |
-| `schema/tool.terse.schema.json`    | `app/tools/*/config.terse` | Tool definitions           |
+| Schema file                          | Target files               | Purpose                                 |
+| ------------------------------------ | -------------------------- | --------------------------------------- |
+| `schema/root.terse.schema.json`      | `.hyperterse`              | Root service configuration              |
+| `schema/adapter.terse.schema.json`   | `app/adapters/*.terse`     | Adapter definitions                     |
+| `schema/tool.terse.schema.json`      | `app/tools/*/config.terse` | Tool definitions                        |
+| `schema/prompt.terse.schema.json`    | `app/prompts/**/*.terse`   | Prompt definitions                      |
+| `schema/resource.terse.schema.json`  | `app/resources/**/config.terse` | Resource and resource-template settings |
 
 ## Generation
 
@@ -34,7 +36,9 @@ Add to `.vscode/settings.json`:
   "yaml.schemas": {
     "schema/root.terse.schema.json": "**/.hyperterse",
     "schema/adapter.terse.schema.json": "**/adapters/*.terse",
-    "schema/tool.terse.schema.json": "**/tools/**/config.terse"
+    "schema/tool.terse.schema.json": "**/tools/**/config.terse",
+    "schema/prompt.terse.schema.json": "**/prompts/**/*.terse",
+    "schema/resource.terse.schema.json": "**/resources/**/config.terse"
   }
 }
 ```
@@ -58,6 +62,13 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `tools.cache` — `enabled` (boolean), `ttl` (integer).
 - `tools.search.limit` — Integer (default: `10`) controlling max MCP `search` results.
 - `adapters.directory` — String (default: `adapters`).
+- `prompts` — Either:
+  - `{ directory: string }` discovery config (default: `prompts`), or
+  - inline prompt definitions array.
+- `resources` — Either:
+  - `{ directory: string }` discovery config (default: `resources`), or
+  - inline concrete resource definitions array.
+- `resource_templates` — Optional inline resource-template definitions array.
 - `server.port` — Integer or string.
 - `server.log_level` — Integer, 1–4.
 - `build.out` / `build.out_dir` — String.
@@ -82,6 +93,38 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `cache` — `enabled`, `ttl`.
 - **Constraint:** exactly one of `use` or `handler` is required (enforced via `oneOf`).
 
+### Prompt (`prompt.terse.schema.json`)
+
+- `name` — Optional prompt name override (defaults to filename).
+- `title` — Optional string.
+- `description` — Optional string.
+- `arguments` — Optional map keyed by argument name with:
+  - `title` (string)
+  - `description` (string)
+  - `required` (boolean)
+  - `completion` (string array)
+- `messages` — Required non-empty array of `{ role, text }` where role is one of `user`, `assistant`, `system`.
+
+See [Prompt configuration](/reference/prompt-config).
+
+### Resource (`resource.terse.schema.json`)
+
+- Supports both concrete resources and URI templates in one schema.
+- Shared optional fields: `name`, `title`, `description`, `mime_type`.
+- Concrete resource mode:
+  - `uri` (required)
+  - one of `text` or `file` (required)
+- Resource template mode:
+  - `uri_template` (required)
+  - one of `text_template` or `file_template` (required)
+  - optional `arguments` map keyed by argument name with:
+    - `title` (string)
+    - `description` (string)
+    - `required` (boolean)
+    - `completion` (string array)
+
+See [Resource configuration](/reference/resource-config).
+
 ## Keeping schemas in sync
 
 When configuration shapes change, schemas and documentation must update in the same change:
@@ -89,4 +132,9 @@ When configuration shapes change, schemas and documentation must update in the s
 1. Regenerate schema artifacts in `schema/`.
 2. Update field definitions in reference documentation.
 3. Update `.vscode/settings.json` globs if file-role matching changed.
-4. Verify the change includes current schema files.
+4. Verify checklists/reference docs include all current schema files:
+   - `root.terse.schema.json`
+   - `adapter.terse.schema.json`
+   - `tool.terse.schema.json`
+   - `prompt.terse.schema.json`
+   - `resource.terse.schema.json`

@@ -1,0 +1,160 @@
+---
+title: Resource
+description: Complete field reference for resource and resource-template definition files.
+---
+
+Each `app/resources/**/config.terse` file defines one MCP resource surface. A resource folder can represent either:
+
+- a **concrete resource** (`uri`), or
+- a **resource template** (`uri_template`).
+
+## Full schema
+
+<Tabs>
+  <Tab title="Concrete resource">
+    ```yaml app/resources/release-notes/config.terse
+    uri: memory://release-notes/latest
+    name: release-notes
+    title: Latest release notes
+    description: Markdown release notes for the current release.
+    mime_type: text/markdown
+    file: ./content/release-notes.md
+    ```
+  </Tab>
+  <Tab title="Resource template">
+    ```yaml app/resources/order-by-id/config.terse
+    uri_template: memory://orders/{id}
+    name: order-by-id
+    title: Order by ID
+    description: Order payload template resolved by id.
+    mime_type: application/json
+    text_template: '{"id":"{{ id }}","status":"pending"}'
+    arguments:
+      id:
+        description: Order identifier
+        required: true
+        completion: ["1001", "1002", "1003"]
+    ```
+  </Tab>
+</Tabs>
+
+## Field reference
+
+<ParamField body="uri" type="string">
+  Concrete resource URI. Use for fixed resources read via `resources/read`.
+
+  <Warning>
+    Exactly one of `uri` or `uri_template` must be defined.
+  </Warning>
+</ParamField>
+
+<ParamField body="uri_template" type="string">
+  URI template (RFC 6570 style) for parameterized resources.
+
+  <Warning>
+    Exactly one of `uri` or `uri_template` must be defined.
+  </Warning>
+</ParamField>
+
+<ParamField body="name" type="string">
+  Optional display name.
+
+  **Default:** resource folder name (directory containing `config.terse`).
+</ParamField>
+
+<ParamField body="title" type="string">
+  Optional human-friendly title.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional description surfaced in MCP resource metadata.
+</ParamField>
+
+<ParamField body="mime_type" type="string">
+  Optional MIME type override for returned content.
+</ParamField>
+
+<ParamField body="text" type="string">
+  Inline concrete content for `uri` resources.
+
+  <Warning>
+    For concrete resources, define one of `text` or `file`.
+  </Warning>
+</ParamField>
+
+<ParamField body="file" type="string">
+  File path for concrete `uri` resources.
+
+  Paths are resolved relative to the `config.terse` directory when not absolute.
+
+  <Warning>
+    For concrete resources, define one of `text` or `file`.
+  </Warning>
+</ParamField>
+
+<ParamField body="text_template" type="string">
+  Inline template content for `uri_template` resources.
+
+  Supports interpolation placeholders like `{{ id }}`.
+
+  <Warning>
+    For template resources, define one of `text_template` or `file_template`.
+  </Warning>
+</ParamField>
+
+<ParamField body="file_template" type="string">
+  File path template for `uri_template` resources.
+
+  Supports interpolation placeholders like `./docs/{{ id }}.md`.
+
+  Paths are resolved relative to the `config.terse` directory when not absolute.
+
+  <Warning>
+    For template resources, define one of `text_template` or `file_template`.
+  </Warning>
+</ParamField>
+
+<ParamField body="arguments" type="object">
+  Optional map of URI template argument metadata keyed by argument name.
+
+  <Expandable title="argument field properties">
+    <ParamField body="title" type="string">
+      Optional display title.
+    </ParamField>
+
+    <ParamField body="description" type="string">
+      Optional argument description.
+    </ParamField>
+
+    <ParamField body="required" type="boolean" default="false">
+      Whether callers are expected to provide this argument.
+    </ParamField>
+
+    <ParamField body="completion" type="array[string]">
+      Optional static completion values used by `completion/complete` for
+      resource template references.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Validity rules
+
+- One of `uri` or `uri_template` is required.
+- `uri` + `uri_template` together is invalid.
+- For `uri` resources: one of `text` or `file` is required.
+- For `uri_template` resources: one of `text_template` or `file_template` is required.
+- Resource URIs must be unique across concrete resources.
+- URI templates must be unique across template resources.
+
+## Runtime mapping
+
+- Concrete resources appear in MCP `resources/list`.
+- Template resources appear in MCP `resources/templates/list`.
+- Both are resolved via MCP `resources/read`.
+- Template `arguments.completion` values are used by MCP `completion/complete` (`ref/resource`).
+- Resource updates on model reload emit MCP notifications (`resources/list_changed`, `resources/updated`).
+
+## JSON Schema
+
+Editor validation: `schema/resource.terse.schema.json`. Associate with
+`**/resources/**/config.terse`. See [Configuration schemas](/reference/configuration-schemas).
