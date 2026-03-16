@@ -31,6 +31,56 @@ message ToolDefaultsConfig {
   SearchConfig search = 2; // Global/default tool search configuration
 }
 
+message PromptArgument {
+  string name = 1; // Required argument name
+  string title = 2; // Optional human-friendly title
+  string description = 3; // Optional argument description
+  bool required = 4; // Whether this argument is required
+  repeated string completion = 5; // Optional static completion values
+}
+
+message PromptMessage {
+  string role = 1; // Required role: user | assistant | system
+  string text = 2; // Required text content (supports {{ argument_name }} interpolation)
+}
+
+message PromptDefinition {
+  string name = 1; // Required prompt identifier
+  string title = 2; // Optional display title
+  string description = 3; // Optional prompt description
+  repeated PromptArgument arguments = 4; // Prompt arguments
+  repeated PromptMessage messages = 5; // Ordered messages returned by prompts/get
+}
+
+message ResourceDefinition {
+  string uri = 1; // Required absolute URI
+  string name = 2; // Optional logical identifier / display fallback
+  string title = 3; // Optional display title
+  string description = 4; // Optional resource description
+  string mime_type = 5; // Optional MIME type
+  string text = 6; // Optional inline textual content
+  string file = 7; // Optional file path relative to project root
+}
+
+message ResourceTemplateArgument {
+  string name = 1; // Required argument name
+  string title = 2; // Optional human-friendly title
+  string description = 3; // Optional argument description
+  bool required = 4; // Whether this argument is required
+  repeated string completion = 5; // Optional static completion values
+}
+
+message ResourceTemplateDefinition {
+  string uri_template = 1; // Required RFC6570 URI template
+  string name = 2; // Optional logical identifier / display fallback
+  string title = 3; // Optional display title
+  string description = 4; // Optional template description
+  string mime_type = 5; // Optional MIME type hint
+  string text_template = 6; // Optional inline template content
+  string file_template = 7; // Optional file template path relative to project root
+  repeated ResourceTemplateArgument arguments = 8; // Optional declared template arguments
+}
+
 // Export Configuration
 message ExportConfig {
   string out = 1; // Output directory path (script filename uses config name)
@@ -65,6 +115,9 @@ message Model {
   string version = 6; // Optional service version for observability
   CompiledManifest compiled_manifest = 7; // Optional compiled manifest for serve command
   ToolDefaultsConfig tool_defaults = 8; // Optional global/default tool settings
+  repeated PromptDefinition prompts = 9; // Optional project prompts
+  repeated ResourceDefinition resources = 10; // Optional project resources
+  repeated ResourceTemplateDefinition resource_templates = 11; // Optional project resource templates
 }
 
 // Adapter Configuration

@@ -115,6 +115,241 @@ function inputSpecSchema(requireDefaultWhenOptional: boolean) {
   };
 }
 
+const discoveryDirectorySchema = {
+  type: "object" as const,
+  properties: {
+    directory: {
+      type: "string" as const,
+      minLength: 1,
+    },
+  },
+  additionalProperties: false,
+};
+
+const promptArgumentSpecSchema = {
+  type: "object" as const,
+  properties: {
+    title: {
+      type: "string" as const,
+      description: "Optional human-friendly title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional argument description.",
+    },
+    required: {
+      type: "boolean" as const,
+      description: "Whether this argument is required.",
+    },
+    completion: {
+      type: "array" as const,
+      description: "Optional static completion values.",
+      items: {
+        type: "string" as const,
+      },
+    },
+  },
+  additionalProperties: false,
+};
+
+const promptMessageSpecSchema = {
+  type: "object" as const,
+  properties: {
+    role: {
+      type: "string" as const,
+      enum: ["user", "assistant", "system"],
+      description: "MCP prompt message role.",
+    },
+    text: {
+      type: "string" as const,
+      minLength: 1,
+      description: "Prompt message content.",
+    },
+  },
+  required: ["role", "text"],
+  additionalProperties: false,
+};
+
+const resourceTemplateArgumentSpecSchema = {
+  type: "object" as const,
+  properties: {
+    title: {
+      type: "string" as const,
+      description: "Optional human-friendly title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional argument description.",
+    },
+    required: {
+      type: "boolean" as const,
+      description: "Whether this argument is required.",
+    },
+    completion: {
+      type: "array" as const,
+      description: "Optional static completion values.",
+      items: {
+        type: "string" as const,
+      },
+    },
+  },
+  additionalProperties: false,
+};
+
+const inlinePromptArgumentSchema = {
+  type: "object" as const,
+  properties: {
+    name: {
+      type: "string" as const,
+      pattern: namePattern,
+      minLength: 1,
+      description: "Argument name.",
+    },
+    ...promptArgumentSpecSchema.properties,
+  },
+  required: ["name"],
+  additionalProperties: false,
+};
+
+const inlinePromptSchema = {
+  type: "object" as const,
+  properties: {
+    name: {
+      type: "string" as const,
+      pattern: toolNamePattern,
+      minLength: 1,
+      description: "Prompt name.",
+    },
+    title: {
+      type: "string" as const,
+      description: "Optional prompt title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional prompt description.",
+    },
+    arguments: {
+      type: "array" as const,
+      description: "Prompt arguments.",
+      items: inlinePromptArgumentSchema,
+    },
+    messages: {
+      type: "array" as const,
+      description: "Prompt messages.",
+      minItems: 1,
+      items: promptMessageSpecSchema,
+    },
+  },
+  required: ["name", "messages"],
+  additionalProperties: false,
+};
+
+const inlineResourceSchema = {
+  type: "object" as const,
+  properties: {
+    uri: {
+      type: "string" as const,
+      minLength: 1,
+      description: "Resource URI.",
+    },
+    name: {
+      type: "string" as const,
+      description: "Optional resource name.",
+    },
+    title: {
+      type: "string" as const,
+      description: "Optional resource title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional resource description.",
+    },
+    mime_type: {
+      type: "string" as const,
+      description: "Optional MIME type.",
+    },
+    text: {
+      type: "string" as const,
+      description: "Inline text content.",
+    },
+    file: {
+      type: "string" as const,
+      minLength: 1,
+      description: "File path for resource content.",
+    },
+  },
+  required: ["uri"],
+  allOf: [
+    {
+      oneOf: [{ required: ["text"] }, { required: ["file"] }],
+    },
+  ],
+  additionalProperties: false,
+};
+
+const inlineResourceTemplateArgumentSchema = {
+  type: "object" as const,
+  properties: {
+    name: {
+      type: "string" as const,
+      pattern: namePattern,
+      minLength: 1,
+      description: "Template argument name.",
+    },
+    ...resourceTemplateArgumentSpecSchema.properties,
+  },
+  required: ["name"],
+  additionalProperties: false,
+};
+
+const inlineResourceTemplateSchema = {
+  type: "object" as const,
+  properties: {
+    uri_template: {
+      type: "string" as const,
+      minLength: 1,
+      description: "URI template (RFC 6570).",
+    },
+    name: {
+      type: "string" as const,
+      description: "Optional template name.",
+    },
+    title: {
+      type: "string" as const,
+      description: "Optional template title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional template description.",
+    },
+    mime_type: {
+      type: "string" as const,
+      description: "Optional MIME type.",
+    },
+    text_template: {
+      type: "string" as const,
+      description: "Inline text template content.",
+    },
+    file_template: {
+      type: "string" as const,
+      minLength: 1,
+      description: "File path template for resource content.",
+    },
+    arguments: {
+      type: "array" as const,
+      description: "Template arguments.",
+      items: inlineResourceTemplateArgumentSchema,
+    },
+  },
+  required: ["uri_template"],
+  allOf: [
+    {
+      oneOf: [{ required: ["text_template"] }, { required: ["file_template"] }],
+    },
+  ],
+  additionalProperties: false,
+};
+
 const rootSchema = {
   $schema: "http://json-schema.org/draft-07/schema#",
   $id: `${schemaBaseURL}/root.terse.schema.json`,
@@ -204,6 +439,55 @@ const rootSchema = {
         },
       },
       additionalProperties: false,
+    },
+    prompts: {
+      description:
+        "Prompt discovery settings (`prompts.directory`) or optional inline prompt definitions.",
+      oneOf: [
+        {
+          ...discoveryDirectorySchema,
+          description: "Prompt discovery settings.",
+          properties: {
+            directory: {
+              type: "string" as const,
+              description: "Prompts directory relative to `root` (defaults to `prompts`).",
+              minLength: 1,
+            },
+          },
+        },
+        {
+          type: "array" as const,
+          description: "Optional inline prompt definitions.",
+          items: inlinePromptSchema,
+        },
+      ],
+    },
+    resources: {
+      description:
+        "Resource discovery settings (`resources.directory`) or optional inline concrete resources.",
+      oneOf: [
+        {
+          ...discoveryDirectorySchema,
+          description: "Resource discovery settings.",
+          properties: {
+            directory: {
+              type: "string" as const,
+              description: "Resources directory relative to `root` (defaults to `resources`).",
+              minLength: 1,
+            },
+          },
+        },
+        {
+          type: "array" as const,
+          description: "Optional inline concrete resources.",
+          items: inlineResourceSchema,
+        },
+      ],
+    },
+    resource_templates: {
+      type: "array" as const,
+      description: "Optional inline resource template definitions.",
+      items: inlineResourceTemplateSchema,
     },
     server: {
       type: "object" as const,
@@ -341,10 +625,132 @@ const toolSchema = {
   additionalProperties: false,
 };
 
+const promptSchema = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  $id: `${schemaBaseURL}/prompt.terse.schema.json`,
+  title: "HypertersePromptConfig",
+  description:
+    "Schema for prompt-level `.terse` files. This schema validates prompt configuration regardless of folder naming convention.",
+  type: "object" as const,
+  properties: {
+    name: {
+      type: "string" as const,
+      description: "Optional explicit prompt name. Defaults to filename when omitted.",
+      pattern: toolNamePattern,
+      minLength: 1,
+    },
+    title: {
+      type: "string" as const,
+      description: "Optional prompt title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional prompt description.",
+    },
+    arguments: {
+      type: "object" as const,
+      description: "Optional prompt arguments keyed by argument name.",
+      patternProperties: {
+        [namePattern]: promptArgumentSpecSchema,
+      },
+      additionalProperties: false,
+    },
+    messages: {
+      type: "array" as const,
+      description: "Ordered prompt messages.",
+      minItems: 1,
+      items: promptMessageSpecSchema,
+    },
+  },
+  required: ["messages"],
+  additionalProperties: false,
+};
+
+const resourceSchema = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  $id: `${schemaBaseURL}/resource.terse.schema.json`,
+  title: "HyperterseResourceConfig",
+  description:
+    "Schema for resource-level `.terse` files. Supports concrete resources and URI templates.",
+  type: "object" as const,
+  properties: {
+    uri: {
+      type: "string" as const,
+      description: "Concrete resource URI.",
+      minLength: 1,
+    },
+    uri_template: {
+      type: "string" as const,
+      description: "URI template (RFC 6570).",
+      minLength: 1,
+    },
+    name: {
+      type: "string" as const,
+      description: "Optional resource/resource-template name.",
+    },
+    title: {
+      type: "string" as const,
+      description: "Optional title.",
+    },
+    description: {
+      type: "string" as const,
+      description: "Optional description.",
+    },
+    mime_type: {
+      type: "string" as const,
+      description: "Optional MIME type.",
+    },
+    text: {
+      type: "string" as const,
+      description: "Inline content for concrete resources.",
+    },
+    file: {
+      type: "string" as const,
+      description: "File path for concrete resource content.",
+      minLength: 1,
+    },
+    text_template: {
+      type: "string" as const,
+      description: "Inline content template for URI templates.",
+    },
+    file_template: {
+      type: "string" as const,
+      description: "File path template for URI templates.",
+      minLength: 1,
+    },
+    arguments: {
+      type: "object" as const,
+      description: "Optional URI template arguments keyed by argument name.",
+      patternProperties: {
+        [namePattern]: resourceTemplateArgumentSpecSchema,
+      },
+      additionalProperties: false,
+    },
+  },
+  oneOf: [{ required: ["uri"] }, { required: ["uri_template"] }],
+  allOf: [
+    {
+      if: { required: ["uri"] },
+      then: {
+        oneOf: [{ required: ["text"] }, { required: ["file"] }],
+      },
+    },
+    {
+      if: { required: ["uri_template"] },
+      then: {
+        oneOf: [{ required: ["text_template"] }, { required: ["file_template"] }],
+      },
+    },
+  ],
+  additionalProperties: false,
+};
+
 const outputs = [
   { fileName: "root.terse.schema.json", schema: rootSchema },
   { fileName: "adapter.terse.schema.json", schema: adapterSchema },
   { fileName: "tool.terse.schema.json", schema: toolSchema },
+  { fileName: "prompt.terse.schema.json", schema: promptSchema },
+  { fileName: "resource.terse.schema.json", schema: resourceSchema },
 ];
 
 for (const output of outputs) {

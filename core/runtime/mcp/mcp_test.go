@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	connectorspb "github.com/hyperterse/hyperterse/core/proto/connectors"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
@@ -273,7 +274,422 @@ func TestAdapter_CachePreservesConnectorBehavior(t *testing.T) {
 	}
 }
 
+func TestAdapter_PromptsResourcesAndCompletion(t *testing.T) {
+	model := &hyperterse.Model{
+		Name: "mcp-feature-test",
+		Prompts: []*hyperterse.PromptDefinition{
+			{
+				Name:        "greet",
+				Description: "Greeting prompt",
+				Arguments: []*hyperterse.PromptArgument{
+					{Name: "user", Required: true, Completion: []string{"alice", "alex", "bob"}},
+				},
+				Messages: []*hyperterse.PromptMessage{
+					{Role: "user", Text: "Hello {{ user }}"},
+				},
+			},
+		},
+		Resources: []*hyperterse.ResourceDefinition{
+			{
+				Uri:  "memory://welcome",
+				Name: "welcome",
+				Text: "Welcome",
+			},
+		},
+		ResourceTemplates: []*hyperterse.ResourceTemplateDefinition{
+			{
+				UriTemplate:  "memory://docs/{id}",
+				Name:         "docs",
+				TextTemplate: "Doc {{ id }}",
+				Arguments: []*hyperterse.ResourceTemplateArgument{
+					{Name: "id", Required: true, Completion: []string{"intro", "install"}},
+				},
+			},
+		},
+	}
+
+	_, _, session, _, cleanup := setupMCPAdapterWithModel(t, model, nil)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	promptList, err := session.ListPrompts(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+	if len(promptList.Prompts) != 1 || promptList.Prompts[0].Name != "greet" {
+		t.Fatalf("unexpected prompt list: %#v", promptList.Prompts)
+	}
+
+	promptRes, err := session.GetPrompt(ctx, &mcpsdk.GetPromptParams{
+		Name:      "greet",
+		Arguments: map[string]string{"user": "sam"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt failed: %v", err)
+	}
+	if len(promptRes.Messages) != 1 {
+		t.Fatalf("expected one prompt message, got %d", len(promptRes.Messages))
+	}
+	messageText, ok := promptRes.Messages[0].Content.(*mcpsdk.TextContent)
+	if !ok {
+		t.Fatalf("expected prompt message content to be text, got %T", promptRes.Messages[0].Content)
+	}
+	if messageText.Text != "Hello sam" {
+		t.Fatalf("unexpected prompt interpolation result: %q", messageText.Text)
+	}
+
+	promptCompletion, err := session.Complete(ctx, &mcpsdk.CompleteParams{
+		Argument: mcpsdk.CompleteParamsArgument{Name: "user", Value: "al"},
+		Ref:      &mcpsdk.CompleteReference{Type: "ref/prompt", Name: "greet"},
+	})
+	if err != nil {
+		t.Fatalf("Complete for prompt failed: %v", err)
+	}
+	if !slices.Equal(promptCompletion.Completion.Values, []string{"alex", "alice"}) {
+		t.Fatalf("unexpected prompt completion values: %#v", promptCompletion.Completion.Values)
+	}
+
+	resourceList, err := session.ListResources(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListResources failed: %v", err)
+	}
+	if len(resourceList.Resources) != 1 || resourceList.Resources[0].URI != "memory://welcome" {
+		t.Fatalf("unexpected resources list: %#v", resourceList.Resources)
+	}
+
+	templateList, err := session.ListResourceTemplates(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListResourceTemplates failed: %v", err)
+	}
+	if len(templateList.ResourceTemplates) != 1 || templateList.ResourceTemplates[0].URITemplate != "memory://docs/{id}" {
+		t.Fatalf("unexpected resource template list: %#v", templateList.ResourceTemplates)
+	}
+
+	resourceRes, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "memory://welcome"})
+	if err != nil {
+		t.Fatalf("ReadResource failed: %v", err)
+	}
+	if len(resourceRes.Contents) != 1 || resourceRes.Contents[0].Text != "Welcome" {
+		t.Fatalf("unexpected resource read result: %#v", resourceRes.Contents)
+	}
+
+	templateRes, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "memory://docs/intro"})
+	if err != nil {
+		t.Fatalf("ReadResource (template) failed: %v", err)
+	}
+	if len(templateRes.Contents) != 1 || templateRes.Contents[0].Text != "Doc intro" {
+		t.Fatalf("unexpected template resource read result: %#v", templateRes.Contents)
+	}
+
+	templateCompletion, err := session.Complete(ctx, &mcpsdk.CompleteParams{
+		Argument: mcpsdk.CompleteParamsArgument{Name: "id", Value: "in"},
+		Ref:      &mcpsdk.CompleteReference{Type: "ref/resource", URI: "memory://docs/{id}"},
+	})
+	if err != nil {
+		t.Fatalf("Complete for resource template failed: %v", err)
+	}
+	if !slices.Equal(templateCompletion.Completion.Values, []string{"install", "intro"}) {
+		t.Fatalf("unexpected template completion values: %#v", templateCompletion.Completion.Values)
+	}
+}
+
+func TestAdapter_InitializeCapabilitiesIncludeExtendedMCPFeatures(t *testing.T) {
+	model := &hyperterse.Model{
+		Name: "capabilities-test",
+		Prompts: []*hyperterse.PromptDefinition{
+			{
+				Name: "hello",
+				Messages: []*hyperterse.PromptMessage{
+					{Role: "user", Text: "hi"},
+				},
+			},
+		},
+		Resources: []*hyperterse.ResourceDefinition{
+			{Uri: "memory://capabilities", Text: "ok"},
+		},
+		ResourceTemplates: []*hyperterse.ResourceTemplateDefinition{
+			{
+				UriTemplate:  "memory://capabilities/{id}",
+				TextTemplate: "ok {{ id }}",
+				Arguments: []*hyperterse.ResourceTemplateArgument{
+					{Name: "id", Required: true},
+				},
+			},
+		},
+	}
+
+	_, _, session, _, cleanup := setupMCPAdapterWithModel(t, model, nil)
+	defer cleanup()
+
+	initializeResult := session.InitializeResult()
+	if initializeResult == nil || initializeResult.Capabilities == nil {
+		t.Fatalf("expected initialize capabilities to be present")
+	}
+
+	caps := initializeResult.Capabilities
+	if caps.Tools == nil || !caps.Tools.ListChanged {
+		t.Fatalf("expected tools capability with listChanged=true, got %#v", caps.Tools)
+	}
+	if caps.Prompts == nil || !caps.Prompts.ListChanged {
+		t.Fatalf("expected prompts capability with listChanged=true, got %#v", caps.Prompts)
+	}
+	if caps.Resources == nil || !caps.Resources.ListChanged || !caps.Resources.Subscribe {
+		t.Fatalf("expected resources capability with listChanged+subscribe, got %#v", caps.Resources)
+	}
+	if caps.Completions == nil {
+		t.Fatalf("expected completions capability to be present")
+	}
+	if caps.Logging == nil {
+		t.Fatalf("expected logging capability to be present")
+	}
+}
+
+func TestAdapter_SubscriptionReloadNotificationsAndSessionContinuity(t *testing.T) {
+	updatedResourceCh := make(chan string, 4)
+	resourceListChangedCh := make(chan struct{}, 4)
+	promptListChangedCh := make(chan struct{}, 4)
+	toolListChangedCh := make(chan struct{}, 4)
+
+	clientOptions := &mcpsdk.ClientOptions{
+		ResourceUpdatedHandler: func(_ context.Context, req *mcpsdk.ResourceUpdatedNotificationRequest) {
+			if req != nil && req.Params != nil {
+				updatedResourceCh <- req.Params.URI
+			}
+		},
+		ResourceListChangedHandler: func(context.Context, *mcpsdk.ResourceListChangedRequest) {
+			resourceListChangedCh <- struct{}{}
+		},
+		PromptListChangedHandler: func(context.Context, *mcpsdk.PromptListChangedRequest) {
+			promptListChangedCh <- struct{}{}
+		},
+		ToolListChangedHandler: func(context.Context, *mcpsdk.ToolListChangedRequest) {
+			toolListChangedCh <- struct{}{}
+		},
+	}
+
+	initialModel := &hyperterse.Model{
+		Name: "reload-test",
+		Tools: []*hyperterse.Tool{
+			{
+				Name:        "initial-tool",
+				Description: "tool",
+				Statement:   "SELECT 1",
+				Use:         []string{"primary"},
+			},
+		},
+		Resources: []*hyperterse.ResourceDefinition{
+			{Uri: "memory://welcome", Text: "v1"},
+		},
+		Prompts: []*hyperterse.PromptDefinition{
+			{
+				Name: "hello",
+				Messages: []*hyperterse.PromptMessage{
+					{Role: "user", Text: "hi"},
+				},
+			},
+		},
+	}
+
+	adapter, manager, session, _, cleanup := setupMCPAdapterWithModel(t, initialModel, clientOptions)
+	defer cleanup()
+
+	ctx := context.Background()
+	if err := session.Subscribe(ctx, &mcpsdk.SubscribeParams{URI: "memory://welcome"}); err != nil {
+		t.Fatalf("Subscribe failed: %v", err)
+	}
+
+	updatedModel := &hyperterse.Model{
+		Name: "reload-test",
+		Tools: []*hyperterse.Tool{
+			{
+				Name:        "updated-tool",
+				Description: "tool",
+				Statement:   "SELECT 1",
+				Use:         []string{"primary"},
+			},
+		},
+		Resources: []*hyperterse.ResourceDefinition{
+			{Uri: "memory://welcome", Text: "v2"},
+		},
+		Prompts: []*hyperterse.PromptDefinition{
+			{
+				Name: "hello-updated",
+				Messages: []*hyperterse.PromptMessage{
+					{Role: "user", Text: "hi"},
+				},
+			},
+		},
+	}
+
+	updatedExecutor := executor.NewExecutor(updatedModel, manager)
+	if err := adapter.UpdateModel(updatedModel, updatedExecutor, nil); err != nil {
+		t.Fatalf("UpdateModel failed: %v", err)
+	}
+
+	waitForSignal(t, resourceListChangedCh, "resource list changed notification")
+	waitForSignal(t, promptListChangedCh, "prompt list changed notification")
+	waitForSignal(t, toolListChangedCh, "tool list changed notification")
+
+	select {
+	case updatedURI := <-updatedResourceCh:
+		if updatedURI != "memory://welcome" {
+			t.Fatalf("unexpected updated resource uri: %s", updatedURI)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("expected resource updated notification")
+	}
+
+	resourceRes, err := session.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "memory://welcome"})
+	if err != nil {
+		t.Fatalf("ReadResource after update failed: %v", err)
+	}
+	if len(resourceRes.Contents) != 1 || resourceRes.Contents[0].Text != "v2" {
+		t.Fatalf("unexpected resource content after update: %#v", resourceRes.Contents)
+	}
+
+	prompts, err := session.ListPrompts(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListPrompts after update failed: %v", err)
+	}
+	if len(prompts.Prompts) != 1 || prompts.Prompts[0].Name != "hello-updated" {
+		t.Fatalf("unexpected prompts after update: %#v", prompts.Prompts)
+	}
+}
+
+func TestAdapter_LoggingAndProgressNotifications(t *testing.T) {
+	logMessagesCh := make(chan *mcpsdk.LoggingMessageParams, 16)
+	progressMessagesCh := make(chan *mcpsdk.ProgressNotificationParams, 16)
+
+	clientOptions := &mcpsdk.ClientOptions{
+		LoggingMessageHandler: func(_ context.Context, req *mcpsdk.LoggingMessageRequest) {
+			if req != nil {
+				logMessagesCh <- req.Params
+			}
+		},
+		ProgressNotificationHandler: func(_ context.Context, req *mcpsdk.ProgressNotificationClientRequest) {
+			if req != nil {
+				progressMessagesCh <- req.Params
+			}
+		},
+	}
+
+	adapter, _, clientSession, serverSession, cleanup := setupMCPToolTestWithClientOptionsAndServerSession(t, false, 0, clientOptions)
+	defer cleanup()
+
+	ctx := context.Background()
+	if err := clientSession.SetLoggingLevel(ctx, &mcpsdk.SetLoggingLevelParams{Level: mcpsdk.LoggingLevel("debug")}); err != nil {
+		t.Fatalf("SetLoggingLevel failed: %v", err)
+	}
+
+	argumentsRaw, err := json.Marshal(map[string]any{
+		"tool": "get-orders",
+		"inputs": map[string]any{
+			"status": "pending",
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal tool arguments: %v", err)
+	}
+	callReq := &mcpsdk.CallToolRequest{
+		Session: serverSession,
+		Params: &mcpsdk.CallToolParamsRaw{
+			Name:      "execute",
+			Meta:      mcpsdk.Meta{"progressToken": "execute-progress"},
+			Arguments: argumentsRaw,
+		},
+	}
+	callRes, err := adapter.callExecuteTool(ctx, callReq)
+	if err != nil {
+		t.Fatalf("execute handler failed: %v", err)
+	}
+	if callRes.IsError {
+		t.Fatalf("expected successful call, got error result: %#v", callRes.Content)
+	}
+
+	waitForProgressCount(t, progressMessagesCh, 2)
+	waitForLogCount(t, logMessagesCh, 2)
+}
+
+func waitForSignal(t *testing.T, ch <-chan struct{}, description string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for %s", description)
+	}
+}
+
+func waitForProgressCount(t *testing.T, ch <-chan *mcpsdk.ProgressNotificationParams, min int) {
+	t.Helper()
+	timeout := time.After(2 * time.Second)
+	count := 0
+	for count < min {
+		select {
+		case <-ch:
+			count++
+		case <-timeout:
+			t.Fatalf("timed out waiting for %d progress notifications (received %d)", min, count)
+		}
+	}
+}
+
+func waitForLogCount(t *testing.T, ch <-chan *mcpsdk.LoggingMessageParams, min int) {
+	t.Helper()
+	timeout := time.After(2 * time.Second)
+	count := 0
+	for count < min {
+		select {
+		case <-ch:
+			count++
+		case <-timeout:
+			t.Fatalf("timed out waiting for %d log notifications (received %d)", min, count)
+		}
+	}
+}
+
+func setupMCPAdapterWithModel(t *testing.T, model *hyperterse.Model, clientOptions *mcpsdk.ClientOptions) (*Adapter, *connectors.ConnectorManager, *mcpsdk.ClientSession, *mcpsdk.ServerSession, func()) {
+	t.Helper()
+
+	manager := connectors.NewConnectorManager()
+	exec := executor.NewExecutor(model, manager)
+	adapter, err := New(model, exec, nil)
+	if err != nil {
+		t.Fatalf("failed to build MCP adapter: %v", err)
+	}
+
+	ctx := context.Background()
+	serverTransport, clientTransport := mcpsdk.NewInMemoryTransports()
+	serverSession, err := adapter.Server().Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("failed to connect server transport: %v", err)
+	}
+
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, clientOptions)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		_ = serverSession.Close()
+		t.Fatalf("failed to connect client transport: %v", err)
+	}
+
+	cleanup := func() {
+		_ = clientSession.Close()
+		_ = serverSession.Close()
+	}
+
+	return adapter, manager, clientSession, serverSession, cleanup
+}
+
 func setupMCPToolTest(t *testing.T, enableCache bool, searchLimit int32) (*Adapter, *fakeConnector, *mcpsdk.ClientSession, func()) {
+	return setupMCPToolTestWithClientOptions(t, enableCache, searchLimit, nil)
+}
+
+func setupMCPToolTestWithClientOptions(t *testing.T, enableCache bool, searchLimit int32, clientOptions *mcpsdk.ClientOptions) (*Adapter, *fakeConnector, *mcpsdk.ClientSession, func()) {
+	adapter, fake, clientSession, _, cleanup := setupMCPToolTestWithClientOptionsAndServerSession(t, enableCache, searchLimit, clientOptions)
+	return adapter, fake, clientSession, cleanup
+}
+
+func setupMCPToolTestWithClientOptionsAndServerSession(t *testing.T, enableCache bool, searchLimit int32, clientOptions *mcpsdk.ClientOptions) (*Adapter, *fakeConnector, *mcpsdk.ClientSession, *mcpsdk.ServerSession, func()) {
 	t.Helper()
 
 	model := &hyperterse.Model{
@@ -352,7 +768,7 @@ func setupMCPToolTest(t *testing.T, enableCache bool, searchLimit int32) (*Adapt
 		t.Fatalf("failed to connect server transport: %v", err)
 	}
 
-	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, clientOptions)
 	clientSession, err := client.Connect(ctx, clientTransport, nil)
 	if err != nil {
 		_ = serverSession.Close()
@@ -364,5 +780,5 @@ func setupMCPToolTest(t *testing.T, enableCache bool, searchLimit int32) (*Adapt
 		_ = serverSession.Close()
 	}
 
-	return adapter, fake, clientSession, cleanup
+	return adapter, fake, clientSession, serverSession, cleanup
 }

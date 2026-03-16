@@ -18,21 +18,11 @@ import (
 
 var tsConventionPattern = regexp.MustCompile(`(?i)\.ts$`)
 
-type discoveryConfigFile struct {
-	Root     string                   `yaml:"root"`
-	Tools    discoveryDirectoryConfig `yaml:"tools"`
-	Adapters discoveryDirectoryConfig `yaml:"adapters"`
-}
-
-type discoveryDirectoryConfig struct {
-	Directory string `yaml:"directory"`
-}
-
 // CompileProjectIfPresent discovers tools/adapters directories and merges tools into model definitions.
 // If the configured discovery root does not exist, it returns nil project with no error.
 func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*Project, error) {
 	baseDir := filepath.Dir(configFilePath)
-	appDir, adaptersDir, toolsDir, err := resolveProjectDirectories(configFilePath)
+	appDir, adaptersDir, toolsDir, promptsDir, resourcesDir, err := resolveProjectDirectories(configFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -60,15 +50,22 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 	log.Infof("Compiling v2 tools from %s", appDir)
 
 	project := &Project{
-		BaseDir:     baseDir,
-		AppDir:      appDir,
-		AdaptersDir: adaptersDir,
-		ToolsDir:    toolsDir,
-		BuildDir:    buildDir,
-		Tools:       map[string]*Tool{},
+		BaseDir:      baseDir,
+		AppDir:       appDir,
+		AdaptersDir:  adaptersDir,
+		ToolsDir:     toolsDir,
+		PromptsDir:   promptsDir,
+		ResourcesDir: resourcesDir,
+		BuildDir:     buildDir,
+		Tools:        map[string]*Tool{},
+		Prompts:      map[string]*Prompt{},
+		Resources:    map[string]*Resource{},
+		Templates:    map[string]*ResourceTemplate{},
 	}
 
-	adapterFiles, err := discoverAdapterFiles(adaptersDir)
+	adapterFiles, err := discoverFiles(adaptersDir, "adapters", func(path string) bool {
+		return strings.EqualFold(filepath.Ext(path), ".terse")
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +78,9 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 		model.Adapters = append(model.Adapters, adapter)
 	}
 
-	toolTerseFiles, err := discoverToolTerseFiles(toolsDir)
+	toolTerseFiles, err := discoverFiles(toolsDir, "tools", func(path string) bool {
+		return strings.EqualFold(filepath.Base(path), "config.terse")
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -99,39 +98,109 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 		model.Tools = append(model.Tools, tool.Definition)
 	}
 
-	log.Infof("Compiled %d tool(s) into model tools", len(project.Tools))
+	promptFiles, err := discoverFiles(promptsDir, "prompts", func(path string) bool {
+		return strings.EqualFold(filepath.Ext(path), ".terse")
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(promptFiles)
+	for _, promptFile := range promptFiles {
+		prompt, err := compilePromptFile(promptFile)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := project.Prompts[prompt.Name]; exists {
+			return nil, fmt.Errorf("duplicate prompt name discovered from prompts: %s", prompt.Name)
+		}
+		project.Prompts[prompt.Name] = prompt
+		model.Prompts = append(model.Prompts, prompt.Definition)
+	}
+
+	resourceFiles, err := discoverFiles(resourcesDir, "resources", func(path string) bool {
+		return strings.EqualFold(filepath.Base(path), "config.terse")
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(resourceFiles)
+	for _, resourceFile := range resourceFiles {
+		resource, template, err := compileResourceFile(resourceFile)
+		if err != nil {
+			return nil, err
+		}
+		if resource != nil {
+			if _, exists := project.Resources[resource.URI]; exists {
+				return nil, fmt.Errorf("duplicate resource uri discovered from resources: %s", resource.URI)
+			}
+			project.Resources[resource.URI] = resource
+			model.Resources = append(model.Resources, resource.Definition)
+		}
+		if template != nil {
+			if _, exists := project.Templates[template.URITemplate]; exists {
+				return nil, fmt.Errorf("duplicate resource template discovered from resources: %s", template.URITemplate)
+			}
+			project.Templates[template.URITemplate] = template
+			model.ResourceTemplates = append(model.ResourceTemplates, template.Definition)
+		}
+	}
+
+	log.Infof("Compiled %d tool(s), %d prompt(s), %d resource(s), %d template(s) into model",
+		len(project.Tools), len(project.Prompts), len(project.Resources), len(project.Templates))
 	return project, nil
 }
 
-func resolveProjectDirectories(configFilePath string) (string, string, string, error) {
+func resolveProjectDirectories(configFilePath string) (string, string, string, string, string, error) {
 	baseDir := filepath.Dir(configFilePath)
 	rootDir := "app"
 	toolsDirName := "tools"
 	adaptersDirName := "adapters"
+	promptsDirName := "prompts"
+	resourcesDirName := "resources"
 
 	content, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read config for discovery settings: %w", err)
+		return "", "", "", "", "", fmt.Errorf("failed to read config for discovery settings: %w", err)
 	}
 
-	var cfg discoveryConfigFile
-	if err := yaml.Unmarshal(content, &cfg); err != nil {
-		return "", "", "", fmt.Errorf("failed to decode discovery settings: %w", err)
+	var raw map[string]any
+	if err := yaml.Unmarshal(content, &raw); err != nil {
+		return "", "", "", "", "", fmt.Errorf("failed to decode discovery settings: %w", err)
 	}
-	if cfg.Root != "" {
-		rootDir = cfg.Root
+	if configuredRoot, ok := raw["root"].(string); ok && strings.TrimSpace(configuredRoot) != "" {
+		rootDir = configuredRoot
 	}
-	if cfg.Tools.Directory != "" {
-		toolsDirName = cfg.Tools.Directory
+	if directory := discoveryDirectoryValue(raw["tools"]); directory != "" {
+		toolsDirName = directory
 	}
-	if cfg.Adapters.Directory != "" {
-		adaptersDirName = cfg.Adapters.Directory
+	if directory := discoveryDirectoryValue(raw["adapters"]); directory != "" {
+		adaptersDirName = directory
+	}
+	if directory := discoveryDirectoryValue(raw["prompts"]); directory != "" {
+		promptsDirName = directory
+	}
+	if directory := discoveryDirectoryValue(raw["resources"]); directory != "" {
+		resourcesDirName = directory
 	}
 
 	appDir := resolveDiscoveryPath(baseDir, rootDir)
 	adaptersDir := resolveDiscoveryPath(appDir, adaptersDirName)
 	toolsDir := resolveDiscoveryPath(appDir, toolsDirName)
-	return appDir, adaptersDir, toolsDir, nil
+	promptsDir := resolveDiscoveryPath(appDir, promptsDirName)
+	resourcesDir := resolveDiscoveryPath(appDir, resourcesDirName)
+	return appDir, adaptersDir, toolsDir, promptsDir, resourcesDir, nil
+}
+
+func discoveryDirectoryValue(section any) string {
+	directoryConfig, ok := section.(map[string]any)
+	if !ok {
+		return ""
+	}
+	directory, ok := directoryConfig["directory"].(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(directory)
 }
 
 func resolveDiscoveryPath(baseDir, configured string) string {
@@ -145,54 +214,28 @@ func resolveDiscoveryPath(baseDir, configured string) string {
 	return filepath.Clean(filepath.Join(baseDir, configured))
 }
 
-func discoverAdapterFiles(adaptersDir string) ([]string, error) {
+func discoverFiles(directory string, entityLabel string, match func(path string) bool) ([]string, error) {
 	var files []string
-	if _, err := os.Stat(adaptersDir); err != nil {
+	if _, err := os.Stat(directory); err != nil {
 		if os.IsNotExist(err) {
 			return files, nil
 		}
-		return nil, fmt.Errorf("failed to stat adapters dir: %w", err)
+		return nil, fmt.Errorf("failed to stat %s dir: %w", entityLabel, err)
 	}
-	err := filepath.WalkDir(adaptersDir, func(path string, d fs.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(directory, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if d.IsDir() {
 			return nil
 		}
-		if strings.EqualFold(filepath.Ext(path), ".terse") {
+		if match(path) {
 			files = append(files, path)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover adapter .terse files: %w", err)
-	}
-	return files, nil
-}
-
-func discoverToolTerseFiles(toolsDir string) ([]string, error) {
-	var files []string
-	if _, err := os.Stat(toolsDir); err != nil {
-		if os.IsNotExist(err) {
-			return files, nil
-		}
-		return nil, fmt.Errorf("failed to stat tools dir: %w", err)
-	}
-	err := filepath.WalkDir(toolsDir, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if strings.EqualFold(filepath.Base(path), "config.terse") {
-			files = append(files, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to discover tool .terse files: %w", err)
+		return nil, fmt.Errorf("failed to discover %s files: %w", entityLabel, err)
 	}
 	return files, nil
 }
@@ -226,6 +269,130 @@ func compileAdapterFile(adapterFile string) (*hyperterse.Adapter, error) {
 		adapter.Options.Options[k] = fmt.Sprintf("%v", v)
 	}
 	return adapter, nil
+}
+
+func compilePromptFile(promptFile string) (*Prompt, error) {
+	content, err := os.ReadFile(promptFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read prompt config %s: %w", promptFile, err)
+	}
+	var cfg PromptFileConfig
+	if err := strictYAMLUnmarshal(content, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse prompt config %s: %w", promptFile, err)
+	}
+
+	name := cfg.Name
+	if name == "" {
+		name = strings.TrimSuffix(filepath.Base(promptFile), filepath.Ext(promptFile))
+	}
+	definition := &hyperterse.PromptDefinition{
+		Name:        name,
+		Title:       cfg.Title,
+		Description: cfg.Description,
+	}
+	for argumentName, argumentSpec := range cfg.Arguments {
+		definition.Arguments = append(definition.Arguments, &hyperterse.PromptArgument{
+			Name:        argumentName,
+			Title:       argumentSpec.Title,
+			Description: argumentSpec.Description,
+			Required:    argumentSpec.Required,
+			Completion:  append([]string{}, argumentSpec.Completion...),
+		})
+	}
+	sort.Slice(definition.Arguments, func(i, j int) bool {
+		return definition.Arguments[i].Name < definition.Arguments[j].Name
+	})
+	for _, message := range cfg.Messages {
+		definition.Messages = append(definition.Messages, &hyperterse.PromptMessage{
+			Role: message.Role,
+			Text: message.Text,
+		})
+	}
+
+	return &Prompt{
+		Name:       name,
+		TerseFile:  promptFile,
+		Definition: definition,
+	}, nil
+}
+
+func compileResourceFile(resourceFile string) (*Resource, *ResourceTemplate, error) {
+	content, err := os.ReadFile(resourceFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read resource config %s: %w", resourceFile, err)
+	}
+	var cfg ResourceFileConfig
+	if err := strictYAMLUnmarshal(content, &cfg); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse resource config %s: %w", resourceFile, err)
+	}
+
+	hasURI := strings.TrimSpace(cfg.URI) != ""
+	hasURITemplate := strings.TrimSpace(cfg.URITemplate) != ""
+	if hasURI && hasURITemplate {
+		return nil, nil, fmt.Errorf("invalid resource config %s: define either 'uri' or 'uri_template', not both", resourceFile)
+	}
+	if !hasURI && !hasURITemplate {
+		return nil, nil, fmt.Errorf("invalid resource config %s: missing required field 'uri' or 'uri_template'", resourceFile)
+	}
+
+	if hasURI {
+		resolvedFile := cfg.File
+		if strings.TrimSpace(resolvedFile) != "" && !filepath.IsAbs(resolvedFile) {
+			resolvedFile = filepath.Clean(filepath.Join(filepath.Dir(resourceFile), resolvedFile))
+		}
+		definition := &hyperterse.ResourceDefinition{
+			Uri:         cfg.URI,
+			Name:        cfg.Name,
+			Title:       cfg.Title,
+			Description: cfg.Description,
+			MimeType:    cfg.MIMEType,
+			Text:        cfg.Text,
+			File:        resolvedFile,
+		}
+		if definition.Name == "" {
+			definition.Name = filepath.Base(filepath.Dir(resourceFile))
+		}
+		return &Resource{
+			URI:        definition.Uri,
+			TerseFile:  resourceFile,
+			Definition: definition,
+		}, nil, nil
+	}
+
+	resolvedFileTemplate := cfg.FileTemplate
+	if strings.TrimSpace(resolvedFileTemplate) != "" && !filepath.IsAbs(resolvedFileTemplate) {
+		resolvedFileTemplate = filepath.Clean(filepath.Join(filepath.Dir(resourceFile), resolvedFileTemplate))
+	}
+	template := &hyperterse.ResourceTemplateDefinition{
+		UriTemplate:  cfg.URITemplate,
+		Name:         cfg.Name,
+		Title:        cfg.Title,
+		Description:  cfg.Description,
+		MimeType:     cfg.MIMEType,
+		TextTemplate: cfg.TextTemplate,
+		FileTemplate: resolvedFileTemplate,
+	}
+	for argumentName, argumentSpec := range cfg.Arguments {
+		template.Arguments = append(template.Arguments, &hyperterse.ResourceTemplateArgument{
+			Name:        argumentName,
+			Title:       argumentSpec.Title,
+			Description: argumentSpec.Description,
+			Required:    argumentSpec.Required,
+			Completion:  append([]string{}, argumentSpec.Completion...),
+		})
+	}
+	sort.Slice(template.Arguments, func(i, j int) bool {
+		return template.Arguments[i].Name < template.Arguments[j].Name
+	})
+	if template.Name == "" {
+		template.Name = filepath.Base(filepath.Dir(resourceFile))
+	}
+
+	return nil, &ResourceTemplate{
+		URITemplate: template.UriTemplate,
+		TerseFile:   resourceFile,
+		Definition:  template,
+	}, nil
 }
 
 func compileToolFile(project *Project, terseFile string) (*Tool, error) {

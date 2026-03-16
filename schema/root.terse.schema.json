@@ -92,6 +92,291 @@
       },
       "additionalProperties": false
     },
+    "prompts": {
+      "description": "Prompt discovery settings (`prompts.directory`) or optional inline prompt definitions.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "type": "string",
+              "description": "Prompts directory relative to `root` (defaults to `prompts`).",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "description": "Prompt discovery settings."
+        },
+        {
+          "type": "array",
+          "description": "Optional inline prompt definitions.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$",
+                "minLength": 1,
+                "description": "Prompt name."
+              },
+              "title": {
+                "type": "string",
+                "description": "Optional prompt title."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional prompt description."
+              },
+              "arguments": {
+                "type": "array",
+                "description": "Prompt arguments.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+                      "minLength": 1,
+                      "description": "Argument name."
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "Optional human-friendly title."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Optional argument description."
+                    },
+                    "required": {
+                      "type": "boolean",
+                      "description": "Whether this argument is required."
+                    },
+                    "completion": {
+                      "type": "array",
+                      "description": "Optional static completion values.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "messages": {
+                "type": "array",
+                "description": "Prompt messages.",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "assistant",
+                        "system"
+                      ],
+                      "description": "MCP prompt message role."
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Prompt message content."
+                    }
+                  },
+                  "required": [
+                    "role",
+                    "text"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "name",
+              "messages"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "resources": {
+      "description": "Resource discovery settings (`resources.directory`) or optional inline concrete resources.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "type": "string",
+              "description": "Resources directory relative to `root` (defaults to `resources`).",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "description": "Resource discovery settings."
+        },
+        {
+          "type": "array",
+          "description": "Optional inline concrete resources.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uri": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Resource URI."
+              },
+              "name": {
+                "type": "string",
+                "description": "Optional resource name."
+              },
+              "title": {
+                "type": "string",
+                "description": "Optional resource title."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional resource description."
+              },
+              "mime_type": {
+                "type": "string",
+                "description": "Optional MIME type."
+              },
+              "text": {
+                "type": "string",
+                "description": "Inline text content."
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "description": "File path for resource content."
+              }
+            },
+            "required": [
+              "uri"
+            ],
+            "allOf": [
+              {
+                "oneOf": [
+                  {
+                    "required": [
+                      "text"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "file"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "resource_templates": {
+      "type": "array",
+      "description": "Optional inline resource template definitions.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "uri_template": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URI template (RFC 6570)."
+          },
+          "name": {
+            "type": "string",
+            "description": "Optional template name."
+          },
+          "title": {
+            "type": "string",
+            "description": "Optional template title."
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional template description."
+          },
+          "mime_type": {
+            "type": "string",
+            "description": "Optional MIME type."
+          },
+          "text_template": {
+            "type": "string",
+            "description": "Inline text template content."
+          },
+          "file_template": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File path template for resource content."
+          },
+          "arguments": {
+            "type": "array",
+            "description": "Template arguments.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+                  "minLength": 1,
+                  "description": "Template argument name."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Optional human-friendly title."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional argument description."
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Whether this argument is required."
+                },
+                "completion": {
+                  "type": "array",
+                  "description": "Optional static completion values.",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "uri_template"
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "required": [
+                  "text_template"
+                ]
+              },
+              {
+                "required": [
+                  "file_template"
+                ]
+              }
+            ]
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
     "server": {
       "type": "object",
       "description": "Runtime server configuration.",

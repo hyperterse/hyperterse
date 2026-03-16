@@ -22,10 +22,10 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 		return nil
 	}
 
-	// v2 path: ensure at least one tool exists and each tool has exactly one
+	// v2 path: ensure at least one MCP entity exists and each tool has exactly one
 	// execution mode.
-	if len(project.Tools) == 0 {
-		return fmt.Errorf("project root exists but no tool .terse files were discovered")
+	if len(project.Tools) == 0 && len(project.Prompts) == 0 && len(project.Resources) == 0 && len(project.Templates) == 0 {
+		return fmt.Errorf("project root exists but no tool/prompt/resource .terse files were discovered")
 	}
 	for toolName, tool := range project.Tools {
 		if tool.Definition == nil {

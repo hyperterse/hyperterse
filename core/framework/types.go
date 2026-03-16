@@ -17,8 +17,13 @@ type Project struct {
 	AppDir       string
 	AdaptersDir  string
 	ToolsDir     string
+	PromptsDir   string
+	ResourcesDir string
 	BuildDir     string
 	Tools        map[string]*Tool
+	Prompts      map[string]*Prompt
+	Resources    map[string]*Resource
+	Templates    map[string]*ResourceTemplate
 	VendorBundle string
 }
 
@@ -32,6 +37,27 @@ type Tool struct {
 	Scripts       ToolScripts
 	Auth          ToolAuth
 	BundleOutputs map[string]string
+}
+
+// Prompt contains compiled metadata for a prompt .terse file.
+type Prompt struct {
+	Name       string
+	TerseFile  string
+	Definition *hyperterse.PromptDefinition
+}
+
+// Resource contains compiled metadata for a resource .terse file.
+type Resource struct {
+	URI        string
+	TerseFile  string
+	Definition *hyperterse.ResourceDefinition
+}
+
+// ResourceTemplate contains compiled metadata for a resource template .terse file.
+type ResourceTemplate struct {
+	URITemplate string
+	TerseFile   string
+	Definition  *hyperterse.ResourceTemplateDefinition
 }
 
 // ToolScripts are optional script entrypoints declared by tool .terse files.
@@ -70,6 +96,30 @@ type AdapterFileConfig struct {
 	Options          map[string]any `yaml:"options"`
 }
 
+// PromptFileConfig is the schema for prompt .terse files.
+type PromptFileConfig struct {
+	Name        string                        `yaml:"name"`
+	Title       string                        `yaml:"title"`
+	Description string                        `yaml:"description"`
+	Arguments   map[string]promptArgumentSpec `yaml:"arguments"`
+	Messages    []promptMessageSpec           `yaml:"messages"`
+}
+
+// ResourceFileConfig is the schema for resource and resource-template .terse files.
+type ResourceFileConfig struct {
+	URI          string                          `yaml:"uri"`
+	URITemplate  string                          `yaml:"uri_template"`
+	Name         string                          `yaml:"name"`
+	Title        string                          `yaml:"title"`
+	Description  string                          `yaml:"description"`
+	MIMEType     string                          `yaml:"mime_type"`
+	Text         string                          `yaml:"text"`
+	File         string                          `yaml:"file"`
+	TextTemplate string                          `yaml:"text_template"`
+	FileTemplate string                          `yaml:"file_template"`
+	Arguments    map[string]resourceArgumentSpec `yaml:"arguments"`
+}
+
 type toolInputSpec struct {
 	Type        string `yaml:"type"`
 	Description string `yaml:"description"`
@@ -85,6 +135,25 @@ type toolMapperSpec struct {
 type toolAuthSpec struct {
 	Plugin string            `yaml:"plugin"`
 	Policy map[string]string `yaml:"policy"`
+}
+
+type promptArgumentSpec struct {
+	Title       string   `yaml:"title"`
+	Description string   `yaml:"description"`
+	Required    bool     `yaml:"required"`
+	Completion  []string `yaml:"completion"`
+}
+
+type promptMessageSpec struct {
+	Role string `yaml:"role"`
+	Text string `yaml:"text"`
+}
+
+type resourceArgumentSpec struct {
+	Title       string   `yaml:"title"`
+	Description string   `yaml:"description"`
+	Required    bool     `yaml:"required"`
+	Completion  []string `yaml:"completion"`
 }
 
 func normalizeToolSegment(segment string) string {

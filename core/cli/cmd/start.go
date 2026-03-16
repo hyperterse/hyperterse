@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -16,7 +16,6 @@ import (
 	"github.com/hyperterse/hyperterse/core/parser"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
 	"github.com/hyperterse/hyperterse/core/runtime"
-	"github.com/hyperterse/hyperterse/core/types"
 	"github.com/spf13/cobra"
 )
 
@@ -211,6 +210,15 @@ func shouldTriggerReload(path string) bool {
 	return strings.HasSuffix(lower, ".terse") || strings.HasSuffix(lower, ".ts")
 }
 
+func logDebugNameList(log *logger.Logger, label string, names []string) {
+	sorted := append([]string{}, names...)
+	sort.Strings(sorted)
+	log.Debugf("%s: %d", label, len(sorted))
+	for _, name := range sorted {
+		log.Debugf("- %s", name)
+	}
+}
+
 // PrepareRuntime loads config, validates, and creates a runtime ready to start
 func PrepareRuntime() (*runtime.Runtime, error) {
 	log := logger.New("main")
@@ -288,34 +296,73 @@ func PrepareRuntime() (*runtime.Runtime, error) {
 
 	// Log parsed configuration
 	log.Infof("Configuration loaded")
-	log.Debugf("Adapters: %d", len(model.Adapters))
+	frameworkLog := logger.New("framework")
+	mcpLog := logger.New("mcp")
+
+	frameworkLog.Debugf("Adapters: %d", len(model.Adapters))
 	if len(model.Adapters) > 0 {
 		for _, adapter := range model.Adapters {
-			log.Debugf("  Adapter: %s (%s)", adapter.Name, adapter.Connector.String())
+			frameworkLog.Debugf("  Adapter: %s (%s)", adapter.Name, adapter.Connector.String())
 		}
 	}
 
-	log.Debugf("Tools: %d", len(model.Tools))
-	if len(model.Tools) > 0 {
-		for _, tool := range model.Tools {
-			log.Debugf("  Tool: %s", tool.Name)
-			if len(tool.Use) > 0 {
-				log.Debugf("    Uses: %s", strings.Join(tool.Use, ", "))
-			}
-			if len(tool.Inputs) > 0 {
-				inputNames := make([]string, 0, len(tool.Inputs))
-				for _, input := range tool.Inputs {
-					optional := ""
-					if input.Optional {
-						optional = " (optional)"
-					}
-					typeStr := types.PrimitiveEnumToString(input.Type)
-					inputNames = append(inputNames, fmt.Sprintf("%s:%s%s", input.Name, typeStr, optional))
-				}
-				log.Debugf("    Inputs: %s", strings.Join(inputNames, ", "))
-			}
+	toolNames := make([]string, 0, len(model.Tools))
+	for _, tool := range model.Tools {
+		if tool == nil {
+			continue
 		}
+		name := strings.TrimSpace(tool.Name)
+		if name == "" {
+			name = "<unnamed-tool>"
+		}
+		toolNames = append(toolNames, name)
 	}
+	logDebugNameList(mcpLog, "Tools", toolNames)
+
+	promptNames := make([]string, 0, len(model.Prompts))
+	for _, prompt := range model.Prompts {
+		if prompt == nil {
+			continue
+		}
+		name := strings.TrimSpace(prompt.Name)
+		if name == "" {
+			name = "<unnamed-prompt>"
+		}
+		promptNames = append(promptNames, name)
+	}
+	logDebugNameList(mcpLog, "Prompts", promptNames)
+
+	resourceNames := make([]string, 0, len(model.Resources))
+	for _, resource := range model.Resources {
+		if resource == nil {
+			continue
+		}
+		name := strings.TrimSpace(resource.Name)
+		if name == "" {
+			name = strings.TrimSpace(resource.Uri)
+		}
+		if name == "" {
+			name = "<unnamed-resource>"
+		}
+		resourceNames = append(resourceNames, name)
+	}
+	logDebugNameList(mcpLog, "Resources", resourceNames)
+
+	resourceTemplateNames := make([]string, 0, len(model.ResourceTemplates))
+	for _, resourceTemplate := range model.ResourceTemplates {
+		if resourceTemplate == nil {
+			continue
+		}
+		name := strings.TrimSpace(resourceTemplate.Name)
+		if name == "" {
+			name = strings.TrimSpace(resourceTemplate.UriTemplate)
+		}
+		if name == "" {
+			name = "<unnamed-resource-template>"
+		}
+		resourceTemplateNames = append(resourceTemplateNames, name)
+	}
+	logDebugNameList(mcpLog, "Resource templates", resourceTemplateNames)
 
 	if project != nil {
 		if err := framework.ValidateModel(model, project); err != nil {
