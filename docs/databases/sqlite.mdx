@@ -1,0 +1,141 @@
+---
+title: SQLite
+description: Connect Hyperterse to SQLite for SQL-backed MCP tools — local files, in-memory, or remote libSQL/Turso.
+---
+
+SQLite is an embedded database that runs as a single file or in memory. libSQL and Turso extend SQLite to run remotely with the same SQL, hosted.
+
+Hyperterse supports both: use a local file or `:memory:` for development and embedded workloads, or a libSQL/Turso URL for production with replication and edge sync. Connection pooling and parameterized query execution work the same as other SQL connectors.
+
+<Note>
+  For remote databases, Hyperterse connects to your existing database. It does
+  not create or manage databases — you need to provision your own instance.
+
+- [Turso](https://turso.tech) offers a free tier
+- [libSQL](https://libsql.org) can be self-hosted
+
+</Note>
+
+## Adapter configuration
+
+Create an adapter file in `app/adapters/`:
+
+```yaml app/adapters/sqlite-db.terse
+connector: sqlite
+connection_string: '{{ env.SQLITE_URL }}'
+options:
+  authToken: '{{ env.TURSO_AUTH_TOKEN }}'
+```
+
+The connection string format depends on local vs remote:
+
+<Tabs>
+  <Tab title="Local">
+    Use `:memory:`, `file:./path.db`, or absolute path for local file-based
+    database.
+  </Tab>
+  <Tab title="Remote (libSQL / Turso)">
+    Use `libsql://` or `https://` for hosted Turso; `http://` for local libSQL
+    instances. WebSocket URLs (`ws://`, `wss://`) are not supported.
+  </Tab>
+</Tabs>
+
+<Tip>
+  Always use [Environment Variables](/reference/environment-variables) for
+  connection strings and auth tokens. Never commit credentials to source
+  control.
+</Tip>
+
+### Connection options
+
+Pass options through the `options` map. Values are appended directly to the connection string query parameters — no key remapping.
+
+<ParamField
+  body="authToken"
+  type="string"
+>
+  Auth token for remote libSQL/Turso. Required for Turso and secured libSQL
+  instances.
+</ParamField>
+
+<ParamField
+  body="sync_interval"
+  type="string"
+>
+  Replication sync interval for libSQL embedded replicas (e.g. `5s`).
+</ParamField>
+
+<ParamField
+  body="tls"
+  type="string"
+>
+  Enable or disable TLS. Use `1` for TLS, `0` to disable (only valid with
+  explicit port, e.g. local libSQL).
+</ParamField>
+
+### Recommended permissions
+
+For local file-backed SQLite, ensure the process has read and write access to the database file and its directory. For remote libSQL/Turso, create a database-specific token with the minimum required permissions in the Turso dashboard or libSQL configuration.
+
+### Verify the connection
+
+Start the server and confirm the adapter connects:
+
+```bash
+hyperterse start
+```
+
+A successful connection produces:
+
+```
+INFO  Connected to adapter: sqlite-db
+```
+
+If the connection fails, the server exits immediately with a diagnostic message.
+
+## Usage
+
+SQLite tools execute standard SQL through the adapter. Use `{{ inputs.field }}` placeholders for parameterized values — they are never interpolated as raw SQL.
+
+```yaml app/tools/get-user/config.terse
+description: 'Retrieve a user by their identifier'
+use: sqlite-db
+statement: |
+  SELECT id, name, email, created_at
+  FROM users
+  WHERE id = {{ inputs.user_id }}
+inputs:
+  user_id:
+    type: int
+    description: 'Primary key of the user record'
+auth:
+  plugin: allow_all
+```
+
+SQLite features like JSON functions, full-text search, and window functions are all supported. Use standard SQLite syntax in statements.
+
+## Troubleshooting
+
+### Unsupported URL scheme
+
+If startup fails with an unsupported scheme error, ensure your connection string uses one of:
+
+- `:memory:`, `file:./path.db`, or absolute path for local
+- `libsql://`, `https://`, or `http://` for remote
+
+WebSocket URLs (`ws://`, `wss://`) are not supported.
+
+### Remote auth failures
+
+Verify that `authToken` (or `auth_token` / `jwt`) is set correctly and resolves from env:
+
+```yaml
+options:
+  authToken: '{{ env.TURSO_AUTH_TOKEN }}'
+```
+
+Ensure the token has access to the database and has not expired.
+
+### File open failures
+
+For file-backed SQLite, check that the path exists and the process has read and write permissions. Verify the directory exists when using `file:./relative/path.db`.

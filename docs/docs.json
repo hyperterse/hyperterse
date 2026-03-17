@@ -75,6 +75,7 @@
             "pages": [
               "databases/postgresql",
               "databases/mysql",
+              "databases/sqlite",
               "databases/mongodb",
               "databases/redis"
             ]

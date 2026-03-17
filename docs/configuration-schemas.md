@@ -44,7 +44,9 @@ This document is the source-of-truth checklist for config schema coverage in the
 - **Adapter**
   - Required: `connector`, `connection_string`.
   - Optional: `name`, `options`.
-  - Constraints: `connector` enum is derived from connector protobuf.
+  - Constraints:
+    - `connector` enum is derived from connector protobuf.
+    - Current values: `postgres`, `redis`, `mysql`, `mongodb`, `sqlite`.
 - **Tool**
   - Required: exactly one of `use` or `handler`.
   - Optional: `name`, `description`, `statement`, `mappers`, `auth`, `inputs`.

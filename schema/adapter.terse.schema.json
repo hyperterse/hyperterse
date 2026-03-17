@@ -18,7 +18,8 @@
         "postgres",
         "redis",
         "mysql",
-        "mongodb"
+        "mongodb",
+        "sqlite"
       ]
     },
     "connection_string": {
