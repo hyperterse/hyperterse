@@ -1,0 +1,8 @@
+description: "List all notes from the SQLite demo database."
+use: sqlite-db
+statement: |
+  SELECT id, title, content, created_at
+  FROM notes
+  ORDER BY created_at DESC
+auth:
+  plugin: allow_all

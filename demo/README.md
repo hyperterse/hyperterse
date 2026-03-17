@@ -10,6 +10,7 @@ demo/
     adapters/
       my-adapter.terse
       my-other-adapter.terse
+      sqlite-db.terse
     tools/
       get-user/
         config.terse
@@ -18,6 +19,8 @@ demo/
       get-weather/
         config.terse
         weather-handler.ts
+      list-sqlite-notes/
+        config.terse
     prompts/
       incident-update.terse
       summarize-release.terse
@@ -37,7 +40,7 @@ demo/
 
 ## What this demonstrates
 
-- Adapter discovery from `app/adapters/*.terse`
+- Adapter discovery from `app/adapters/*.terse` (including SQLite connector)
 - Tool discovery from `app/tools/*/config.terse`
 - Prompt discovery from `app/prompts/**/*.terse`
 - Resource + resource-template discovery from `app/resources/**/config.terse`
@@ -49,6 +52,31 @@ demo/
 - Custom handler flow (`get-weather`)
 - Prompt argument completion (`completion/complete` with `ref/prompt`)
 - Resource template argument completion (`completion/complete` with `ref/resource`)
+
+## SQLite connector
+
+The demo includes a SQLite adapter and tool that work without external services. To use them:
+
+1. Seed the demo database (run from repo root):
+
+```bash
+sqlite3 demo.db < demo/seed-sqlite.sql
+```
+
+2. Start the server and invoke the tool:
+
+```bash
+curl -s -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc":"2.0",
+    "method":"tools/call",
+    "params":{"name":"execute","arguments":{"tool":"list-sqlite-notes","inputs":{}}},
+    "id":16
+  }' | jq
+```
+
+The SQLite adapter uses `file:./demo.db` by default; the database file is created in the current working directory when you run the server.
 
 ## Run
 

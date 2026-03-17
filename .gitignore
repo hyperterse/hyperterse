@@ -51,3 +51,6 @@ distributions/**/dist
 
 # Node
 node_modules
+
+# Demo SQLite DB
+demo.db
