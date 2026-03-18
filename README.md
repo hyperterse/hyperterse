@@ -256,6 +256,25 @@ Execution pipeline:
 5. Output transform (optional)
 6. Response serialization
 
+## MCP spec compliance
+
+Hyperterse implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) specification **[2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)**.
+
+Compliance status by component:
+
+| Spec component                                                                                                                | Status |
+| ----------------------------------------------------------------------------------------------------------------------------- | :----: |
+| [Base protocol](https://modelcontextprotocol.io/specification/2025-11-25/basic) (JSON-RPC 2.0)                                |   ✅   |
+| [Lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle) (initialize/initialized)                |   ✅   |
+| [Tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) (list, call, listChanged)                      |   ✅   |
+| [Resources](https://modelcontextprotocol.io/specification/2025-11-25/server/resources) (list, read, subscribe, updated)       |   ✅   |
+| [Prompts](https://modelcontextprotocol.io/specification/2025-11-25/server/prompts) (list, get, listChanged)                   |   ✅   |
+| [Completion](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion) (ref/prompt, ref/resource) |   ✅   |
+| [Pagination](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/pagination) (cursor/nextCursor)        |   ⚠️   |
+| Tool result content types (image, audio, resource_link)                                                                       |   ⚠️   |
+
+Text content for tool results is supported; image, audio, and resource links are optional. Pagination applies when tools, prompts, or resources exceed typical small-to-medium counts.
+
 ## Security notes
 
 - Use `{{ env.VAR_NAME }}` for secrets and connection strings.
