@@ -1,0 +1,6 @@
+uri: memory://service/info
+name: service-info
+title: Service metadata
+description: Inline service metadata for the demo runtime.
+mime_type: application/json
+text: '{"name":"demo-framework","env":"local","version":"2.0.0-beta-1"}'

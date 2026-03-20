@@ -1,0 +1,104 @@
+---
+title: Resources
+description: Define MCP resources and URI templates backed by inline content or files.
+tag: NEW
+---
+
+Resources expose structured read-only context through MCP `resources/*` APIs. Hyperterse supports both:
+
+- **concrete resources** with fixed `uri`
+- **resource templates** with parameterized `uri_template`
+
+## Where resource definitions live
+
+By default, resource config files are discovered from:
+
+- `app/resources/**/config.terse`
+
+Each resource lives in its own folder. That folder contains:
+
+- `config.terse` (required)
+- optional resource content files (for example `release-notes.md`, `1001.json`, images, or other formats)
+
+You can override discovery in `.hyperterse`:
+
+```yaml .hyperterse
+resources:
+  directory: resources
+```
+
+You can also define concrete resources (`resources`) and templates (`resource_templates`) inline in `.hyperterse`. See [Root configuration](/reference/root-config).
+
+## Concrete resources
+
+Concrete resources define a fixed URI and one content source:
+
+- inline `text`, or
+- file-backed `file`
+
+```yaml app/resources/release-notes/config.terse
+uri: memory://release-notes/latest
+name: release-notes
+mime_type: text/markdown
+file: ./release-notes.md
+```
+
+## Resource templates
+
+Templates define parameterized URIs and template-based content:
+
+- inline `text_template`, or
+- file-backed `file_template`
+
+```yaml app/resources/order-by-id/config.terse
+uri_template: memory://orders/{id}
+name: order-details
+mime_type: application/json
+text_template: '{"orderId":"{{ id }}","status":"pending"}'
+arguments:
+  id:
+    description: Order identifier
+    required: true
+    completion: ["1001", "1002", "1003"]
+```
+
+## Runtime behavior
+
+Loaded resource definitions are exposed through MCP:
+
+- `resources/list` for concrete resources
+- `resources/templates/list` for template resources
+- `resources/read` for content retrieval
+- `resources/subscribe` / `resources/unsubscribe` for update subscriptions
+- `completion/complete` for template argument completions (when configured)
+- `notifications/resources/list_changed` when resource definitions change
+- `notifications/resources/updated` when a concrete resource changes on reload
+
+## Content and MIME handling
+
+Hyperterse resolves resource content using these rules:
+
+1. Use configured `mime_type` if present.
+2. Otherwise infer from file extension (for file-backed content).
+3. If no MIME can be inferred:
+   - text data defaults to `text/plain; charset=utf-8`
+   - binary data defaults to `application/octet-stream`
+
+File-backed resources return text when content is UTF-8/text; otherwise they return binary blob content.
+
+## File paths and safety
+
+- Relative `file` and `file_template` paths are resolved relative to the resource `config.terse` directory.
+- For `file_template`, path traversal patterns (`..`) are rejected after interpolation.
+
+## Validation and constraints
+
+Resource configs are validated before runtime:
+
+- exactly one of `uri` or `uri_template` must be set
+- concrete resources require one of `text` or `file`
+- template resources require one of `text_template` or `file_template`
+- resource URIs must be unique across concrete resources
+- URI templates must be unique across template resources
+
+See [Resource configuration reference](/reference/resource-config) for full field details.

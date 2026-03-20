@@ -11,6 +11,7 @@ enum Connector {
   CONNECTOR_REDIS = 2;
   CONNECTOR_MYSQL = 3;
   CONNECTOR_MONGODB = 4;
+  CONNECTOR_SQLITE = 5;
 }
 message ConnectorDef {
   string connection_string = 1;

@@ -21,7 +21,7 @@ The `connector` field selects the database engine. The `connection_string` accep
 
 ## Supported connectors
 
-Hyperterse ships with four built-in connectors:
+Hyperterse ships with many built-in connectors:
 
 <CardGroup cols={2}>
   <Card
@@ -37,6 +37,13 @@ Hyperterse ships with four built-in connectors:
     href="/databases/mysql"
   >
     SQL queries via DSN-format connection strings.
+  </Card>
+  <Card
+    title="SQLite"
+    icon="database"
+    href="/databases/sqlite"
+  >
+    Local SQLite files and remote libSQL/Turso over HTTP.
   </Card>
   <Card
     title="MongoDB"
@@ -67,11 +74,26 @@ statement: 'SELECT * FROM users WHERE id = {{ inputs.user_id }}'
 A project can define multiple adapters, and different tools can reference different ones:
 
 <Tree>
-  <Tree.Folder name="app" defaultOpen>
-    <Tree.Folder name="adapters" defaultOpen>
-      <Tree.File name="users-db.terse" comment="PostgreSQL for user data" />
-      <Tree.File name="analytics-db.terse" comment="MySQL for analytics" />
-      <Tree.File name="cache.terse" comment="Redis for caching" />
+  <Tree.Folder
+    name="app"
+    defaultOpen
+  >
+    <Tree.Folder
+      name="adapters"
+      defaultOpen
+    >
+      <Tree.File
+        name="users-db.terse"
+        comment="PostgreSQL for user data"
+      />
+      <Tree.File
+        name="analytics-db.terse"
+        comment="MySQL for analytics"
+      />
+      <Tree.File
+        name="cache.terse"
+        comment="Redis for caching"
+      />
     </Tree.Folder>
   </Tree.Folder>
 </Tree>

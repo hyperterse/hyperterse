@@ -1,0 +1,105 @@
+---
+title: Prompt
+description: Complete field reference for prompt definition files.
+---
+
+Each `app/prompts/**/*.terse` file defines one MCP prompt, including message templates and optional argument metadata for completion support.
+
+## Full schema
+
+```yaml app/prompts/summarize-release.terse
+name: summarize-release
+title: Release summary helper
+description: Summarize release notes for a target audience.
+arguments:
+  audience:
+    title: Audience
+    description: Target audience for summary tone and detail
+    required: true
+    completion: ["engineering", "product", "customers"]
+  tone:
+    description: Desired writing tone
+    completion: ["concise", "detailed"]
+messages:
+  - role: system
+    text: You summarize releases for {{ audience }}.
+  - role: user
+    text: Write a {{ tone }} release summary.
+```
+
+## Field reference
+
+<ParamField body="name" type="string">
+  Prompt identifier exposed through MCP `prompts/list`.
+
+  **Default:** filename without `.terse`.
+
+  <Tip>
+    Prompt names must be unique and should follow lower-kebab/lower-snake style
+    (`^[a-z][a-z0-9_-]*$`).
+  </Tip>
+</ParamField>
+
+<ParamField body="title" type="string">
+  Optional human-friendly prompt title.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional prompt description returned by `prompts/list` and `prompts/get`.
+</ParamField>
+
+<ParamField body="arguments" type="object">
+  Optional map of argument definitions keyed by argument name.
+
+  <Expandable title="argument field properties">
+    <ParamField body="title" type="string">
+      Optional display title for the argument.
+    </ParamField>
+
+    <ParamField body="description" type="string">
+      Optional argument description.
+    </ParamField>
+
+    <ParamField body="required" type="boolean" default="false">
+      Whether callers are expected to provide this argument.
+    </ParamField>
+
+    <ParamField body="completion" type="array[string]">
+      Optional static completion values. Used by `completion/complete` for
+      prompt references.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="messages" type="array" required>
+  Ordered message templates for prompt rendering.
+
+  <Expandable title="message item shape">
+    <ParamField body="role" type="string" required>
+      One of `user`, `assistant`, or `system`.
+    </ParamField>
+
+    <ParamField body="text" type="string" required>
+      Message template text. Supports interpolation placeholders like
+      `{{ audience }}`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Validity rules
+
+- `messages` must contain at least one item.
+- Prompt names must be unique across the project.
+- Argument names must be unique within each prompt.
+- Message roles must be one of `user`, `assistant`, `system`.
+
+## Runtime mapping
+
+- Prompt metadata and arguments are surfaced in MCP `prompts/list`.
+- Message templates are rendered through MCP `prompts/get`.
+- Argument `completion` values are used by MCP `completion/complete` (`ref/prompt`).
+
+## JSON Schema
+
+Editor validation: `schema/prompt.terse.schema.json`. Associate with
+`**/prompts/**/*.terse`. See [Configuration schemas](/reference/configuration-schemas).

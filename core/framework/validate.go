@@ -22,8 +22,9 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 		return nil
 	}
 
-	if len(project.Tools) == 0 && len(project.Agents) == 0 {
-		return fmt.Errorf("project root exists but no tool or agent .terse files were discovered")
+	if len(project.Tools) == 0 && len(project.Prompts) == 0 && len(project.Resources) == 0 &&
+		len(project.Templates) == 0 && len(project.Agents) == 0 {
+		return fmt.Errorf("project root exists but no tool, prompt, resource, template, or agent .terse files were discovered")
 	}
 	for toolName, tool := range project.Tools {
 		if tool.Definition == nil {
@@ -71,11 +72,10 @@ func ValidateModel(model *hyperterse.Model, project *Project) error {
 			default:
 				return fmt.Errorf("agent '%s' has unsupported tool access mode %q", agentName, definition.ToolAccess.Mode)
 			}
-		}
-
-		for _, toolName := range definition.ToolAccess.Tools {
-			if _, exists := project.Tools[toolName]; !exists {
-				return fmt.Errorf("agent '%s' references unknown tool %q", agentName, toolName)
+			for _, toolName := range definition.ToolAccess.Tools {
+				if _, exists := project.Tools[toolName]; !exists {
+					return fmt.Errorf("agent '%s' references unknown tool %q", agentName, toolName)
+				}
 			}
 		}
 	}

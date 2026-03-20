@@ -61,6 +61,8 @@ func NewConnector(adapter *hyperterse.Adapter) (Connector, error) {
 	case connectors.Connector_CONNECTOR_MONGODB:
 		def.Config.JsonStatements = true
 		return NewMongoDBConnector(def)
+	case connectors.Connector_CONNECTOR_SQLITE:
+		return NewSQLiteConnector(def)
 	case connectors.Connector_CONNECTOR_UNSPECIFIED:
 		return nil, fmt.Errorf("adapter '%s' has unspecified connector type", adapter.Name)
 	default:

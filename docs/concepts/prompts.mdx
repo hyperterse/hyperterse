@@ -1,0 +1,79 @@
+---
+title: Prompts
+description: Define reusable MCP prompts with arguments, interpolation, and completion hints.
+tag: NEW
+---
+
+Prompts let you package reusable conversation scaffolding directly in your Hyperterse project. At runtime, these definitions are exposed through MCP `prompts/list` and `prompts/get`, so clients can discover prompt templates and instantiate them with concrete arguments.
+
+## Where prompt definitions live
+
+By default, prompt config files are discovered from:
+
+- `app/prompts/**/*.terse`
+
+You can override discovery in `.hyperterse`:
+
+```yaml .hyperterse
+prompts:
+  directory: prompts
+```
+
+You can also define prompts inline in `.hyperterse` using the `prompts` array form. See [Root configuration](/reference/root-config).
+
+## Prompt file shape
+
+Each prompt file defines:
+
+- prompt identity (`name`, optional; defaults to filename)
+- optional metadata (`title`, `description`)
+- optional argument definitions (`arguments`)
+- one or more message templates (`messages`)
+
+```yaml app/prompts/summarize-release.terse
+name: summarize-release
+title: Release summary helper
+description: Generate a concise release summary from notes.
+arguments:
+  audience:
+    description: Intended audience for the summary
+    required: true
+    completion: ["engineering", "product", "customers"]
+  tone:
+    description: Writing tone
+    completion: ["concise", "detailed"]
+messages:
+  - role: system
+    text: You summarize software releases for {{ audience }}.
+  - role: user
+    text: Write a {{ tone }} summary for this release.
+```
+
+## Argument interpolation
+
+When a client calls `prompts/get`, Hyperterse interpolates `{{ argumentName }}` placeholders in each message using the provided prompt arguments.
+
+- Missing placeholders are left as-is.
+- Supported placeholder token characters are alphanumeric and underscore.
+- Message order is preserved exactly as configured.
+
+## Runtime behavior
+
+Once loaded, prompt definitions are available through MCP:
+
+- `prompts/list` to discover prompts
+- `prompts/get` to render message content with arguments
+- `completion/complete` for prompt argument completions when `completion` values are declared
+- `notifications/prompts/list_changed` when prompt definitions change after a model reload
+
+## Validation and constraints
+
+Prompt configs are validated before runtime:
+
+- prompt names must be unique
+- at least one `messages` entry is required
+- each message requires `role` + `text`
+- supported roles: `user`, `assistant`, `system`
+- argument names must be unique within a prompt
+
+See [Prompt configuration reference](/reference/prompt-config) for full field details.

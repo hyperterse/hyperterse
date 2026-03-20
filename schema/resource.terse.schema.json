@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/resource.terse.schema.json",
+  "title": "HyperterseResourceConfig",
+  "description": "Schema for resource-level `.terse` files. Supports concrete resources and URI templates.",
+  "type": "object",
+  "properties": {
+    "uri": {
+      "type": "string",
+      "description": "Concrete resource URI.",
+      "minLength": 1
+    },
+    "uri_template": {
+      "type": "string",
+      "description": "URI template (RFC 6570).",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "description": "Optional resource/resource-template name."
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional title."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description."
+    },
+    "mime_type": {
+      "type": "string",
+      "description": "Optional MIME type."
+    },
+    "text": {
+      "type": "string",
+      "description": "Inline content for concrete resources."
+    },
+    "file": {
+      "type": "string",
+      "description": "File path for concrete resource content.",
+      "minLength": 1
+    },
+    "text_template": {
+      "type": "string",
+      "description": "Inline content template for URI templates."
+    },
+    "file_template": {
+      "type": "string",
+      "description": "File path template for URI templates.",
+      "minLength": 1
+    },
+    "arguments": {
+      "type": "object",
+      "description": "Optional URI template arguments keyed by argument name.",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Optional human-friendly title."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional argument description."
+            },
+            "required": {
+              "type": "boolean",
+              "description": "Whether this argument is required."
+            },
+            "completion": {
+              "type": "array",
+              "description": "Optional static completion values.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "uri"
+      ]
+    },
+    {
+      "required": [
+        "uri_template"
+      ]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "uri"
+        ]
+      },
+      "then": {
+        "oneOf": [
+          {
+            "required": [
+              "text"
+            ]
+          },
+          {
+            "required": [
+              "file"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "uri_template"
+        ]
+      },
+      "then": {
+        "oneOf": [
+          {
+            "required": [
+              "text_template"
+            ]
+          },
+          {
+            "required": [
+              "file_template"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

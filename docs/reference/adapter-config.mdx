@@ -28,7 +28,7 @@ options:
 <ParamField body="connector" type="string" required>
   Connector type. Determines which database driver to use.
 
-**Allowed values:** `postgres`, `mysql`, `mongodb`, `redis`
+**Allowed values:** `postgres`, `mysql`, `mongodb`, `redis`, `sqlite`
 
 </ParamField>
 
@@ -94,6 +94,32 @@ options:
     ```
 
     Standard Redis URI. Database number as path component. TLS, password, and other options are embedded in the URI.
+
+  </Tab>
+  <Tab title="SQLite">
+    ```
+    # local
+    :memory:
+    file:./data/app.db
+    /absolute/path/to/app.db
+
+    # remote (libSQL / Turso)
+    libsql://db-name-org.turso.io
+    https://db-name-org.turso.io
+    ```
+
+    SQLite supports local files (or `:memory:`) and remote libSQL/Turso databases.
+    Use `libsql://`, `https://`, or `http://` for remote; WebSocket URLs are not supported.
+
+    `options` are appended as query parameters. Example:
+
+    ```yaml
+    connector: sqlite
+    connection_string: 'libsql://db-name-org.turso.io'
+    options:
+      authToken: '{{ env.TURSO_AUTH_TOKEN }}'
+      sync_interval: '5s'
+    ```
 
   </Tab>
 </Tabs>

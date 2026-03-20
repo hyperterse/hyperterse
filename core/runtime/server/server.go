@@ -271,23 +271,30 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 
 	// Update handlers
 	r.engine = framework.NewEngine(model, r.executor, r.project)
-	mcpAdapter, err := runtimeMCP.New(r.model, r.executor, r.engine)
-	if err != nil {
-		return log.Errorf("failed to rebuild mcp adapter: %w", err)
+	if r.mcpAdapter == nil {
+		mcpAdapter, err := runtimeMCP.New(r.model, r.executor, r.engine)
+		if err != nil {
+			return log.Errorf("failed to rebuild mcp adapter: %w", err)
+		}
+		r.mcpAdapter = mcpAdapter
+		log.Debugf("MCP server adapter initialized")
+	} else {
+		if err := r.mcpAdapter.UpdateModel(r.model, r.executor, r.engine); err != nil {
+			return log.Errorf("failed to update mcp adapter: %w", err)
+		}
+		log.Debugf("MCP server adapter updated in place")
 	}
-	r.mcpAdapter = mcpAdapter
+
 	agentRegistry, err := runtimeAgents.NewRegistry(r.model, r.engine)
 	if err != nil {
 		return log.Errorf("failed to rebuild agent runtime adapter: %w", err)
 	}
 	r.agentRegistry = agentRegistry
-	log.Debugf("MCP server adapter recreated")
+	log.Debugf("Agent runtime adapter recreated")
 
-	// Re-register endpoints (this will update the handlers).
 	r.mux = http.NewServeMux()
 	r.registerEndpoints()
 
-	// Update server handler
 	if r.server != nil {
 		r.server.Handler = otelhttp.NewHandler(r.mux, "hyperterse_http_server")
 		log.Debugf("Server handler updated")

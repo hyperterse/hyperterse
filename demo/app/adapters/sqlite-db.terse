@@ -1,0 +1,2 @@
+connector: sqlite
+connection_string: file:./demo.db

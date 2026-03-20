@@ -35,11 +35,6 @@ func (ve *ValidationErrors) Error() string {
 	return builder.String()
 }
 
-// Format returns a formatted string representation of the errors
-func (ve *ValidationErrors) Format() string {
-	return ve.Error()
-}
-
 // Validate performs comprehensive validation on the Model
 func Validate(model *hyperterse.Model) error {
 	log.Infof("Starting validation")
@@ -80,9 +75,9 @@ func Validate(model *hyperterse.Model) error {
 		}
 	}
 
-	// 1. Validate adapters is required and has at least one entry
-	if len(model.Adapters) == 0 {
-		errors = append(errors, "adapters is required and should have at least one entry")
+	// 1. Ensure at least one MCP-facing entity is configured.
+	if len(model.Tools) == 0 && len(model.Prompts) == 0 && len(model.Resources) == 0 && len(model.ResourceTemplates) == 0 {
+		errors = append(errors, "at least one of tools, prompts, resources, or resource_templates must be defined")
 	}
 
 	// Track adapter names for uniqueness and cross-reference validation
@@ -112,13 +107,14 @@ func Validate(model *hyperterse.Model) error {
 		}
 		adapterNames[adapter.Name] = true
 
-		// 3. Connector is required and must be one of: postgres, redis, mysql, mongodb
+		// 3. Connector is required and must be one of: postgres, redis, mysql, mongodb, sqlite
 		if adapter.Connector == connectors.Connector_CONNECTOR_UNSPECIFIED {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' requires a connector", prefix))
 		} else if adapter.Connector != connectors.Connector_CONNECTOR_POSTGRES &&
 			adapter.Connector != connectors.Connector_CONNECTOR_REDIS &&
 			adapter.Connector != connectors.Connector_CONNECTOR_MYSQL &&
-			adapter.Connector != connectors.Connector_CONNECTOR_MONGODB {
+			adapter.Connector != connectors.Connector_CONNECTOR_MONGODB &&
+			adapter.Connector != connectors.Connector_CONNECTOR_SQLITE {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' - connector is invalid. Must be one of: %s", prefix, strings.Join(types.GetValidConnectors(), ", ")))
 		}
 
@@ -126,11 +122,6 @@ func Validate(model *hyperterse.Model) error {
 		if adapter.ConnectionString == "" {
 			errors = append(errors, fmt.Sprintf("Adapter '%s' - connection_string is required", prefix))
 		}
-	}
-
-	// 5. Validate tools is required and has at least one entry
-	if len(model.Tools) == 0 {
-		errors = append(errors, "tools is required and should have at least one entry")
 	}
 
 	// Build list of adapter names for error messages
@@ -249,6 +240,104 @@ func Validate(model *hyperterse.Model) error {
 			if tool.Cache.HasTtl && tool.Cache.Ttl <= 0 {
 				errors = append(errors, fmt.Sprintf("%s.cache.ttl must be greater than 0 when specified", prefix))
 			}
+		}
+	}
+
+	// 12. Validate prompts
+	promptNames := make(map[string]bool)
+	for i, prompt := range model.Prompts {
+		prefix := fmt.Sprintf("prompts[%d]", i)
+		if prompt.Name == "" {
+			errors = append(errors, fmt.Sprintf("%s.name is required", prefix))
+			continue
+		}
+		if promptNames[prompt.Name] {
+			errors = append(errors, fmt.Sprintf("Prompt '%s' - name must be unique", prompt.Name))
+		}
+		promptNames[prompt.Name] = true
+		if !toolNamePattern.MatchString(prompt.Name) {
+			errors = append(errors, fmt.Sprintf("Prompt '%s' - name is invalid. Must start with a letter and be in lower-snake-case or lower-kebab-case (lowercase letters, numbers, hyphens, and underscores only)", prompt.Name))
+		}
+		if len(prompt.Messages) == 0 {
+			errors = append(errors, fmt.Sprintf("Prompt '%s' - at least one message is required", prompt.Name))
+		}
+
+		argumentNames := make(map[string]bool)
+		for j, argument := range prompt.Arguments {
+			argumentPrefix := fmt.Sprintf("%s.arguments[%d]", prefix, j)
+			if argument.Name == "" {
+				errors = append(errors, fmt.Sprintf("%s.name is required", argumentPrefix))
+				continue
+			}
+			if !namePattern.MatchString(argument.Name) {
+				errors = append(errors, fmt.Sprintf("%s.name '%s' is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", argumentPrefix, argument.Name))
+			}
+			if argumentNames[argument.Name] {
+				errors = append(errors, fmt.Sprintf("%s.name '%s' must be unique within the prompt", argumentPrefix, argument.Name))
+			}
+			argumentNames[argument.Name] = true
+		}
+
+		for j, message := range prompt.Messages {
+			messagePrefix := fmt.Sprintf("%s.messages[%d]", prefix, j)
+			if message.Role == "" {
+				errors = append(errors, fmt.Sprintf("%s.role is required", messagePrefix))
+			} else if message.Role != "user" && message.Role != "assistant" && message.Role != "system" {
+				errors = append(errors, fmt.Sprintf("%s.role '%s' is invalid. Must be one of: user, assistant, system", messagePrefix, message.Role))
+			}
+			if strings.TrimSpace(message.Text) == "" {
+				errors = append(errors, fmt.Sprintf("%s.text is required", messagePrefix))
+			}
+		}
+	}
+
+	// 13. Validate resources
+	resourceURIs := make(map[string]bool)
+	for i, resource := range model.Resources {
+		prefix := fmt.Sprintf("resources[%d]", i)
+		if strings.TrimSpace(resource.Uri) == "" {
+			errors = append(errors, fmt.Sprintf("%s.uri is required", prefix))
+			continue
+		}
+		if resourceURIs[resource.Uri] {
+			errors = append(errors, fmt.Sprintf("Resource '%s' - uri must be unique", resource.Uri))
+		}
+		resourceURIs[resource.Uri] = true
+		if strings.TrimSpace(resource.Text) == "" && strings.TrimSpace(resource.File) == "" {
+			errors = append(errors, fmt.Sprintf("%s requires one of text or file", prefix))
+		}
+	}
+
+	// 14. Validate resource templates
+	resourceTemplateURIs := make(map[string]bool)
+	for i, resourceTemplate := range model.ResourceTemplates {
+		prefix := fmt.Sprintf("resource_templates[%d]", i)
+		if strings.TrimSpace(resourceTemplate.UriTemplate) == "" {
+			errors = append(errors, fmt.Sprintf("%s.uri_template is required", prefix))
+			continue
+		}
+		if resourceTemplateURIs[resourceTemplate.UriTemplate] {
+			errors = append(errors, fmt.Sprintf("Resource template '%s' - uri_template must be unique", resourceTemplate.UriTemplate))
+		}
+		resourceTemplateURIs[resourceTemplate.UriTemplate] = true
+		if strings.TrimSpace(resourceTemplate.TextTemplate) == "" && strings.TrimSpace(resourceTemplate.FileTemplate) == "" {
+			errors = append(errors, fmt.Sprintf("%s requires one of text_template or file_template", prefix))
+		}
+
+		argumentNames := make(map[string]bool)
+		for j, argument := range resourceTemplate.Arguments {
+			argumentPrefix := fmt.Sprintf("%s.arguments[%d]", prefix, j)
+			if argument.Name == "" {
+				errors = append(errors, fmt.Sprintf("%s.name is required", argumentPrefix))
+				continue
+			}
+			if !namePattern.MatchString(argument.Name) {
+				errors = append(errors, fmt.Sprintf("%s.name '%s' is invalid. Must start with a letter and can contain letters, numbers, hyphens, and underscores", argumentPrefix, argument.Name))
+			}
+			if argumentNames[argument.Name] {
+				errors = append(errors, fmt.Sprintf("%s.name '%s' must be unique within the resource template", argumentPrefix, argument.Name))
+			}
+			argumentNames[argument.Name] = true
 		}
 	}
 

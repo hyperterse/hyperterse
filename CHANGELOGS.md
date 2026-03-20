@@ -1,3 +1,38 @@
+# v2.3.0
+
+Timestamp: 2026-03-17
+
+🎉 **Full MCP Spec + SQLite**
+
+This release completes MCP specification compliance and adds SQLite as a first-class connector. Hyperterse servers can now expose **tools**, **resources**, and **prompts** in one place — the three pillars of the MCP protocol. Add SQLite (local or Turso/libSQL) for lightweight backends, side‑project demos, or edge-deployed AI apps.
+
+**What you can build now:** AI agents that read release notes, summarize incidents, or query SQLite — with prompt templates and static context discovered automatically. Zero extra setup beyond config.
+
+**Backward compatible** — no migration required. Existing configs work as-is; add `app/prompts/` and `app/resources/` when you're ready.
+
+## ✨ Features
+
+### MCP Resources & Prompts (Full Spec Compliance)
+
+Hyperterse now implements the complete MCP resource and prompt surface. AI clients can discover and consume static context alongside callable tools.
+
+- **Resources** — Expose read-only content via `resources/list`, `resources/read`, and `resources/templates/list`. Support concrete resources (fixed URI) and resource templates (parameterized `uri_template` with `{{ id }}` placeholders). Content can be inline (`text`, `text_template`) or file-backed (`file`, `file_template`).
+- **Prompts** — Define reusable prompt templates in `app/prompts/**/*.terse` with argument interpolation, completion hints, and multi-message scaffolding. Exposed through `prompts/list` and `prompts/get`; clients get rendered messages with `{{ argument }}` replaced.
+- **Completion API** — `completion/complete` supports both prompts and resource templates, so clients get typeahead and validation for template arguments when you declare `completion` values.
+- **Subscriptions & notifications** — `resources/subscribe` / `resources/unsubscribe`; `notifications/resources/updated`, `notifications/prompts/list_changed` for live updates after model reload.
+- **Discovery conventions** — Config in `app/prompts/` and `app/resources/`; declarative YAML with MIME types, descriptions, and optional argument schemas.
+
+### SQLite Connector
+
+A new database connector for SQLite: local files, in-memory, or remote libSQL/Turso.
+
+- **Local** — `file:./app.db`, `:memory:`, or absolute paths for embedded and dev workloads.
+- **Remote (libSQL / Turso)** — `libsql://` or `https://` for hosted Turso; `http://` for self-hosted libSQL. Auth via `authToken`, `auth_token`, or `jwt` query params; TLS control via `?tls=0|1`.
+- **Adapter config** — Uses `app/adapters/*.terse` like PostgreSQL and MySQL; same patterns for connection strings, env substitution, and options.
+- **Execution** — Parameterized queries, transaction handling, OpenTelemetry tracing, and observability metrics. Compatible with the existing tool executor and framework.
+
+---
+
 # v2.2.1
 
 Timestamp: 2026-03-12

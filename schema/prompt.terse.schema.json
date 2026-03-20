@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/prompt.terse.schema.json",
+  "title": "HypertersePromptConfig",
+  "description": "Schema for prompt-level `.terse` files. This schema validates prompt configuration regardless of folder naming convention.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Optional explicit prompt name. Defaults to filename when omitted.",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional prompt title."
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional prompt description."
+    },
+    "arguments": {
+      "type": "object",
+      "description": "Optional prompt arguments keyed by argument name.",
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Optional human-friendly title."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional argument description."
+            },
+            "required": {
+              "type": "boolean",
+              "description": "Whether this argument is required."
+            },
+            "completion": {
+              "type": "array",
+              "description": "Optional static completion values.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "messages": {
+      "type": "array",
+      "description": "Ordered prompt messages.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "system"
+            ],
+            "description": "MCP prompt message role."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Prompt message content."
+          }
+        },
+        "required": [
+          "role",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "messages"
+  ],
+  "additionalProperties": false
+}

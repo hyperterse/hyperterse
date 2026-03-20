@@ -184,6 +184,25 @@ A tool is valid when exactly one of these conditions is met:
   validation.
 </Warning>
 
+## Runtime mapping
+
+- Tool configs are compiled into project tool definitions at startup/reload.
+- Project tools are discoverable via MCP `tools/call` on `search` (ranked metadata results).
+- Project tools execute via MCP `tools/call` on `execute` with:
+  - `tool` = resolved tool name
+  - `inputs` = caller payload validated against `inputs` definitions
+- `auth` runs before execution and can reject requests.
+- `mappers.input` runs before statement/handler execution; `mappers.output` runs after.
+- `handler` tools run script-backed execution; `use` + `statement` tools run connector-backed execution.
+- `cache` settings map to runtime in-memory result caching policy.
+- Tool calls emit MCP progress and logging notifications during execution.
+
+<Tip>
+  `tools/list` intentionally returns the transport entry tools (`search`,
+  `execute`) as a core runtime design. Your configured project tools are
+  discovered through `search` and invoked through `execute`.
+</Tip>
+
 ## JSON Schema
 
 Editor validation: `schema/tool.terse.schema.json`. Associate with `**/tools/**/config.terse`. See [Configuration schemas](/reference/configuration-schemas).

@@ -1,0 +1,20 @@
+name: incident-update
+title: Incident update writer
+description: Produce a concise status update for an active incident.
+arguments:
+  incident_id:
+    description: Incident identifier
+    required: true
+    completion: ["INC-1001", "INC-1002"]
+  severity:
+    description: Incident severity level
+    required: true
+    completion: ["sev1", "sev2", "sev3"]
+  audience:
+    description: Target audience for the update
+    completion: ["engineering", "leadership", "customers"]
+messages:
+  - role: system
+    text: You write calm and accurate incident updates for {{ audience }}.
+  - role: user
+    text: Draft a {{ severity }} update for incident {{ incident_id }} with current impact, mitigation, and next update ETA.

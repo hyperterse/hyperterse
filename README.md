@@ -247,7 +247,7 @@ Each tool must define exactly one execution mode:
 
 ## Runtime model
 
-All tool interaction happens through MCP Streamable HTTP at `/mcp` (JSON-RPC 2.0).
+All MCP interaction happens through Streamable HTTP at `/mcp` (JSON-RPC 2.0), including tools, prompts, resources, completion, and subscriptions.
 
 Execution pipeline:
 
@@ -257,6 +257,25 @@ Execution pipeline:
 4. Execution (DB or handler)
 5. Output transform (optional)
 6. Response serialization
+
+## MCP spec compliance
+
+Hyperterse implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) specification **[2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)**.
+
+Compliance status by component:
+
+| Spec component                                                                                                                | Status |
+| ----------------------------------------------------------------------------------------------------------------------------- | :----: |
+| [Base protocol](https://modelcontextprotocol.io/specification/2025-11-25/basic) (JSON-RPC 2.0)                                |   ✅   |
+| [Lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle) (initialize/initialized)                |   ✅   |
+| [Tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) (list, call, listChanged)                      |   ✅   |
+| [Resources](https://modelcontextprotocol.io/specification/2025-11-25/server/resources) (list, read, subscribe, updated)       |   ✅   |
+| [Prompts](https://modelcontextprotocol.io/specification/2025-11-25/server/prompts) (list, get, listChanged)                   |   ✅   |
+| [Completion](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/completion) (ref/prompt, ref/resource) |   ✅   |
+| [Pagination](https://modelcontextprotocol.io/specification/2025-11-25/server/utilities/pagination) (cursor/nextCursor)        |   ⚠️   |
+| Tool result content types (image, audio, resource_link)                                                                       |   ⚠️   |
+
+Text content for tool results is supported; image, audio, and resource links are optional. Pagination applies when tools, prompts, or resources exceed typical small-to-medium counts.
 
 ## Security notes
 
@@ -271,11 +290,15 @@ Execution pipeline:
 - [Quickstart](https://docs.hyperterse.com/quickstart)
 - [Project structure](https://docs.hyperterse.com/concepts/project-structure)
 - [Tools](https://docs.hyperterse.com/concepts/tools)
+- [Prompts](https://docs.hyperterse.com/concepts/prompts)
+- [Resources](https://docs.hyperterse.com/concepts/resources)
 - [Adapters](https://docs.hyperterse.com/concepts/adapters)
 - [Scripts](https://docs.hyperterse.com/concepts/scripts)
 - [MCP transport](https://docs.hyperterse.com/runtime/mcp-transport)
 - [Execution pipeline](https://docs.hyperterse.com/runtime/execution-pipeline)
 - [CLI reference](https://docs.hyperterse.com/reference/cli)
+- [Prompt config reference](https://docs.hyperterse.com/reference/prompt-config)
+- [Resource config reference](https://docs.hyperterse.com/reference/resource-config)
 - [Configuration schemas](https://docs.hyperterse.com/reference/configuration-schemas)
 
 ## Contributing

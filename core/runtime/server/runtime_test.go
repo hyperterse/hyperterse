@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestRuntimeLifecycle_StartReloadStop(t *testing.T) {
@@ -123,6 +125,92 @@ func TestRuntimeLifecycle_AgentEndpointsMountAndReload(t *testing.T) {
 		t.Fatalf("Stop failed: %v", err)
 	}
 	started = false
+}
+
+func TestRuntime_ReloadModelPreservesMCPSession(t *testing.T) {
+	model := &hyperterse.Model{
+		Name: "runtime-session-test",
+		Resources: []*hyperterse.ResourceDefinition{
+			{Uri: "memory://runtime", Text: "v1"},
+		},
+	}
+
+	rt, err := NewRuntime(model, freePort(t), "test")
+	if err != nil {
+		t.Fatalf("NewRuntime failed: %v", err)
+	}
+	defer func() {
+		_ = rt.Stop()
+	}()
+
+	initialAdapter := rt.mcpAdapter
+
+	resourceListChangedCh := make(chan struct{}, 2)
+	updatedResourceCh := make(chan string, 2)
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, &mcpsdk.ClientOptions{
+		ResourceListChangedHandler: func(context.Context, *mcpsdk.ResourceListChangedRequest) {
+			resourceListChangedCh <- struct{}{}
+		},
+		ResourceUpdatedHandler: func(_ context.Context, req *mcpsdk.ResourceUpdatedNotificationRequest) {
+			if req != nil && req.Params != nil {
+				updatedResourceCh <- req.Params.URI
+			}
+		},
+	})
+
+	ctx := context.Background()
+	serverTransport, clientTransport := mcpsdk.NewInMemoryTransports()
+	serverSession, err := rt.mcpAdapter.Server().Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("failed to connect MCP server session: %v", err)
+	}
+	defer serverSession.Close()
+
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("failed to connect MCP client session: %v", err)
+	}
+	defer clientSession.Close()
+
+	if err := clientSession.Subscribe(ctx, &mcpsdk.SubscribeParams{URI: "memory://runtime"}); err != nil {
+		t.Fatalf("Subscribe failed: %v", err)
+	}
+
+	reloadedModel := &hyperterse.Model{
+		Name: "runtime-session-test",
+		Resources: []*hyperterse.ResourceDefinition{
+			{Uri: "memory://runtime", Text: "v2"},
+		},
+	}
+	if err := rt.ReloadModel(reloadedModel); err != nil {
+		t.Fatalf("ReloadModel failed: %v", err)
+	}
+	if rt.mcpAdapter != initialAdapter {
+		t.Fatalf("expected MCP adapter to be updated in place")
+	}
+
+	select {
+	case <-resourceListChangedCh:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("expected resources/list_changed notification after reload")
+	}
+
+	select {
+	case updatedURI := <-updatedResourceCh:
+		if updatedURI != "memory://runtime" {
+			t.Fatalf("unexpected updated resource uri: %s", updatedURI)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("expected resources/updated notification after reload")
+	}
+
+	readRes, err := clientSession.ReadResource(ctx, &mcpsdk.ReadResourceParams{URI: "memory://runtime"})
+	if err != nil {
+		t.Fatalf("ReadResource after reload failed: %v", err)
+	}
+	if len(readRes.Contents) != 1 || readRes.Contents[0].Text != "v2" {
+		t.Fatalf("unexpected resource contents after reload: %#v", readRes.Contents)
+	}
 }
 
 func freePort(t *testing.T) string {

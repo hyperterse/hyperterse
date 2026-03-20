@@ -1,9 +1,19 @@
 ---
 title: MCP transport
-description: Streamable HTTP endpoint, JSON-RPC protocol surface, request formats, CORS, and session management.
+description: Full MCP 2025-11-25 surface in Hyperterse, including tools, prompts, resources, completion, notifications, and session behavior.
 ---
 
-Hyperterse is an MCP server. All tool interaction — discovery and execution — goes through a single endpoint using the MCP Streamable HTTP transport over JSON-RPC 2.0. There are no per-tool REST endpoints, no GraphQL layer, and no custom protocol for tool execution. The transport is the protocol, and the protocol is MCP.
+Hyperterse is an MCP server. Tool discovery and execution use the MCP Streamable HTTP transport over JSON-RPC 2.0 on `/mcp`. There are no per-tool REST endpoints for tools, no GraphQL layer, and no custom protocol for tool execution. The transport is the protocol, and the protocol is MCP.
+
+Hyperterse serves MCP over Streamable HTTP (`/mcp`) using JSON-RPC 2.0. It supports:
+
+- two-tool entrypoints (`search`, `execute`)
+- first-class prompts
+- first-class resources and URI templates
+- argument completion
+- resource subscriptions
+- progress and logging notifications
+- session continuity across model reloads
 
 <Tip>
   Hyperterse also supports declarative ADK-backed **agent** endpoints under
@@ -13,19 +23,170 @@ Hyperterse is an MCP server. All tool interaction — discovery and execution �
 
 ## Endpoints
 
-| Endpoint     | Methods                 | Purpose                                                                         |
-| ------------ | ----------------------- | ------------------------------------------------------------------------------- |
-| `/mcp`       | `GET`, `POST`, `DELETE` | MCP Streamable HTTP. Handles `tools/list`, `tools/call`, and session lifecycle. |
-| `/heartbeat` | `GET`                   | Returns `{"success": true}` when the server is accepting connections.           |
+| Endpoint     | Methods                 | Purpose                                             |
+| ------------ | ----------------------- | --------------------------------------------------- |
+| `/mcp`       | `GET`, `POST`, `DELETE` | MCP Streamable HTTP transport and session lifecycle |
+| `/heartbeat` | `GET`                   | Liveness endpoint (`{"success": true}`)             |
 
-## `tools/list`
+## Protocol version
 
-Returns exactly two tools:
+The runtime uses MCP `2025-11-25` protocol types through the Go MCP SDK.
 
-- `search`: discovers relevant tools using ranked metadata matching (name, description, statement, and input metadata).
-- `execute`: executes a selected tool by name with a structured input payload.
+## Capability surface
 
-**Request:**
+Hyperterse capability exposure includes:
+
+- `tools` (`listChanged`)
+- `prompts` (`listChanged`) when prompt definitions exist
+- `resources` (`listChanged`, `subscribe`) when resources/templates are configured
+- `completions`
+- `logging`
+
+## MCP method support
+
+| Method                             | Direction        | Notes                                                |
+| ---------------------------------- | ---------------- | ---------------------------------------------------- |
+| `initialize`                       | client -> server | Standard MCP handshake                               |
+| `notifications/initialized`        | client -> server | Standard MCP post-init notification                  |
+| `ping`                             | client -> server | Supported by SDK                                     |
+| `tools/list`                       | client -> server | Returns transport entry tools (`search`, `execute`)  |
+| `tools/call`                       | client -> server | Calls `search` or `execute`                          |
+| `prompts/list`                     | client -> server | Lists configured prompts                             |
+| `prompts/get`                      | client -> server | Resolves prompt messages with argument interpolation |
+| `resources/list`                   | client -> server | Lists concrete resources                             |
+| `resources/templates/list`         | client -> server | Lists URI template resources                         |
+| `resources/read`                   | client -> server | Reads concrete or template-resolved content          |
+| `resources/subscribe`              | client -> server | Validates subscription target and enables updates    |
+| `resources/unsubscribe`            | client -> server | Unsubscribes from resource updates                   |
+| `completion/complete`              | client -> server | Provides completions for prompt/template arguments   |
+| `notifications/progress`           | client -> server | Accepted and logged by runtime                       |
+| `notifications/roots/list_changed` | client -> server | Accepted and logged by runtime                       |
+| `notifications/cancelled`          | client -> server | Handled by SDK cancellation flow                     |
+
+## Tool entrypoint design
+
+`tools/list` intentionally exposes exactly two transport entry tools:
+
+- `search` — discover project tools by natural language over tool metadata
+- `execute` — execute a project tool by name with validated inputs
+
+This is a core Hyperterse design choice: project tools are discovered and invoked through these two entrypoints.
+
+### Search result limit
+
+```yaml .hyperterse
+tools:
+  search:
+    limit: 10
+```
+
+If omitted, default is `10`.
+
+## Prompt behavior
+
+Prompts come from:
+
+- discovered files under `app/prompts/**/*.terse` (or configured directory)
+- inline root config `prompts` array
+
+`prompts/get` interpolates `{{ argumentName }}` placeholders from request arguments.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "prompts/get",
+  "params": {
+    "name": "summarize-release",
+    "arguments": { "audience": "engineering", "tone": "concise" }
+  },
+  "id": 11
+}
+```
+
+## Resource behavior
+
+Resources come from:
+
+- discovered files under `app/resources/**/config.terse` (or configured directory)
+- inline root config `resources` and `resource_templates`
+
+`resources/read` resolves:
+
+- concrete `uri` resources (`text` or `file`)
+- `uri_template` resources (`text_template` or `file_template`) using URI path values
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "resources/read",
+  "params": { "uri": "memory://orders/1001" },
+  "id": 21
+}
+```
+
+## Completion behavior
+
+`completion/complete` is supported for:
+
+- prompt argument completions (`ref/prompt`)
+- resource template argument completions (`ref/resource`)
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "completion/complete",
+  "params": {
+    "ref": { "type": "ref/prompt", "name": "summarize-release" },
+    "argument": { "name": "audience", "value": "eng" }
+  },
+  "id": 31
+}
+```
+
+## Notifications emitted by Hyperterse
+
+### List-change notifications
+
+When model content changes during reload, Hyperterse emits:
+
+- `notifications/tools/list_changed` (if tool digest changed)
+- `notifications/prompts/list_changed`
+- `notifications/resources/list_changed` (resources/templates list changes)
+
+### Resource update notifications
+
+When concrete resource content changes for an existing URI during reload:
+
+- `notifications/resources/updated` is emitted for the changed URI.
+
+### Tool call observability notifications
+
+During `tools/call` execution for `search` and `execute`:
+
+- `notifications/progress` is emitted (start/completion)
+- `notifications/message` is emitted with structured log payloads
+
+## Cancellation behavior
+
+Hyperterse runs tool execution with request context propagation. MCP cancellation and transport-level context cancellation are propagated through the execution path where connectors/scripts support context-aware operations.
+
+## Session behavior and reload continuity
+
+- Streamable HTTP session IDs use `Mcp-Session-Id`.
+- `DELETE /mcp` terminates a session.
+- Runtime reload updates the existing MCP adapter in place (does not replace the server instance), preserving active sessions.
+- Existing sessions continue to function after reload and receive list/update notifications for changed MCP entities.
+
+## CORS and headers
+
+The runtime applies CORS headers on `/mcp` responses, including:
+
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
+- `Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key, Mcp-Session-Id`
+- `Access-Control-Expose-Headers: Mcp-Session-Id`
+
+## Example: two-tool flow
 
 ```json
 {
@@ -35,112 +196,17 @@ Returns exactly two tools:
 }
 ```
 
-**Response:**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "tools": [
-      {
-        "name": "search",
-        "description": "Search available tools by natural-language intent and tool metadata.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "query": {
-              "type": "string",
-              "description": "Natural-language query used to find relevant tools."
-            }
-          },
-          "required": ["query"]
-        }
-      },
-      {
-        "name": "execute",
-        "description": "Execute a tool by name using a structured input object.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "tool": {
-              "type": "string",
-              "description": "Name of the target tool to execute."
-            },
-            "inputs": {
-              "type": "object",
-              "description": "Structured inputs for the target tool."
-            }
-          },
-          "required": ["tool", "inputs"]
-        }
-      }
-    ]
-  }
-}
-```
-
-### Search result limit
-
-`search` does not accept a caller-provided limit. Result count is controlled by root config:
-
-```yaml .hyperterse
-tools:
-  search:
-    limit: 10
-```
-
-If omitted, the runtime default is `10`.
-
-## `tools/call`
-
-Typical flow:
-
-1. Call `search` with a natural-language query.
-2. Pick a returned tool name.
-3. Call `execute` with `tool` + `inputs`.
-
-### `search` request
-
 ```json
 {
   "jsonrpc": "2.0",
   "method": "tools/call",
   "params": {
     "name": "search",
-    "arguments": {
-      "query": "find orders by status"
-    }
+    "arguments": { "query": "orders by status" }
   },
   "id": 2
 }
 ```
-
-### `search` successful response
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "content": [
-      {
-        "type": "text",
-        "text": "[{\"name\":\"get-orders\",\"relevance_score\":97,\"description\":\"Returns orders by status\",\"inputs\":[{\"name\":\"status\",\"type\":\"string\",\"optional\":false,\"description\":\"order status\"}]}]"
-      }
-    ]
-  }
-}
-```
-
-Each search hit includes:
-
-- `name`
-- `relevance_score` (integer `1..100`, higher = more relevant)
-- `description`
-- `inputs`
-
-### `execute` request
 
 ```json
 {
@@ -150,48 +216,12 @@ Each search hit includes:
     "name": "execute",
     "arguments": {
       "tool": "get-orders",
-      "inputs": {
-        "status": "pending"
-      }
+      "inputs": { "status": "pending" }
     }
   },
   "id": 3
 }
 ```
-
-### `execute` successful response
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "result": {
-    "content": [
-      {
-        "type": "text",
-        "text": "[{\"status\":\"pending\",\"statement\":\"SELECT * FROM orders WHERE status = pending\"}]"
-      }
-    ]
-  }
-}
-```
-
-The `content` array always contains one text entry with JSON-encoded tool results.
-
-**Error response:**
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "error": {
-    "code": -32000,
-    "message": "execution failed: user_id must be a positive integer"
-  }
-}
-```
-
-Errors from auth failures, input validation, connector execution, and script exceptions are returned through MCP tool error payloads. Stack traces are logged but not exposed.
 
 ## Heartbeat
 
@@ -203,25 +233,13 @@ curl http://localhost:8080/heartbeat
 { "success": true }
 ```
 
-The heartbeat bypasses the MCP handler and auth pipeline. It returns `200 OK` when the HTTP server is accepting connections, regardless of connector health.
+Heartbeat indicates HTTP runtime liveness, not downstream adapter health.
 
-## CORS
+## Related docs
 
-The runtime applies CORS headers to all responses:
-
-- **Origins:** `*` (all)
-- **Methods:** `GET`, `POST`, `DELETE`, `OPTIONS`
-- **Headers:** `Content-Type`, `Authorization`, `X-API-Key`, `Mcp-Session-Id`
-
-Preflight (`OPTIONS`) requests are handled automatically. For production deployments behind a reverse proxy, configure CORS at the proxy layer and restrict the built-in policy to your domain.
-
-## HTTP headers in the execution context
-
-HTTP request headers from `tools/call` requests are forwarded into the execution pipeline so auth plugins can evaluate authentication data (`X-API-Key`, `Authorization`, and custom headers) when making access decisions.
-
-## Session management
-
-The MCP Streamable HTTP transport supports session-based interaction via the `Mcp-Session-Id` header. `DELETE /mcp` terminates a session.
-
-For stateless tool invocation — the common case — sessions are not required. Each `POST /mcp` with a `tools/call` method is independently executed.
-
+- [Prompts](/concepts/prompts)
+- [Resources](/concepts/resources)
+- [Prompt configuration](/reference/prompt-config)
+- [Resource configuration](/reference/resource-config)
+- [Root configuration](/reference/root-config)
+- [Configuration schemas](/reference/configuration-schemas)

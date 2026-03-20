@@ -13,16 +13,21 @@ var toolSegmentPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
 // Project describes a compiled v2 project from discovered tool folders.
 type Project struct {
-	BaseDir      string
-	AppDir       string
-	AdaptersDir  string
-	ToolsDir     string
-	AgentsDir    string
-	BuildDir     string
-	Tools        map[string]*Tool
-	Agents       map[string]*Agent
+	BaseDir                 string
+	AppDir                  string
+	AdaptersDir             string
+	ToolsDir                string
+	PromptsDir              string
+	ResourcesDir            string
+	AgentsDir               string
+	BuildDir                string
+	Tools                   map[string]*Tool
+	Prompts                 map[string]*Prompt
+	Resources               map[string]*Resource
+	Templates               map[string]*ResourceTemplate
+	Agents                  map[string]*Agent
 	AgentToolAccessDefaults AgentToolAccessPolicy
-	VendorBundle string
+	VendorBundle            string
 }
 
 // Tool contains compiled metadata for a filesystem tool and associated proto definition.
@@ -39,11 +44,32 @@ type Tool struct {
 
 // Agent contains compiled metadata for a filesystem agent and associated proto definition.
 type Agent struct {
-	AgentName string
-	Directory string
-	TerseFile string
+	AgentName  string
+	Directory  string
+	TerseFile  string
 	Definition *hyperterse.Agent
 	ToolAccess AgentToolAccessMetadata
+}
+
+// Prompt contains compiled metadata for a prompt .terse file.
+type Prompt struct {
+	Name       string
+	TerseFile  string
+	Definition *hyperterse.PromptDefinition
+}
+
+// Resource contains compiled metadata for a resource .terse file.
+type Resource struct {
+	URI        string
+	TerseFile  string
+	Definition *hyperterse.ResourceDefinition
+}
+
+// ResourceTemplate contains compiled metadata for a resource template .terse file.
+type ResourceTemplate struct {
+	URITemplate string
+	TerseFile   string
+	Definition  *hyperterse.ResourceTemplateDefinition
 }
 
 // ToolScripts are optional script entrypoints declared by tool .terse files.
@@ -102,6 +128,30 @@ type agentToolAccessSpec struct {
 	Tools []string `yaml:"tools"`
 }
 
+// PromptFileConfig is the schema for prompt .terse files.
+type PromptFileConfig struct {
+	Name        string                        `yaml:"name"`
+	Title       string                        `yaml:"title"`
+	Description string                        `yaml:"description"`
+	Arguments   map[string]promptArgumentSpec `yaml:"arguments"`
+	Messages    []promptMessageSpec           `yaml:"messages"`
+}
+
+// ResourceFileConfig is the schema for resource and resource-template .terse files.
+type ResourceFileConfig struct {
+	URI          string                          `yaml:"uri"`
+	URITemplate  string                          `yaml:"uri_template"`
+	Name         string                          `yaml:"name"`
+	Title        string                          `yaml:"title"`
+	Description  string                          `yaml:"description"`
+	MIMEType     string                          `yaml:"mime_type"`
+	Text         string                          `yaml:"text"`
+	File         string                          `yaml:"file"`
+	TextTemplate string                          `yaml:"text_template"`
+	FileTemplate string                          `yaml:"file_template"`
+	Arguments    map[string]resourceArgumentSpec `yaml:"arguments"`
+}
+
 type toolInputSpec struct {
 	Type        string `yaml:"type"`
 	Description string `yaml:"description"`
@@ -122,8 +172,8 @@ type toolAuthSpec struct {
 type AgentToolAccessMode string
 
 const (
-	AgentToolAccessModeInherit  AgentToolAccessMode = "inherit"
-	AgentToolAccessModeAllowAll AgentToolAccessMode = "allow_all"
+	AgentToolAccessModeInherit   AgentToolAccessMode = "inherit"
+	AgentToolAccessModeAllowAll  AgentToolAccessMode = "allow_all"
 	AgentToolAccessModeAllowNone AgentToolAccessMode = "allow_none"
 	AgentToolAccessModeAllowList AgentToolAccessMode = "allow_list"
 )
@@ -134,11 +184,30 @@ type AgentToolAccessPolicy struct {
 }
 
 type AgentToolAccessMetadata struct {
-	DeclaredMode  AgentToolAccessMode
-	DeclaredTools []string
-	EffectiveMode AgentToolAccessMode
+	DeclaredMode   AgentToolAccessMode
+	DeclaredTools  []string
+	EffectiveMode  AgentToolAccessMode
 	EffectiveTools []string
-	Inherited     bool
+	Inherited      bool
+}
+
+type promptArgumentSpec struct {
+	Title       string   `yaml:"title"`
+	Description string   `yaml:"description"`
+	Required    bool     `yaml:"required"`
+	Completion  []string `yaml:"completion"`
+}
+
+type promptMessageSpec struct {
+	Role string `yaml:"role"`
+	Text string `yaml:"text"`
+}
+
+type resourceArgumentSpec struct {
+	Title       string   `yaml:"title"`
+	Description string   `yaml:"description"`
+	Required    bool     `yaml:"required"`
+	Completion  []string `yaml:"completion"`
 }
 
 func normalizeToolSegment(segment string) string {

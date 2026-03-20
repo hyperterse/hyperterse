@@ -78,6 +78,146 @@ statement: "SELECT 1"
 	}
 }
 
+func TestCompileProjectIfPresent_DiscoversPromptsAndResources(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, ".hyperterse")
+
+	rootConfig := `name: test-service
+root: app
+tools:
+  directory: tools
+prompts:
+  directory: prompts
+resources:
+  directory: resources
+`
+	if err := os.WriteFile(configPath, []byte(rootConfig), 0o644); err != nil {
+		t.Fatalf("failed to write root config: %v", err)
+	}
+
+	promptDir := filepath.Join(tmpDir, "app", "prompts")
+	resourceDir := filepath.Join(tmpDir, "app", "resources")
+	if err := os.MkdirAll(promptDir, 0o755); err != nil {
+		t.Fatalf("failed to create prompt dir: %v", err)
+	}
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatalf("failed to create resource dir: %v", err)
+	}
+
+	promptConfig := `name: greet
+description: Greeting prompt
+arguments:
+  user:
+    required: true
+messages:
+  - role: user
+    text: "Hello {{ user }}"
+`
+	if err := os.WriteFile(filepath.Join(promptDir, "greet.terse"), []byte(promptConfig), 0o644); err != nil {
+		t.Fatalf("failed to write prompt config: %v", err)
+	}
+
+	resourceConfigDir := filepath.Join(resourceDir, "welcome")
+	if err := os.MkdirAll(resourceConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create concrete resource config dir: %v", err)
+	}
+	resourceConfig := `uri: "memory://welcome"
+text: "Welcome"
+`
+	if err := os.WriteFile(filepath.Join(resourceConfigDir, "config.terse"), []byte(resourceConfig), 0o644); err != nil {
+		t.Fatalf("failed to write resource config: %v", err)
+	}
+
+	templateConfigDir := filepath.Join(resourceDir, "docs-template")
+	if err := os.MkdirAll(templateConfigDir, 0o755); err != nil {
+		t.Fatalf("failed to create template resource config dir: %v", err)
+	}
+	templateConfig := `uri_template: "memory://docs/{id}"
+text_template: "Doc {{ id }}"
+arguments:
+  id:
+    required: true
+`
+	if err := os.WriteFile(filepath.Join(templateConfigDir, "config.terse"), []byte(templateConfig), 0o644); err != nil {
+		t.Fatalf("failed to write resource template config: %v", err)
+	}
+
+	model := &hyperterse.Model{Name: "test-service"}
+	project, err := CompileProjectIfPresent(configPath, model)
+	if err != nil {
+		t.Fatalf("CompileProjectIfPresent returned error: %v", err)
+	}
+	if project == nil {
+		t.Fatalf("expected project to be discovered")
+	}
+
+	if len(model.Prompts) != 1 {
+		t.Fatalf("expected one prompt, got %d", len(model.Prompts))
+	}
+	if len(model.Resources) != 1 {
+		t.Fatalf("expected one resource, got %d", len(model.Resources))
+	}
+	if len(model.ResourceTemplates) != 1 {
+		t.Fatalf("expected one resource template, got %d", len(model.ResourceTemplates))
+	}
+	if _, ok := project.Prompts["greet"]; !ok {
+		t.Fatalf("expected project prompt map to include greet")
+	}
+	if _, ok := project.Resources["memory://welcome"]; !ok {
+		t.Fatalf("expected project resource map to include memory://welcome")
+	}
+	if _, ok := project.Templates["memory://docs/{id}"]; !ok {
+		t.Fatalf("expected project template map to include memory://docs/{id}")
+	}
+	if got := project.Resources["memory://welcome"].Definition.Name; got != "welcome" {
+		t.Fatalf("expected concrete resource default name from folder, got %q", got)
+	}
+	if got := project.Templates["memory://docs/{id}"].Definition.Name; got != "docs-template" {
+		t.Fatalf("expected template resource default name from folder, got %q", got)
+	}
+}
+
+func TestCompileProjectIfPresent_ResourceDiscoveryRequiresConfigTerseInFolder(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, ".hyperterse")
+
+	rootConfig := `name: test-service
+root: app
+resources:
+  directory: resources
+`
+	if err := os.WriteFile(configPath, []byte(rootConfig), 0o644); err != nil {
+		t.Fatalf("failed to write root config: %v", err)
+	}
+
+	resourceDir := filepath.Join(tmpDir, "app", "resources")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatalf("failed to create resource dir: %v", err)
+	}
+
+	legacyResource := `uri: "memory://legacy"
+text: "legacy"
+`
+	if err := os.WriteFile(filepath.Join(resourceDir, "legacy.terse"), []byte(legacyResource), 0o644); err != nil {
+		t.Fatalf("failed to write legacy resource file: %v", err)
+	}
+
+	model := &hyperterse.Model{Name: "test-service"}
+	project, err := CompileProjectIfPresent(configPath, model)
+	if err != nil {
+		t.Fatalf("CompileProjectIfPresent returned error: %v", err)
+	}
+	if project == nil {
+		t.Fatalf("expected project to be discovered")
+	}
+	if len(model.Resources) != 0 {
+		t.Fatalf("expected no discovered resources from legacy file shape, got %d", len(model.Resources))
+	}
+	if len(model.ResourceTemplates) != 0 {
+		t.Fatalf("expected no discovered templates from legacy file shape, got %d", len(model.ResourceTemplates))
+	}
+}
+
 func TestCompileProjectIfPresent_IgnoresUnknownRootFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, ".hyperterse")

@@ -53,6 +53,8 @@
               "concepts/project-structure",
               "concepts/adapters",
               "concepts/tools",
+              "concepts/prompts",
+              "concepts/resources",
               "concepts/scripts",
               "concepts/authentication"
             ]
@@ -84,6 +86,7 @@
             "pages": [
               "databases/postgresql",
               "databases/mysql",
+              "databases/sqlite",
               "databases/mongodb",
               "databases/redis"
             ]
@@ -147,6 +150,8 @@
               "reference/adapter-config",
               "reference/tool-config",
               "reference/agent-config",
+              "reference/prompt-config",
+              "reference/resource-config",
               "reference/environment-variables",
               "reference/configuration-schemas"
             ]

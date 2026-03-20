@@ -38,3 +38,40 @@ adapters:
 		t.Fatalf("expected global search limit=7 with has_limit flag set")
 	}
 }
+
+func TestParseYAMLWithConfig_ParsesInlinePromptsAndResources(t *testing.T) {
+	content := []byte(`name: mcp-app
+prompts:
+  - name: greet
+    description: Greeting prompt
+    arguments:
+      - name: user
+        required: true
+    messages:
+      - role: user
+        text: "Hello {{ user }}"
+resources:
+  - uri: "memory://welcome"
+    text: "Welcome"
+resource_templates:
+  - uri_template: "memory://docs/{id}"
+    text_template: "Doc {{ id }}"
+    arguments:
+      - name: id
+        required: true
+`)
+
+	model, err := ParseYAMLWithConfig(content)
+	if err != nil {
+		t.Fatalf("ParseYAMLWithConfig returned error: %v", err)
+	}
+	if len(model.Prompts) != 1 {
+		t.Fatalf("expected one inline prompt, got %d", len(model.Prompts))
+	}
+	if len(model.Resources) != 1 {
+		t.Fatalf("expected one inline resource, got %d", len(model.Resources))
+	}
+	if len(model.ResourceTemplates) != 1 {
+		t.Fatalf("expected one inline resource template, got %d", len(model.ResourceTemplates))
+	}
+}

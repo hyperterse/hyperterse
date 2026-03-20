@@ -1,0 +1,6 @@
+uri: memory://release-notes/latest
+name: release-notes
+title: Latest release notes
+description: Markdown release notes for the current release.
+mime_type: text/markdown
+file: ./release-notes.md
