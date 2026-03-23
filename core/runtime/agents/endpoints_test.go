@@ -6,7 +6,15 @@ import (
 	"testing"
 )
 
-func TestRuntimeEndpointLogEntries_EnumeratesADKRoutesWithColonParams(t *testing.T) {
+func TestRegisteredRouteCountPerAgent_MatchesRuntimeEndpointLogEntries(t *testing.T) {
+	n := RegisteredRouteCountPerAgent()
+	entries := RuntimeEndpointLogEntries("any")
+	if n != len(entries) {
+		t.Fatalf("RegisteredRouteCountPerAgent()=%d but RuntimeEndpointLogEntries len=%d", n, len(entries))
+	}
+}
+
+func TestRuntimeEndpointLogEntries_EnumeratesAgentRoutesWithColonParams(t *testing.T) {
 	entries := RuntimeEndpointLogEntries("assistant")
 
 	if len(entries) != 18 {

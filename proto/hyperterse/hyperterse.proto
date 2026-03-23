@@ -137,7 +137,7 @@ message Model {
   repeated PromptDefinition prompts = 9; // Optional project prompts
   repeated ResourceDefinition resources = 10; // Optional project resources
   repeated ResourceTemplateDefinition resource_templates = 11; // Optional project resource templates
-  repeated Agent agents = 12; // Optional declarative ADK agents
+  repeated Agent agents = 12; // Optional declarative agents
 }
 
 // Adapter Configuration

@@ -170,11 +170,7 @@ func (r *Runtime) registerEndpoints() {
 	// Track endpoints for startup logging.
 	systemEndpoints := []string{}
 	mcpEndpoints := []string{}
-	type agentEndpointGroup struct {
-		name    string
-		entries []string
-	}
-	agentEndpointGroups := []agentEndpointGroup{}
+	agentMountNames := []string{}
 
 	mcpHTTPHandler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
 		if r.mcpAdapter == nil {
@@ -210,17 +206,12 @@ func (r *Runtime) registerEndpoints() {
 			}
 			prefix := fmt.Sprintf("/agent/%s", agentName)
 			r.mux.Handle(prefix+"/", r.instrumentHandler(prefix, r.withCORS(http.StripPrefix(prefix, handler))))
-			agentEndpointGroups = append(agentEndpointGroups, agentEndpointGroup{
-				name:    agentName,
-				entries: runtimeAgents.RuntimeEndpointLogEntries(agentName),
-			})
+			agentMountNames = append(agentMountNames, agentName)
 		}
 	}
 
-	totalAgentEndpoints := 0
-	for _, group := range agentEndpointGroups {
-		totalAgentEndpoints += len(group.entries)
-	}
+	routesPerAgent := runtimeAgents.RegisteredRouteCountPerAgent()
+	totalAgentEndpoints := len(agentMountNames) * routesPerAgent
 
 	// Log all registered endpoints grouped by domain.
 	log.Infof("Endpoints registered: %d total", len(systemEndpoints)+len(mcpEndpoints)+totalAgentEndpoints)
@@ -232,14 +223,9 @@ func (r *Runtime) registerEndpoints() {
 	for _, endpoint := range mcpEndpoints {
 		log.Infof("  %s", dimEndpointMethod(endpoint))
 	}
-	if len(agentEndpointGroups) > 0 {
-		log.Infof("Agent endpoints:")
-		for _, group := range agentEndpointGroups {
-			log.Infof("  %s agent", group.name)
-			for _, endpoint := range group.entries {
-				log.Infof("    %s", dimEndpointMethod(endpoint))
-			}
-		}
+	if len(agentMountNames) > 0 {
+		log.Infof("Agent HTTP mounts: %d agent(s), %d HTTP routes each — %s",
+			len(agentMountNames), routesPerAgent, strings.Join(agentMountNames, ", "))
 	}
 }
 

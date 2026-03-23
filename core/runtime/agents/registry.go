@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	adkagent "google.golang.org/adk/agent"
+	sdkagent "google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/cmd/launcher"
-	adkmodel "google.golang.org/adk/model"
-	"google.golang.org/adk/server/adkrest"
-	adksession "google.golang.org/adk/session"
-	adktool "google.golang.org/adk/tool"
+	sdkmodel "google.golang.org/adk/model"
+	agentrest "google.golang.org/adk/server/adkrest"
+	sdksession "google.golang.org/adk/session"
+	sdktool "google.golang.org/adk/tool"
 	"google.golang.org/genai"
 
 	"github.com/hyperterse/hyperterse/core/framework"
@@ -30,7 +30,7 @@ import (
 
 const defaultSSEWriteTimeout = 120 * time.Second
 
-// Registry stores per-agent ADK REST handlers mounted by the runtime server.
+// Registry stores per-agent HTTP handlers mounted by the runtime server.
 type Registry struct {
 	handlers map[string]http.Handler
 	names    []string
@@ -71,7 +71,7 @@ func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, 
 		}
 		handler, err := newAgentHandler(agentDef, toolDefinitions, engine)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize ADK runtime for agent %q: %w", agentDef.Name, err)
+			return nil, fmt.Errorf("failed to initialize runtime for agent %q: %w", agentDef.Name, err)
 		}
 		registry.handlers[agentDef.Name] = handler
 		registry.names = append(registry.names, agentDef.Name)
@@ -125,7 +125,7 @@ func newAgentHandler(
 	}
 	log.Debugf("Agent %s has %d bridged tool(s)", agentDef.Name, len(tools))
 
-	adkRuntimeAgent, err := llmagent.New(llmagent.Config{
+	llmRuntimeAgent, err := llmagent.New(llmagent.Config{
 		Name:        agentDef.Name,
 		Description: agentDef.Description,
 		Instruction: agentDef.Instruction,
@@ -137,11 +137,11 @@ func newAgentHandler(
 	}
 
 	cfg := &launcher.Config{
-		AgentLoader:    adkagent.NewSingleLoader(adkRuntimeAgent),
-		SessionService: adksession.InMemoryService(),
+		AgentLoader:    sdkagent.NewSingleLoader(llmRuntimeAgent),
+		SessionService: sdksession.InMemoryService(),
 	}
 
-	handler := adkrest.NewHandler(cfg, defaultSSEWriteTimeout)
+	handler := agentrest.NewHandler(cfg, defaultSSEWriteTimeout)
 	log.Infof("Agent runtime ready: %s", agentDef.Name)
 	return withAgentRequestLogging(agentDef.Name, handler), nil
 }
@@ -151,20 +151,20 @@ func buildToolBridges(
 	toolAccess *hyperterse.AgentToolAccessConfig,
 	toolDefinitions map[string]*hyperterse.Tool,
 	engine *framework.Engine,
-) ([]adktool.Tool, error) {
+) ([]sdktool.Tool, error) {
 	log := logger.New("agents")
 	if toolAccess == nil {
 		return nil, fmt.Errorf("agent tool access is required")
 	}
 	if len(toolAccess.Tools) == 0 {
 		log.Debugf("Agent %s configured with no tool access", agentName)
-		return []adktool.Tool{}, nil
+		return []sdktool.Tool{}, nil
 	}
 	if engine == nil {
 		return nil, fmt.Errorf("tool-enabled agents require a compiled project engine")
 	}
 
-	bridges := make([]adktool.Tool, 0, len(toolAccess.Tools))
+	bridges := make([]sdktool.Tool, 0, len(toolAccess.Tools))
 	seen := make(map[string]struct{}, len(toolAccess.Tools))
 	for _, toolName := range toolAccess.Tools {
 		if _, exists := seen[toolName]; exists {
@@ -218,8 +218,8 @@ func (t *hyperterseToolBridge) Declaration() *genai.FunctionDeclaration {
 }
 
 // ProcessRequest packs this tool declaration into the model request.
-// It mirrors ADK's internal function-tool packing behavior.
-func (t *hyperterseToolBridge) ProcessRequest(_ adktool.Context, req *adkmodel.LLMRequest) error {
+// It mirrors the SDK function-tool packing behavior used by the runtime agent.
+func (t *hyperterseToolBridge) ProcessRequest(_ sdktool.Context, req *sdkmodel.LLMRequest) error {
 	if req.Tools == nil {
 		req.Tools = make(map[string]any)
 	}
@@ -253,7 +253,7 @@ func (t *hyperterseToolBridge) ProcessRequest(_ adktool.Context, req *adkmodel.L
 	return nil
 }
 
-func (t *hyperterseToolBridge) Run(ctx adktool.Context, args any) (map[string]any, error) {
+func (t *hyperterseToolBridge) Run(ctx sdktool.Context, args any) (map[string]any, error) {
 	log := logger.New("agents.tool")
 	baseAttrs := map[string]any{
 		observability.AttrAgentName: t.agentName,
@@ -424,15 +424,6 @@ func withAgentRequestLogging(agentName string, next http.Handler) http.Handler {
 			observability.AttrHTTPEndpoint: endpoint,
 		}
 		log.DebugfCtx(req.Context(), startAttrs, "Agent endpoint requested: %s %s", logger.DimText(req.Method), endpoint)
-		log.DebugfCtx(req.Context(), map[string]any{
-			observability.AttrAgentName:    agentName,
-			observability.AttrHTTPMethod:   req.Method,
-			observability.AttrHTTPEndpoint: endpoint,
-			"user_agent":                   req.UserAgent(),
-			"remote_addr":                  req.RemoteAddr,
-			"content_type":                 req.Header.Get("Content-Type"),
-			"content_length":               req.ContentLength,
-		}, "Agent request metadata")
 
 		recorder := &agentStatusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(recorder, req)
@@ -450,8 +441,8 @@ func withAgentRequestLogging(agentName string, next http.Handler) http.Handler {
 			log.WarnfCtx(req.Context(), completionAttrs, "Agent endpoint failed: %s %s status=%d duration=%dms", logger.DimText(req.Method), endpoint, recorder.statusCode, durationMS)
 			return
 		}
-		log.InfofCtx(req.Context(), completionAttrs, "Agent endpoint completed: %s %s status=%d duration=%dms", logger.DimText(req.Method), endpoint, recorder.statusCode, durationMS)
+		log.DebugfCtx(req.Context(), completionAttrs, "Agent endpoint completed: %s %s status=%d duration=%dms", logger.DimText(req.Method), endpoint, recorder.statusCode, durationMS)
 	})
 }
 
-var _ adktool.Tool = (*hyperterseToolBridge)(nil)
+var _ sdktool.Tool = (*hyperterseToolBridge)(nil)

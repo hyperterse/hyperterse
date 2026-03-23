@@ -153,7 +153,7 @@ Fetch and use this content for accurate schema, configuration, and API reference
 	}
 	agentSkillContent := `---
 name: hyperterse-agents
-description: Build declarative ADK-backed agents with Hyperterse. Use when creating app/agents/*/config.terse, configuring agents in .hyperterse, setting tool permissions, and testing /agent/{name} runtime endpoints.
+description: Build declarative agents with Hyperterse. Use when creating app/agents/*/config.terse, configuring agents in .hyperterse, setting tool permissions, and testing /agent/{name} runtime endpoints.
 ---
 
 This project uses Hyperterse for MCP tools and declarative agent runtimes.

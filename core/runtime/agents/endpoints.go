@@ -5,17 +5,26 @@ import (
 	"strings"
 )
 
-type adkRoute struct {
+type agentRoute struct {
 	methods []string
 	pattern string
 }
 
-// RuntimeEndpointLogEntries returns concrete ADK REST endpoint log entries for one agent.
+// RegisteredRouteCountPerAgent is the number of HTTP method+path pairs served under each /agent/<name>/ mount.
+func RegisteredRouteCountPerAgent() int {
+	n := 0
+	for _, route := range agentRoutes {
+		n += len(route.methods)
+	}
+	return n
+}
+
+// RuntimeEndpointLogEntries returns concrete REST endpoint log entries for one agent.
 // Path parameters are normalized to :paramName style (e.g. {user_id} -> :userId).
 func RuntimeEndpointLogEntries(agentName string) []string {
 	prefix := fmt.Sprintf("/agent/%s", agentName)
-	entries := make([]string, 0, len(adkRoutes)*2)
-	for _, route := range adkRoutes {
+	entries := make([]string, 0, len(agentRoutes)*2)
+	for _, route := range agentRoutes {
 		path := prefix + normalizeRoutePattern(route.pattern)
 		for _, method := range route.methods {
 			entries = append(entries, fmt.Sprintf("%s %s", method, path))
@@ -24,7 +33,7 @@ func RuntimeEndpointLogEntries(agentName string) []string {
 	return entries
 }
 
-var adkRoutes = []adkRoute{
+var agentRoutes = []agentRoute{
 	// Runtime API
 	{methods: []string{"POST"}, pattern: "/run"},
 	{methods: []string{"POST"}, pattern: "/run_sse"},

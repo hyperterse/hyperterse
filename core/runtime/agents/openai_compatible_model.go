@@ -13,7 +13,7 @@ import (
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
-	adkmodel "google.golang.org/adk/model"
+	sdkmodel "google.golang.org/adk/model"
 	"google.golang.org/genai"
 )
 
@@ -25,7 +25,7 @@ type openAICompatibleModel struct {
 	httpClient *http.Client
 }
 
-func newOpenAICompatibleModel(agentName, modelName, baseURL, apiKey string, httpClient *http.Client) (adkmodel.LLM, error) {
+func newOpenAICompatibleModel(agentName, modelName, baseURL, apiKey string, httpClient *http.Client) (sdkmodel.LLM, error) {
 	normalizedModel := strings.TrimSpace(modelName)
 	if normalizedModel == "" {
 		return nil, fmt.Errorf("model name is required for openai_compatible provider")
@@ -52,10 +52,10 @@ func (m *openAICompatibleModel) Name() string {
 
 func (m *openAICompatibleModel) GenerateContent(
 	ctx context.Context,
-	req *adkmodel.LLMRequest,
+	req *sdkmodel.LLMRequest,
 	_ bool,
-) iter.Seq2[*adkmodel.LLMResponse, error] {
-	return func(yield func(*adkmodel.LLMResponse, error) bool) {
+) iter.Seq2[*sdkmodel.LLMResponse, error] {
+	return func(yield func(*sdkmodel.LLMResponse, error) bool) {
 		response, err := m.generateContentOnce(ctx, req)
 		yield(response, err)
 	}
@@ -63,8 +63,8 @@ func (m *openAICompatibleModel) GenerateContent(
 
 func (m *openAICompatibleModel) generateContentOnce(
 	ctx context.Context,
-	req *adkmodel.LLMRequest,
-) (*adkmodel.LLMResponse, error) {
+	req *sdkmodel.LLMRequest,
+) (*sdkmodel.LLMResponse, error) {
 	log := logger.New("agents.model.openai")
 	baseAttrs := map[string]any{
 		observability.AttrAgentName:          m.agentName,
@@ -208,7 +208,7 @@ func (m *openAICompatibleModel) generateContentOnce(
 	return response, nil
 }
 
-func (m *openAICompatibleModel) buildRequest(req *adkmodel.LLMRequest) (*openAICompletionRequest, error) {
+func (m *openAICompatibleModel) buildRequest(req *sdkmodel.LLMRequest) (*openAICompletionRequest, error) {
 	request := &openAICompletionRequest{
 		Model: m.name,
 	}
@@ -407,7 +407,7 @@ func ensureObjectSchemaType(schema map[string]any) map[string]any {
 	return schema
 }
 
-func convertOpenAIChoiceToLLMResponse(choice openAIChoice) (*adkmodel.LLMResponse, error) {
+func convertOpenAIChoiceToLLMResponse(choice openAIChoice) (*sdkmodel.LLMResponse, error) {
 	parts := make([]*genai.Part, 0)
 	if text := strings.TrimSpace(choice.Message.Content); text != "" {
 		parts = append(parts, &genai.Part{Text: text})
@@ -433,7 +433,7 @@ func convertOpenAIChoiceToLLMResponse(choice openAIChoice) (*adkmodel.LLMRespons
 		return nil, fmt.Errorf("openai-compatible response contained neither text nor tool calls")
 	}
 
-	return &adkmodel.LLMResponse{
+	return &sdkmodel.LLMResponse{
 		Content: &genai.Content{
 			Role:  genai.RoleModel,
 			Parts: parts,
@@ -500,4 +500,4 @@ func truncateForLog(value string, maxLen int) string {
 	return value[:maxLen] + "...(truncated)"
 }
 
-var _ adkmodel.LLM = (*openAICompatibleModel)(nil)
+var _ sdkmodel.LLM = (*openAICompatibleModel)(nil)

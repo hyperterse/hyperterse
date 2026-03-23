@@ -8,7 +8,7 @@ import (
 
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
-	adkmodel "google.golang.org/adk/model"
+	sdkmodel "google.golang.org/adk/model"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
 
@@ -16,7 +16,7 @@ import (
 	runtimeutils "github.com/hyperterse/hyperterse/core/runtime/utils"
 )
 
-func resolveAgentModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveAgentModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (sdkmodel.LLM, error) {
 	log := logger.New("agents.model")
 	if cfg == nil {
 		return nil, fmt.Errorf("agent model config is required")
@@ -35,7 +35,7 @@ func resolveAgentModel(ctx context.Context, agentName string, cfg *hyperterse.Ag
 	}
 	log.DebugfCtx(ctx, attrs, "Resolving model provider for agent: %s", agentName)
 
-	var model adkmodel.LLM
+	var model sdkmodel.LLM
 	switch provider {
 	case "gemini", "google_ai_studio":
 		model, err = resolveGeminiModel(ctx, agentName, cfg)
@@ -69,7 +69,7 @@ func substituteModelOptionEnvVars(options map[string]string) (map[string]string,
 	return resolved, nil
 }
 
-func resolveGeminiModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveGeminiModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (sdkmodel.LLM, error) {
 	log := logger.New("agents.model")
 	log.DebugfCtx(ctx, map[string]any{
 		observability.AttrAgentName:          agentName,
@@ -82,7 +82,7 @@ func resolveGeminiModel(ctx context.Context, agentName string, cfg *hyperterse.A
 	return gemini.NewModel(ctx, cfg.Model, clientConfig)
 }
 
-func resolveVertexModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveVertexModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (sdkmodel.LLM, error) {
 	clientConfig := &genai.ClientConfig{
 		Backend: genai.BackendVertexAI,
 	}
@@ -110,7 +110,7 @@ func resolveVertexModel(ctx context.Context, agentName string, cfg *hyperterse.A
 	return gemini.NewModel(ctx, cfg.Model, clientConfig)
 }
 
-func resolveOpenAICompatibleModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (adkmodel.LLM, error) {
+func resolveOpenAICompatibleModel(ctx context.Context, agentName string, cfg *hyperterse.AgentModelConfig) (sdkmodel.LLM, error) {
 	baseURL := strings.TrimSpace(resolveMapOption(cfg.Options, "base_url"))
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
