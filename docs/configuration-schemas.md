@@ -7,6 +7,7 @@ This document is the source-of-truth checklist for config schema coverage in the
 - `schema/root.terse.schema.json` (root-level `.hyperterse`)
 - `schema/adapter.terse.schema.json` (adapter config files)
 - `schema/tool.terse.schema.json` (tool config files)
+- `schema/agent.terse.schema.json` (agent config files)
 - `schema/prompt.terse.schema.json` (prompt config files)
 - `schema/resource.terse.schema.json` (resource and resource-template config files)
 
@@ -14,7 +15,7 @@ This document is the source-of-truth checklist for config schema coverage in the
 
 - **Root (`.hyperterse`)**
   - Owns service-wide settings and discovery configuration.
-  - Fields: `name`, `version`, `root`, `build`, `server`, `tools.directory`, `tools.cache`, `tools.search`, `adapters.directory`, `prompts`, `resources`, `resource_templates`.
+  - Fields: `name`, `version`, `root`, `build`, `server`, `tools.directory`, `tools.cache`, `tools.search`, `adapters.directory`, `prompts`, `resources`, `resource_templates`, `agents.directory`, `agents.tool_access`.
 - **Adapter (`app/adapters/*.terse`)**
   - Owns connection-level runtime configuration.
   - Fields: `name`, `connector`, `connection_string`, `options`.
@@ -27,6 +28,9 @@ This document is the source-of-truth checklist for config schema coverage in the
 - **Resource (`app/resources/**/config.terse`)**
   - Owns concrete resources and URI-template resources exposed through MCP resources.
   - Fields: `uri` / `uri_template`, metadata (`name`, `title`, `description`, `mime_type`), content (`text`/`file` or `text_template`/`file_template`), `arguments`.
+- **Agent (`app/agents/**/config.terse`)**
+  - Owns declarative runtime agents and HTTP `/agent/{name}` behavior.
+  - Fields: `name`, `description`, `instruction`, `model` (`provider`, `model`, `options`), `tool_access`.
 
 ## Required vs Optional and Constraints
 
@@ -41,6 +45,7 @@ This document is the source-of-truth checklist for config schema coverage in the
     - `prompts` accepts either discovery object (`directory`) or inline prompt list.
     - `resources` accepts either discovery object (`directory`) or inline resource list.
     - `resource_templates` accepts inline template list.
+    - `agents.directory` defaults to `agents`; `agents.tool_access` uses `allow_all` / `allow_none` / `allow_list` with optional `tools` when `allow_list`.
 - **Adapter**
   - Required: `connector`, `connection_string`.
   - Optional: `name`, `options`.
@@ -69,6 +74,12 @@ This document is the source-of-truth checklist for config schema coverage in the
   - Optional: metadata fields and template `arguments`.
   - Constraints:
     - Template argument names match `^[a-zA-Z][a-zA-Z0-9_-]*$`.
+- **Agent**
+  - Required: `name`, `instruction`, `model`, `tool_access`.
+  - Optional: `description`, `model.options`.
+  - Constraints:
+    - `name` matches `^[a-z][a-z0-9_-]*$`.
+    - `tool_access.mode` is one of `inherit`, `allow_all`, `allow_none`, `allow_list`; `tools` required when `allow_list`.
 
 ## Defaults
 
@@ -78,6 +89,7 @@ This document is the source-of-truth checklist for config schema coverage in the
   - `adapters.directory`: `adapters`
   - `prompts.directory`: `prompts`
   - `resources.directory`: `resources`
+  - `agents.directory`: `agents`
 - MCP search default:
   - `tools.search.limit`: `10` (when unset)
 
@@ -96,5 +108,6 @@ bun run scripts/generate-schema.ts proto/connectors/connectors.proto proto/primi
 - `./schema/root.terse.schema.json` → `**/.hyperterse`
 - `./schema/adapter.terse.schema.json` → `**/adapters/*.terse`
 - `./schema/tool.terse.schema.json` → `**/tools/**/config.terse`
+- `./schema/agent.terse.schema.json` → `**/agents/**/config.terse`
 - `./schema/prompt.terse.schema.json` → `**/prompts/**/*.terse`
 - `./schema/resource.terse.schema.json` → `**/resources/**/config.terse`

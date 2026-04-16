@@ -3,6 +3,8 @@ title: MCP transport
 description: Full MCP 2025-11-25 surface in Hyperterse, including tools, prompts, resources, completion, notifications, and session behavior.
 ---
 
+Hyperterse is an MCP server. Tool discovery and execution use the MCP Streamable HTTP transport over JSON-RPC 2.0 on `/mcp`. There are no per-tool REST endpoints for tools, no GraphQL layer, and no custom protocol for tool execution. The transport is the protocol, and the protocol is MCP.
+
 Hyperterse serves MCP over Streamable HTTP (`/mcp`) using JSON-RPC 2.0. It supports:
 
 - two-tool entrypoints (`search`, `execute`)
@@ -12,6 +14,12 @@ Hyperterse serves MCP over Streamable HTTP (`/mcp`) using JSON-RPC 2.0. It suppo
 - resource subscriptions
 - progress and logging notifications
 - session continuity across model reloads
+
+<Tip>
+  Hyperterse also supports declarative ADK-backed **agent** endpoints under
+  `/agent/{agentName}`. Those are separate from MCP tool transport. See
+  [Runtime API](/agents/runtime-api).
+</Tip>
 
 ## Endpoints
 

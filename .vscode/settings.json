@@ -34,6 +34,7 @@
   "explorer.excludeGitIgnore": false,
   "yaml.schemas": {
     "./schema/tool.terse.schema.json": ["**/tools/**/config.terse"],
+    "./schema/agent.terse.schema.json": ["**/agents/**/config.terse"],
     "./schema/prompt.terse.schema.json": ["**/prompts/**/*.terse"],
     "./schema/resource.terse.schema.json": ["**/resources/**/config.terse"],
     "./schema/adapter.terse.schema.json": ["**/adapters/*.terse"],

@@ -1,0 +1,168 @@
+---
+title: Runtime API
+description: Use ADK-style run, streaming, apps, and session endpoints mounted per agent.
+---
+
+Each compiled agent is exposed behind its own route prefix:
+
+```text
+/agent/{agentName}
+```
+
+So a `support` agent gets:
+
+- `/agent/support/run`
+- `/agent/support/run_sse`
+- `/agent/support/list-apps`
+- `/agent/support/apps/{app_name}/users/{user_id}/sessions...`
+
+## Why these endpoints exist
+
+These routes provide a **stateful ADK runtime contract**, not just one-off function calls:
+
+- **`/run`**: request/response agent execution.
+- **`/run_sse`**: streaming event execution via SSE.
+- **`/list-apps`**: discover app names available under the route.
+- **`/apps/.../sessions...`**: create/list/get/delete sessions for continuity.
+
+In short: these endpoints give you memory, resumability, and event streams, which plain tool execution endpoints do not.
+
+## Endpoint reference
+
+| Endpoint | Method(s) | Purpose |
+| --- | --- | --- |
+| `/agent/{agentName}/list-apps` | `GET` | List ADK app names for this mounted agent route. |
+| `/agent/{agentName}/run` | `POST` | Run agent and return full event list as JSON. |
+| `/agent/{agentName}/run_sse` | `POST` | Run agent with streamed events (`text/event-stream`). |
+| `/agent/{agentName}/apps/{app_name}/users/{user_id}/sessions` | `POST`, `GET` | Create or list sessions for a user. |
+| `/agent/{agentName}/apps/{app_name}/users/{user_id}/sessions/{session_id}` | `POST`, `GET`, `DELETE` | Create with fixed id, read, or delete a specific session. |
+
+## Request body contract for `run` / `run_sse`
+
+Both endpoints use the same payload shape:
+
+```json
+{
+  "appName": "support",
+  "userId": "demo-user",
+  "sessionId": "demo-session",
+  "newMessage": {
+    "role": "user",
+    "parts": [{ "text": "Find pending orders" }]
+  },
+  "streaming": true
+}
+```
+
+`streaming` is optional and typically used with `run_sse`.
+
+## Typical flow (recommended)
+
+1. `GET /agent/{agentName}/list-apps`
+2. `POST /agent/{agentName}/apps/{app_name}/users/{user_id}/sessions/{session_id}`
+3. `POST /agent/{agentName}/run` or `POST /agent/{agentName}/run_sse`
+4. Reuse the same session id for follow-ups
+
+<Tip>
+  For single-agent mounts, `app_name` and `appName` usually match the mounted agent name.
+</Tip>
+
+## Typical usage flow
+
+1. Call `list-apps`.
+2. Create a session.
+3. Send messages using `run` or `run_sse`.
+4. Reuse session ID for follow-ups.
+
+## Request examples
+
+### Create session
+
+```bash
+curl -s -X POST \
+  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Run (non-streaming)
+
+```bash
+curl -s -X POST http://localhost:8080/agent/support/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appName": "support",
+    "userId": "demo-user",
+    "sessionId": "demo-session",
+    "newMessage": {
+      "role": "user",
+      "parts": [{ "text": "Find all pending orders from today" }]
+    }
+  }' | jq
+```
+
+### Run SSE (streaming)
+
+```bash
+curl -N -X POST http://localhost:8080/agent/support/run_sse \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appName": "support",
+    "userId": "demo-user",
+    "sessionId": "demo-session",
+    "newMessage": {
+      "role": "user",
+      "parts": [{ "text": "Summarize pending orders in 3 bullets" }]
+    },
+    "streaming": true
+  }'
+```
+
+## When to use `run` vs `run_sse`
+
+- Use **`run`** for backend jobs or synchronous integrations.
+- Use **`run_sse`** for chat UIs and incremental output rendering.
+
+## Session operations
+
+### Get an existing session
+
+```bash
+curl -s \
+  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session | jq
+```
+
+### List sessions for a user
+
+```bash
+curl -s \
+  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions | jq
+```
+
+### Delete a session
+
+```bash
+curl -s -X DELETE \
+  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session | jq
+```
+
+## Operational notes
+
+- Sessions are required for `run` and `run_sse`.
+- Tool permissions are enforced from compiled allowlists.
+- On model reload, mounted agent routes are rebuilt to match new declarations.
+- CORS headers are applied by Hyperterse wrappers to agent routes.
+
+## Troubleshooting
+
+<Warning>
+  If you get a session error on `run`, verify all three fields match an existing
+  session exactly: `appName`, `userId`, `sessionId`.
+</Warning>
+
+<Warning>
+  If tool invocation is unexpectedly blocked, inspect the compiled agent `tool_access`
+  policy and root defaults in `.hyperterse`.
+</Warning>
+
+Next: configure providers in [Model providers](/agents/model-providers) and tune permission policy in [Tool access](/agents/tool-access).

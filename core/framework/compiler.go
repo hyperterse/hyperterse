@@ -16,13 +16,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var tsConventionPattern = regexp.MustCompile(`(?i)\.ts$`)
+var (
+	tsConventionPattern = regexp.MustCompile(`(?i)\.ts$`)
+	agentNamePattern    = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+)
 
 // CompileProjectIfPresent discovers tools/adapters directories and merges tools into model definitions.
 // If the configured discovery root does not exist, it returns nil project with no error.
 func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*Project, error) {
 	baseDir := filepath.Dir(configFilePath)
-	appDir, adaptersDir, toolsDir, promptsDir, resourcesDir, err := resolveProjectDirectories(configFilePath)
+	appDir, adaptersDir, toolsDir, promptsDir, resourcesDir, agentsDir, agentToolAccessDefaults, err := resolveProjectDirectories(configFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -50,17 +53,20 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 	log.Infof("Compiling v2 tools from %s", appDir)
 
 	project := &Project{
-		BaseDir:      baseDir,
-		AppDir:       appDir,
-		AdaptersDir:  adaptersDir,
-		ToolsDir:     toolsDir,
-		PromptsDir:   promptsDir,
-		ResourcesDir: resourcesDir,
-		BuildDir:     buildDir,
-		Tools:        map[string]*Tool{},
-		Prompts:      map[string]*Prompt{},
-		Resources:    map[string]*Resource{},
-		Templates:    map[string]*ResourceTemplate{},
+		BaseDir:                 baseDir,
+		AppDir:                  appDir,
+		AdaptersDir:             adaptersDir,
+		ToolsDir:                toolsDir,
+		PromptsDir:              promptsDir,
+		ResourcesDir:            resourcesDir,
+		AgentsDir:               agentsDir,
+		BuildDir:                buildDir,
+		Tools:                   map[string]*Tool{},
+		Prompts:                 map[string]*Prompt{},
+		Resources:               map[string]*Resource{},
+		Templates:               map[string]*ResourceTemplate{},
+		Agents:                  map[string]*Agent{},
+		AgentToolAccessDefaults: agentToolAccessDefaults,
 	}
 
 	adapterFiles, err := discoverFiles(adaptersDir, "adapters", func(path string) bool {
@@ -145,27 +151,53 @@ func CompileProjectIfPresent(configFilePath string, model *hyperterse.Model) (*P
 		}
 	}
 
-	log.Infof("Compiled %d tool(s), %d prompt(s), %d resource(s), %d template(s) into model",
-		len(project.Tools), len(project.Prompts), len(project.Resources), len(project.Templates))
+	sortedToolNames := make([]string, 0, len(project.Tools))
+	for toolName := range project.Tools {
+		sortedToolNames = append(sortedToolNames, toolName)
+	}
+	sort.Strings(sortedToolNames)
+
+	agentTerseFiles, err := discoverAgentTerseFiles(agentsDir)
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(agentTerseFiles)
+
+	for _, terseFile := range agentTerseFiles {
+		agent, err := compileAgentFile(project, terseFile, sortedToolNames)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := project.Agents[agent.AgentName]; exists {
+			return nil, fmt.Errorf("duplicate agent name generated from agents: %s", agent.AgentName)
+		}
+		project.Agents[agent.AgentName] = agent
+		model.Agents = append(model.Agents, agent.Definition)
+	}
+
+	log.Infof("Compiled %d tool(s), %d prompt(s), %d resource(s), %d template(s), %d agent(s) into model",
+		len(project.Tools), len(project.Prompts), len(project.Resources), len(project.Templates), len(project.Agents))
 	return project, nil
 }
 
-func resolveProjectDirectories(configFilePath string) (string, string, string, string, string, error) {
+func resolveProjectDirectories(configFilePath string) (string, string, string, string, string, string, AgentToolAccessPolicy, error) {
 	baseDir := filepath.Dir(configFilePath)
 	rootDir := "app"
 	toolsDirName := "tools"
 	adaptersDirName := "adapters"
 	promptsDirName := "prompts"
 	resourcesDirName := "resources"
+	agentsDirName := "agents"
+	agentToolAccessDefaults := AgentToolAccessPolicy{Mode: AgentToolAccessModeAllowAll}
 
 	content, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return "", "", "", "", "", fmt.Errorf("failed to read config for discovery settings: %w", err)
+		return "", "", "", "", "", "", AgentToolAccessPolicy{}, fmt.Errorf("failed to read config for discovery settings: %w", err)
 	}
 
 	var raw map[string]any
 	if err := yaml.Unmarshal(content, &raw); err != nil {
-		return "", "", "", "", "", fmt.Errorf("failed to decode discovery settings: %w", err)
+		return "", "", "", "", "", "", AgentToolAccessPolicy{}, fmt.Errorf("failed to decode discovery settings: %w", err)
 	}
 	if configuredRoot, ok := raw["root"].(string); ok && strings.TrimSpace(configuredRoot) != "" {
 		rootDir = configuredRoot
@@ -182,13 +214,34 @@ func resolveProjectDirectories(configFilePath string) (string, string, string, s
 	if directory := discoveryDirectoryValue(raw["resources"]); directory != "" {
 		resourcesDirName = directory
 	}
+	if agentsSection, ok := raw["agents"].(map[string]any); ok {
+		if d, ok := agentsSection["directory"].(string); ok && strings.TrimSpace(d) != "" {
+			agentsDirName = strings.TrimSpace(d)
+		}
+		if ta, ok := agentsSection["tool_access"]; ok && ta != nil {
+			b, err := yaml.Marshal(ta)
+			if err != nil {
+				return "", "", "", "", "", "", AgentToolAccessPolicy{}, fmt.Errorf("agents.tool_access: %w", err)
+			}
+			var spec agentToolAccessSpec
+			if err := yaml.Unmarshal(b, &spec); err != nil {
+				return "", "", "", "", "", "", AgentToolAccessPolicy{}, fmt.Errorf("agents.tool_access: %w", err)
+			}
+			parsedDefaults, err := parseRootAgentToolAccessPolicy(&spec)
+			if err != nil {
+				return "", "", "", "", "", "", AgentToolAccessPolicy{}, err
+			}
+			agentToolAccessDefaults = parsedDefaults
+		}
+	}
 
 	appDir := resolveDiscoveryPath(baseDir, rootDir)
 	adaptersDir := resolveDiscoveryPath(appDir, adaptersDirName)
 	toolsDir := resolveDiscoveryPath(appDir, toolsDirName)
 	promptsDir := resolveDiscoveryPath(appDir, promptsDirName)
 	resourcesDir := resolveDiscoveryPath(appDir, resourcesDirName)
-	return appDir, adaptersDir, toolsDir, promptsDir, resourcesDir, nil
+	agentsDir := resolveDiscoveryPath(appDir, agentsDirName)
+	return appDir, adaptersDir, toolsDir, promptsDir, resourcesDir, agentsDir, agentToolAccessDefaults, nil
 }
 
 func discoveryDirectoryValue(section any) string {
@@ -236,6 +289,32 @@ func discoverFiles(directory string, entityLabel string, match func(path string)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover %s files: %w", entityLabel, err)
+	}
+	return files, nil
+}
+
+func discoverAgentTerseFiles(agentsDir string) ([]string, error) {
+	var files []string
+	if _, err := os.Stat(agentsDir); err != nil {
+		if os.IsNotExist(err) {
+			return files, nil
+		}
+		return nil, fmt.Errorf("failed to stat agents dir: %w", err)
+	}
+	err := filepath.WalkDir(agentsDir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Base(path), "config.terse") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover agent .terse files: %w", err)
 	}
 	return files, nil
 }
@@ -447,6 +526,224 @@ func compileToolFile(project *Project, terseFile string) (*Tool, error) {
 	applyToolScriptConventions(tool)
 
 	return tool, nil
+}
+
+func compileAgentFile(project *Project, terseFile string, allToolNames []string) (*Agent, error) {
+	content, err := os.ReadFile(terseFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read agent config %s: %w", terseFile, err)
+	}
+
+	var cfg AgentFileConfig
+	if err := strictYAMLUnmarshal(content, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse agent config %s: %w", terseFile, err)
+	}
+
+	name := strings.TrimSpace(cfg.Name)
+	if name == "" {
+		return nil, fmt.Errorf("invalid agent config %s: field 'name' is required", terseFile)
+	}
+	if !agentNamePattern.MatchString(name) {
+		return nil, fmt.Errorf("invalid agent config %s: field 'name' must match %s", terseFile, agentNamePattern.String())
+	}
+	instruction := strings.TrimSpace(cfg.Instruction)
+	if instruction == "" {
+		return nil, fmt.Errorf("invalid agent config %s: field 'instruction' is required", terseFile)
+	}
+	if cfg.Model == nil {
+		return nil, fmt.Errorf("invalid agent config %s: field 'model' is required", terseFile)
+	}
+	provider := strings.ToLower(strings.TrimSpace(cfg.Model.Provider))
+	if provider == "" {
+		return nil, fmt.Errorf("invalid agent config %s: field 'model.provider' is required", terseFile)
+	}
+	modelName := strings.TrimSpace(cfg.Model.Model)
+	if modelName == "" {
+		return nil, fmt.Errorf("invalid agent config %s: field 'model.model' is required", terseFile)
+	}
+
+	declaredToolPolicy, err := parseAgentToolAccessPolicy(cfg.ToolAccess)
+	if err != nil {
+		return nil, fmt.Errorf("invalid agent config %s: %w", terseFile, err)
+	}
+
+	knownTools := make(map[string]struct{}, len(allToolNames))
+	for _, toolName := range allToolNames {
+		knownTools[toolName] = struct{}{}
+	}
+	effectiveMode, effectiveTools, inherited, err := resolveEffectiveAgentToolAccess(
+		declaredToolPolicy,
+		project.AgentToolAccessDefaults,
+		knownTools,
+		allToolNames,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("invalid agent config %s: %w", terseFile, err)
+	}
+
+	toolAccessProto := &hyperterse.AgentToolAccessConfig{
+		Mode:  string(effectiveMode),
+		Tools: append([]string(nil), effectiveTools...),
+	}
+	modelConfigProto := &hyperterse.AgentModelConfig{
+		Provider: provider,
+		Model:    modelName,
+		Options:  stringifyAgentModelOptions(cfg.Model.Options),
+	}
+	definition := &hyperterse.Agent{
+		Name:        name,
+		Description: strings.TrimSpace(cfg.Description),
+		Instruction: instruction,
+		Model:       modelConfigProto,
+		ToolAccess:  toolAccessProto,
+	}
+
+	agent := &Agent{
+		AgentName:  name,
+		Directory:  filepath.Dir(terseFile),
+		TerseFile:  terseFile,
+		Definition: definition,
+		ToolAccess: AgentToolAccessMetadata{
+			DeclaredMode:   declaredToolPolicy.Mode,
+			DeclaredTools:  append([]string(nil), declaredToolPolicy.Tools...),
+			EffectiveMode:  effectiveMode,
+			EffectiveTools: append([]string(nil), effectiveTools...),
+			Inherited:      inherited,
+		},
+	}
+	return agent, nil
+}
+
+func stringifyAgentModelOptions(raw map[string]any) map[string]string {
+	if len(raw) == 0 {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(raw))
+	for key, value := range raw {
+		out[key] = fmt.Sprintf("%v", value)
+	}
+	return out
+}
+
+func parseRootAgentToolAccessPolicy(spec *agentToolAccessSpec) (AgentToolAccessPolicy, error) {
+	if spec == nil {
+		return AgentToolAccessPolicy{Mode: AgentToolAccessModeAllowAll}, nil
+	}
+	mode, err := parseAgentToolAccessMode(spec.Mode, false)
+	if err != nil {
+		return AgentToolAccessPolicy{}, fmt.Errorf("invalid agents.tool_access.mode: %w", err)
+	}
+	tools := normalizeAgentToolNames(spec.Tools)
+	if mode == AgentToolAccessModeAllowList && len(tools) == 0 {
+		return AgentToolAccessPolicy{}, fmt.Errorf("agents.tool_access.tools is required when mode is %q", AgentToolAccessModeAllowList)
+	}
+	if mode != AgentToolAccessModeAllowList && len(tools) > 0 {
+		return AgentToolAccessPolicy{}, fmt.Errorf("agents.tool_access.tools is only supported when mode is %q", AgentToolAccessModeAllowList)
+	}
+	return AgentToolAccessPolicy{Mode: mode, Tools: tools}, nil
+}
+
+func parseAgentToolAccessPolicy(spec *agentToolAccessSpec) (AgentToolAccessPolicy, error) {
+	if spec == nil {
+		return AgentToolAccessPolicy{Mode: AgentToolAccessModeInherit}, nil
+	}
+	mode, err := parseAgentToolAccessMode(spec.Mode, true)
+	if err != nil {
+		return AgentToolAccessPolicy{}, fmt.Errorf("field 'tool_access.mode': %w", err)
+	}
+	tools := normalizeAgentToolNames(spec.Tools)
+	if mode == AgentToolAccessModeInherit && len(tools) > 0 {
+		return AgentToolAccessPolicy{}, fmt.Errorf("field 'tool_access.tools' cannot be set when mode is %q", AgentToolAccessModeInherit)
+	}
+	if mode == AgentToolAccessModeAllowList && len(tools) == 0 {
+		return AgentToolAccessPolicy{}, fmt.Errorf("field 'tool_access.tools' is required when mode is %q", AgentToolAccessModeAllowList)
+	}
+	if mode != AgentToolAccessModeAllowList && mode != AgentToolAccessModeInherit && len(tools) > 0 {
+		return AgentToolAccessPolicy{}, fmt.Errorf("field 'tool_access.tools' is only supported when mode is %q", AgentToolAccessModeAllowList)
+	}
+	return AgentToolAccessPolicy{Mode: mode, Tools: tools}, nil
+}
+
+func parseAgentToolAccessMode(modeRaw string, allowInherit bool) (AgentToolAccessMode, error) {
+	normalized := strings.ToLower(strings.TrimSpace(modeRaw))
+	if normalized == "" {
+		if allowInherit {
+			return AgentToolAccessModeInherit, nil
+		}
+		return AgentToolAccessModeAllowAll, nil
+	}
+	switch AgentToolAccessMode(normalized) {
+	case AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone, AgentToolAccessModeAllowList:
+		return AgentToolAccessMode(normalized), nil
+	case AgentToolAccessModeInherit:
+		if !allowInherit {
+			return "", fmt.Errorf("must be one of: %q, %q, %q", AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone, AgentToolAccessModeAllowList)
+		}
+		return AgentToolAccessModeInherit, nil
+	default:
+		if allowInherit {
+			return "", fmt.Errorf("must be one of: %q, %q, %q, %q", AgentToolAccessModeInherit, AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone, AgentToolAccessModeAllowList)
+		}
+		return "", fmt.Errorf("must be one of: %q, %q, %q", AgentToolAccessModeAllowAll, AgentToolAccessModeAllowNone, AgentToolAccessModeAllowList)
+	}
+}
+
+func normalizeAgentToolNames(raw []string) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, toolName := range raw {
+		name := strings.TrimSpace(toolName)
+		if name == "" {
+			continue
+		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+	return out
+}
+
+func resolveEffectiveAgentToolAccess(
+	declared AgentToolAccessPolicy,
+	defaults AgentToolAccessPolicy,
+	knownTools map[string]struct{},
+	allToolNames []string,
+) (AgentToolAccessMode, []string, bool, error) {
+	effective := declared
+	inherited := false
+	if declared.Mode == AgentToolAccessModeInherit {
+		effective = defaults
+		inherited = true
+	}
+	if effective.Mode == AgentToolAccessModeInherit || effective.Mode == "" {
+		return "", nil, inherited, fmt.Errorf("failed to resolve effective tool access policy")
+	}
+
+	switch effective.Mode {
+	case AgentToolAccessModeAllowAll:
+		return effective.Mode, append([]string(nil), allToolNames...), inherited, nil
+	case AgentToolAccessModeAllowNone:
+		return effective.Mode, []string{}, inherited, nil
+	case AgentToolAccessModeAllowList:
+		if len(effective.Tools) == 0 {
+			return "", nil, inherited, fmt.Errorf("tool allowlist cannot be empty when mode is %q", AgentToolAccessModeAllowList)
+		}
+		allowlist := make([]string, 0, len(effective.Tools))
+		for _, toolName := range effective.Tools {
+			if _, ok := knownTools[toolName]; !ok {
+				return "", nil, inherited, fmt.Errorf("unknown tool in allowlist: %q", toolName)
+			}
+			allowlist = append(allowlist, toolName)
+		}
+		return effective.Mode, allowlist, inherited, nil
+	default:
+		return "", nil, inherited, fmt.Errorf("unsupported tool access mode: %q", effective.Mode)
+	}
 }
 
 func resolveScriptPath(baseDir, toolDir, scriptPath string) string {

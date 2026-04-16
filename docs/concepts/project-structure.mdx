@@ -68,13 +68,24 @@ A typical project looks like this:
           <Tree.File name="config.terse" />
         </Tree.Folder>
       </Tree.Folder>
+      <Tree.Folder
+        name="agents"
+        defaultOpen
+      >
+        <Tree.Folder
+          name="support"
+          defaultOpen
+        >
+          <Tree.File name="config.terse" />
+        </Tree.Folder>
+      </Tree.Folder>
     </Tree.Folder>
   </Tree>
 </Card>
 
 ## Root configuration
 
-The `.hyperterse` file contains service-level settings: name, version, server port, log level, cache defaults, build options, and discovery settings for role directories. Adapter and tool definitions live in `app/`. Prompts and resources can be discovered from `app/` or defined inline using root arrays (`prompts`, `resources`, `resource_templates`).
+The `.hyperterse` file contains service-level settings: name, version, server port, log level, cache defaults, build options, and discovery settings for adapters, tools, prompts, resources, and agents. Adapter, tool, prompt, resource, and agent definitions live under `app/` (or inline for prompts/resources via root arrays). Inline `prompts`, `resources`, and `resource_templates` arrays are optional alternatives to filesystem discovery.
 
 When you run `hyperterse start` or `hyperterse build` without arguments, the CLI looks for `.hyperterse` in the current directory. See [Root configuration reference](/reference/root-config) for the complete field specification.
 
@@ -103,6 +114,17 @@ See [Prompts](/concepts/prompts) and [Prompt configuration reference](/reference
 The compiler scans `app/resources/**/config.terse` at build time. Each resource folder defines one concrete resource (`uri`) or one resource template (`uri_template`), with optional content files colocated in the same folder.
 
 See [Resources](/concepts/resources) and [Resource configuration reference](/reference/resource-config).
+
+## Agent discovery
+
+The compiler scans `app/agents/*/config.terse` at build time. Each `config.terse` file defines one ADK-backed runtime agent. The directory name becomes the agent name unless explicitly overridden by `name`.
+
+Agent files define:
+
+- instruction and model provider config
+- tool access policy (`inherit`, `allow_all`, `allow_none`, `allow_list`)
+
+See [Overview](/agents/overview) and [Agent configuration reference](/reference/agent-config).
 
 ## Script resolution
 

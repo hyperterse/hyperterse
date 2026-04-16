@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
+	runtimeAgents "github.com/hyperterse/hyperterse/core/runtime/agents"
 	"github.com/hyperterse/hyperterse/core/runtime/connectors"
 	"github.com/hyperterse/hyperterse/core/runtime/executor"
 	runtimeMCP "github.com/hyperterse/hyperterse/core/runtime/mcp"
@@ -36,6 +38,7 @@ type Runtime struct {
 	port             string
 	mux              *http.ServeMux
 	mcpAdapter       *runtimeMCP.Adapter
+	agentRegistry    *runtimeAgents.Registry
 	project          *framework.Project
 	shutdownCtx      context.Context
 	shutdownCancel   context.CancelFunc
@@ -93,6 +96,11 @@ func NewRuntime(model *hyperterse.Model, port string, serviceVersion string, opt
 	if err != nil {
 		_ = manager.CloseAll()
 		return nil, log.Errorf("failed to initialize mcp server adapter: %w", err)
+	}
+	runtimeInstance.agentRegistry, err = runtimeAgents.NewRegistry(runtimeInstance.model, runtimeInstance.engine)
+	if err != nil {
+		_ = manager.CloseAll()
+		return nil, log.Errorf("failed to initialize agent runtime adapter: %w", err)
 	}
 
 	log.Infof("Runtime initialized successfully")
@@ -159,8 +167,10 @@ func (r *Runtime) registerEndpoints() {
 
 	log.Infof("Registering endpoints")
 
-	// Track endpoints for logging.
-	var utilityEndpoints []string
+	// Track endpoints for startup logging.
+	systemEndpoints := []string{}
+	mcpEndpoints := []string{}
+	agentMountNames := []string{}
 
 	mcpHTTPHandler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
 		if r.mcpAdapter == nil {
@@ -170,7 +180,11 @@ func (r *Runtime) registerEndpoints() {
 	}, &mcpsdk.StreamableHTTPOptions{})
 
 	r.mux.Handle("/mcp", r.instrumentHandler("/mcp", r.withCORS(mcpHTTPHandler)))
-	utilityEndpoints = append(utilityEndpoints, "GET/POST/DELETE /mcp (MCP SDK Streamable HTTP)")
+	mcpEndpoints = append(mcpEndpoints,
+		"GET /mcp",
+		"POST /mcp",
+		"DELETE /mcp",
+	)
 
 	// Heartbeat endpoint for health checks
 	r.mux.Handle("/heartbeat", r.instrumentHandler("/heartbeat", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -182,13 +196,36 @@ func (r *Runtime) registerEndpoints() {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"success":true}`)
 	})))
-	utilityEndpoints = append(utilityEndpoints, "GET /heartbeat")
+	systemEndpoints = append(systemEndpoints, "GET /heartbeat")
 
-	// Log all registered endpoints.
-	log.Infof("Endpoints registered: %d utility", len(utilityEndpoints))
-	log.Debugf("Utility endpoints:")
-	for _, endpoint := range utilityEndpoints {
-		log.Debugf("  %s", endpoint)
+	if r.agentRegistry != nil {
+		for _, agentName := range r.agentRegistry.Names() {
+			handler := r.agentRegistry.Handler(agentName)
+			if handler == nil {
+				continue
+			}
+			prefix := fmt.Sprintf("/agent/%s", agentName)
+			r.mux.Handle(prefix+"/", r.instrumentHandler(prefix, r.withCORS(http.StripPrefix(prefix, handler))))
+			agentMountNames = append(agentMountNames, agentName)
+		}
+	}
+
+	routesPerAgent := runtimeAgents.RegisteredRouteCountPerAgent()
+	totalAgentEndpoints := len(agentMountNames) * routesPerAgent
+
+	// Log all registered endpoints grouped by domain.
+	log.Infof("Endpoints registered: %d total", len(systemEndpoints)+len(mcpEndpoints)+totalAgentEndpoints)
+	log.Infof("System endpoints:")
+	for _, endpoint := range systemEndpoints {
+		log.Infof("  %s", dimEndpointMethod(endpoint))
+	}
+	log.Infof("MCP endpoints:")
+	for _, endpoint := range mcpEndpoints {
+		log.Infof("  %s", dimEndpointMethod(endpoint))
+	}
+	if len(agentMountNames) > 0 {
+		log.Infof("Agent HTTP mounts: %d agent(s), %d HTTP routes each — %s",
+			len(agentMountNames), routesPerAgent, strings.Join(agentMountNames, ", "))
 	}
 }
 
@@ -232,6 +269,21 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 			return log.Errorf("failed to update mcp adapter: %w", err)
 		}
 		log.Debugf("MCP server adapter updated in place")
+	}
+
+	agentRegistry, err := runtimeAgents.NewRegistry(r.model, r.engine)
+	if err != nil {
+		return log.Errorf("failed to rebuild agent runtime adapter: %w", err)
+	}
+	r.agentRegistry = agentRegistry
+	log.Debugf("Agent runtime adapter recreated")
+
+	r.mux = http.NewServeMux()
+	r.registerEndpoints()
+
+	if r.server != nil {
+		r.server.Handler = otelhttp.NewHandler(r.mux, "hyperterse_http_server")
+		log.Debugf("Server handler updated")
 	}
 
 	log.Infof("Model reloaded successfully")
@@ -363,4 +415,12 @@ func (rt *Runtime) instrumentHandler(endpoint string, next http.Handler) http.Ha
 			span.SetStatus(codes.Error, "server_error")
 		}
 	})
+}
+
+func dimEndpointMethod(endpoint string) string {
+	parts := strings.SplitN(strings.TrimSpace(endpoint), " ", 2)
+	if len(parts) != 2 {
+		return endpoint
+	}
+	return logger.DimText(parts[0]) + " " + parts[1]
 }

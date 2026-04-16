@@ -129,6 +129,7 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 	log.Infof("  app directory: %s", project.AppDir)
 	log.Infof("  adapter directory: %s", project.AdaptersDir)
 	log.Infof("  tools directory: %s", project.ToolsDir)
+	log.Infof("  agents directory: %s", project.AgentsDir)
 
 	adapterFiles := listTerseFiles(project.AdaptersDir)
 	log.Infof("  adapter files (%d):", len(adapterFiles))
@@ -149,6 +150,29 @@ func printValidationSummary(log *logger.Logger, loadFrom string, model *hyperter
 	log.Infof("  tools (%d):", len(toolNames))
 	if len(toolNames) == 0 {
 		log.Info("    - none")
+	}
+
+	agentNames := make([]string, 0, len(project.Agents))
+	for agentName := range project.Agents {
+		agentNames = append(agentNames, agentName)
+	}
+	sort.Strings(agentNames)
+
+	log.Infof("  agents (%d):", len(agentNames))
+	if len(agentNames) == 0 {
+		log.Info("    - none")
+	}
+	for _, agentName := range agentNames {
+		agent := project.Agents[agentName]
+		if agent == nil {
+			continue
+		}
+		log.Infof("    - agent: %s", agent.AgentName)
+		log.Infof("      config: %s", displayPath(project.BaseDir, agent.TerseFile))
+		if agent.Definition != nil && agent.Definition.Model != nil {
+			log.Infof("      model: %s/%s", agent.Definition.Model.Provider, agent.Definition.Model.Model)
+		}
+		log.Infof("      tool access: %s", agent.ToolAccess.EffectiveMode)
 	}
 
 	vendorValidated := "no"

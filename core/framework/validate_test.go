@@ -31,7 +31,7 @@ func TestValidateModel_RejectsProjectWithoutMcpEntities(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected validation error for empty project")
 	}
-	if !strings.Contains(err.Error(), "no tool/prompt/resource .terse files were discovered") {
+	if !strings.Contains(err.Error(), "no tool, prompt, resource, template, or agent .terse files were discovered") {
 		t.Fatalf("unexpected validation error: %v", err)
 	}
 }

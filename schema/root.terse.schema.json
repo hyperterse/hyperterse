@@ -92,6 +92,64 @@
       },
       "additionalProperties": false
     },
+    "agents": {
+      "type": "object",
+      "description": "Agent discovery and default tool access settings.",
+      "properties": {
+        "directory": {
+          "type": "string",
+          "description": "Agents directory relative to `root` (defaults to `agents`).",
+          "minLength": 1
+        },
+        "tool_access": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "allow_all",
+                "allow_none",
+                "allow_list"
+              ]
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]*$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "mode": {
+                    "const": "allow_list"
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              },
+              "then": {
+                "required": [
+                  "tools"
+                ]
+              }
+            }
+          ],
+          "additionalProperties": false,
+          "description": "Default tool access policy for agents discovered from this project."
+        }
+      },
+      "additionalProperties": false
+    },
     "prompts": {
       "description": "Prompt discovery settings (`prompts.directory`) or optional inline prompt definitions.",
       "oneOf": [

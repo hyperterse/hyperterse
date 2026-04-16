@@ -32,6 +32,11 @@ resources:
 
 resource_templates: []
 
+agents:
+  directory: agents
+  tool_access:
+    mode: allow_none
+
 server:
   port: 8080
   log_level: 3
@@ -142,6 +147,32 @@ build:
   Optional inline URI-template resources. Each item defines `uri_template`,
   metadata, template content (`text_template` or `file_template`), and optional
   `arguments`.
+</ParamField>
+
+<ParamField body="agents" type="object">
+  Agent discovery settings and project-level default tool access policy.
+
+  <Expandable title="properties">
+    <ParamField body="directory" type="string" default="agents">
+      Agents directory relative to `root`.
+    </ParamField>
+
+    <ParamField body="tool_access" type="object">
+      Default tool access policy for agents. Individual agents can override this
+      in `config.terse`.
+
+      <Expandable title="properties">
+        <ParamField body="mode" type="string" default="allow_none">
+          One of `allow_all`, `allow_none`, `allow_list`.
+        </ParamField>
+
+        <ParamField body="tools" type="string[]">
+          Required when `mode=allow_list`. Contains the allowed project tool
+          names.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
 </ParamField>
 
 <Tip>

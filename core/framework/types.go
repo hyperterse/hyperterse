@@ -13,18 +13,21 @@ var toolSegmentPattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
 // Project describes a compiled v2 project from discovered tool folders.
 type Project struct {
-	BaseDir      string
-	AppDir       string
-	AdaptersDir  string
-	ToolsDir     string
-	PromptsDir   string
-	ResourcesDir string
-	BuildDir     string
-	Tools        map[string]*Tool
-	Prompts      map[string]*Prompt
-	Resources    map[string]*Resource
-	Templates    map[string]*ResourceTemplate
-	VendorBundle string
+	BaseDir                 string
+	AppDir                  string
+	AdaptersDir             string
+	ToolsDir                string
+	PromptsDir              string
+	ResourcesDir            string
+	AgentsDir               string
+	BuildDir                string
+	Tools                   map[string]*Tool
+	Prompts                 map[string]*Prompt
+	Resources               map[string]*Resource
+	Templates               map[string]*ResourceTemplate
+	Agents                  map[string]*Agent
+	AgentToolAccessDefaults AgentToolAccessPolicy
+	VendorBundle            string
 }
 
 // Tool contains compiled metadata for a filesystem tool and associated proto definition.
@@ -37,6 +40,15 @@ type Tool struct {
 	Scripts       ToolScripts
 	Auth          ToolAuth
 	BundleOutputs map[string]string
+}
+
+// Agent contains compiled metadata for a filesystem agent and associated proto definition.
+type Agent struct {
+	AgentName  string
+	Directory  string
+	TerseFile  string
+	Definition *hyperterse.Agent
+	ToolAccess AgentToolAccessMetadata
 }
 
 // Prompt contains compiled metadata for a prompt .terse file.
@@ -96,6 +108,26 @@ type AdapterFileConfig struct {
 	Options          map[string]any `yaml:"options"`
 }
 
+// AgentFileConfig is the schema for agent-level .terse files.
+type AgentFileConfig struct {
+	Name        string               `yaml:"name"`
+	Description string               `yaml:"description"`
+	Instruction string               `yaml:"instruction"`
+	Model       *agentModelSpec      `yaml:"model"`
+	ToolAccess  *agentToolAccessSpec `yaml:"tool_access"`
+}
+
+type agentModelSpec struct {
+	Provider string         `yaml:"provider"`
+	Model    string         `yaml:"model"`
+	Options  map[string]any `yaml:"options"`
+}
+
+type agentToolAccessSpec struct {
+	Mode  string   `yaml:"mode"`
+	Tools []string `yaml:"tools"`
+}
+
 // PromptFileConfig is the schema for prompt .terse files.
 type PromptFileConfig struct {
 	Name        string                        `yaml:"name"`
@@ -135,6 +167,28 @@ type toolMapperSpec struct {
 type toolAuthSpec struct {
 	Plugin string            `yaml:"plugin"`
 	Policy map[string]string `yaml:"policy"`
+}
+
+type AgentToolAccessMode string
+
+const (
+	AgentToolAccessModeInherit   AgentToolAccessMode = "inherit"
+	AgentToolAccessModeAllowAll  AgentToolAccessMode = "allow_all"
+	AgentToolAccessModeAllowNone AgentToolAccessMode = "allow_none"
+	AgentToolAccessModeAllowList AgentToolAccessMode = "allow_list"
+)
+
+type AgentToolAccessPolicy struct {
+	Mode  AgentToolAccessMode
+	Tools []string
+}
+
+type AgentToolAccessMetadata struct {
+	DeclaredMode   AgentToolAccessMode
+	DeclaredTools  []string
+	EffectiveMode  AgentToolAccessMode
+	EffectiveTools []string
+	Inherited      bool
 }
 
 type promptArgumentSpec struct {

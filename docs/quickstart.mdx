@@ -16,7 +16,7 @@ This generates the starter structure:
 <Tree>
   <Tree.File name=".hyperterse" />
   <Tree.Folder
-    name=".agent"
+    name=".agents"
     defaultOpen
   >
     <Tree.Folder
@@ -25,6 +25,12 @@ This generates the starter structure:
     >
       <Tree.Folder
         name="hyperterse-docs"
+        defaultOpen
+      >
+        <Tree.File name="SKILL.md" />
+      </Tree.Folder>
+      <Tree.Folder
+        name="hyperterse-agents"
         defaultOpen
       >
         <Tree.File name="SKILL.md" />
@@ -50,7 +56,7 @@ This generates the starter structure:
   </Tree.Folder>
 </Tree>
 
-`.hyperterse` is the root service configuration. `app/tools/hello-world/` contains a script-backed tool. `.agent/skills/hyperterse-docs/` is an [Agent Skills](https://agentskills.io/home)-compliant skill that points agents to the Hyperterse docs. Add `app/adapters/` when you need database connections.
+`.hyperterse` is the root service configuration. `app/tools/hello-world/` contains a script-backed tool. `.agents/skills/` contains [Agent Skills](https://agentskills.io/home)-compliant starter skills: `hyperterse-docs` (docs lookup) and `hyperterse-agents` (agent creation workflow). Add `app/adapters/` when you need database connections.
 
 ## Review the root configuration
 
@@ -155,5 +161,6 @@ Validation catches errors before they reach production: missing adapter fields, 
 - [Project structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
 - [Adapters](/concepts/adapters) — Connector configuration for each supported database.
 - [Tools](/concepts/tools) — DB-backed and script-backed tool definitions.
+- [Quickstart (agents)](/agents/quickstart) — Add declarative ADK-backed agents on top of your tools.
 - [Scripts](/concepts/scripts) — TypeScript handler and transform contracts.
 - [CLI reference](/reference/cli) — Complete command and flag documentation.

@@ -1,0 +1,139 @@
+---
+title: Quickstart
+description: Create your first declarative agent, run it, and stream responses.
+---
+
+This guide sets up one ADK-backed agent with explicit tool permissions, then exercises both non-streaming and streaming execution.
+
+## Prerequisites
+
+- A working Hyperterse project
+- Hyperterse CLI installed
+- A model API key in env vars (for this guide, `OPENAI_API_KEY`)
+
+## Configure root defaults
+
+Add agent discovery + conservative tool defaults in `.hyperterse`:
+
+```yaml .hyperterse
+name: my-service
+
+agents:
+  directory: agents
+  tool_access:
+    mode: allow_none
+```
+
+`allow_none` is a good default: agents must opt in to tools explicitly.
+
+## Define a tool the agent can use
+
+```yaml app/tools/get-orders/config.terse
+description: "Get orders by status"
+use: primary-db
+statement: |
+  SELECT id, status, created_at
+  FROM orders
+  WHERE status = {{ inputs.status }}
+inputs:
+  status:
+    type: string
+```
+
+## Define an agent
+
+Create `app/agents/support/config.terse`:
+
+```yaml
+name: support
+description: "Support assistant"
+instruction: "Help users with support requests and call tools when useful."
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+  options:
+    base_url: "https://api.openai.com/v1"
+tool_access:
+  mode: allow_list
+  tools:
+    - get-orders
+```
+
+If you are unsure what `openai_compatible` covers, see
+[OpenAI compatibility](/agents/model-providers#openai-compatibility).
+
+## Start runtime
+
+```bash
+hyperterse start
+```
+
+## Verify the route is mounted
+
+```bash
+curl -s http://localhost:8080/agent/support/list-apps | jq
+```
+
+You should see `support` in the returned app list.
+
+## Create a session
+
+`run` and `run_sse` are session-aware and require a pre-existing session:
+
+```bash
+curl -s -X POST \
+  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session \
+  -H "Content-Type: application/json" \
+  -d '{}' | jq
+```
+
+## Execute non-streaming run
+
+```bash
+curl -s -X POST http://localhost:8080/agent/support/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appName": "support",
+    "userId": "demo-user",
+    "sessionId": "demo-session",
+    "newMessage": {
+      "role": "user",
+      "parts": [{ "text": "Find pending orders" }]
+    }
+  }' | jq
+```
+
+## Execute streaming run (SSE)
+
+```bash
+curl -N -X POST http://localhost:8080/agent/support/run_sse \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appName": "support",
+    "userId": "demo-user",
+    "sessionId": "demo-session",
+    "newMessage": {
+      "role": "user",
+      "parts": [{ "text": "Summarize pending orders in 3 bullets" }]
+    },
+    "streaming": true
+  }'
+```
+
+## Common issues
+
+<Warning>
+  If `run` returns session not found, ensure the `appName`, `userId`, and `sessionId`
+  in your request exactly match your session path parameters.
+</Warning>
+
+<Warning>
+  If your model call fails, verify provider credentials (`OPENAI_API_KEY`,
+  `GOOGLE_API_KEY`, or Vertex env vars) are present.
+</Warning>
+
+Next:
+
+- [Tool access](/agents/tool-access)
+- [Runtime API](/agents/runtime-api)
+- [Model providers](/agents/model-providers)

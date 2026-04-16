@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hyperterse/hyperterse/refs/heads/main/schema/agent.terse.schema.json",
+  "title": "HyperterseAgentConfig",
+  "description": "Schema for agent-level `.terse` files. This schema validates declarative ADK-backed agent definitions.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Agent name exposed under `/agent/{name}`.",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional agent description used in app listings.",
+      "minLength": 1
+    },
+    "instruction": {
+      "type": "string",
+      "description": "Primary model instruction for this agent.",
+      "minLength": 1
+    },
+    "model": {
+      "type": "object",
+      "description": "Model provider configuration for this agent.",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Model provider identifier (for example: gemini, vertex, openai_compatible).",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "description": "Provider-specific model identifier.",
+          "minLength": 1
+        },
+        "options": {
+          "type": "object",
+          "description": "Provider-specific model options.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "required": [
+        "provider",
+        "model"
+      ],
+      "additionalProperties": false
+    },
+    "tool_access": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "inherit",
+            "allow_all",
+            "allow_none",
+            "allow_list"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "allow_list"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "required": [
+              "tools"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false,
+      "description": "Agent tool access policy. `inherit` uses project-level defaults from `.hyperterse`."
+    }
+  },
+  "required": [
+    "name",
+    "instruction",
+    "model",
+    "tool_access"
+  ],
+  "additionalProperties": false
+}

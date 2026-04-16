@@ -3,15 +3,16 @@ title: Configuration schemas
 description: JSON Schema files for editor-time validation of .hyperterse and .terse configuration files.
 ---
 
-Hyperterse ships five role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
+Hyperterse ships seven role-based JSON Schema files for editor-time validation, autocompletion, and inline documentation.
 
-| Schema file                          | Target files               | Purpose                                 |
-| ------------------------------------ | -------------------------- | --------------------------------------- |
-| `schema/root.terse.schema.json`      | `.hyperterse`              | Root service configuration              |
-| `schema/adapter.terse.schema.json`   | `app/adapters/*.terse`     | Adapter definitions                     |
-| `schema/tool.terse.schema.json`      | `app/tools/*/config.terse` | Tool definitions                        |
-| `schema/prompt.terse.schema.json`    | `app/prompts/**/*.terse`   | Prompt definitions                      |
-| `schema/resource.terse.schema.json`  | `app/resources/**/config.terse` | Resource and resource-template settings |
+| Schema file                         | Target files                    | Purpose                                 |
+| ----------------------------------- | ------------------------------- | --------------------------------------- |
+| `schema/root.terse.schema.json`     | `.hyperterse`                   | Root service configuration              |
+| `schema/adapter.terse.schema.json`  | `app/adapters/*.terse`          | Adapter definitions                   |
+| `schema/tool.terse.schema.json`     | `app/tools/*/config.terse`      | Tool definitions                      |
+| `schema/agent.terse.schema.json`    | `app/agents/*/config.terse`     | Agent definitions                     |
+| `schema/prompt.terse.schema.json`   | `app/prompts/**/*.terse`        | Prompt definitions                    |
+| `schema/resource.terse.schema.json` | `app/resources/**/config.terse` | Resource and resource-template settings |
 
 ## Generation
 
@@ -37,6 +38,7 @@ Add to `.vscode/settings.json`:
     "schema/root.terse.schema.json": "**/.hyperterse",
     "schema/adapter.terse.schema.json": "**/adapters/*.terse",
     "schema/tool.terse.schema.json": "**/tools/**/config.terse",
+    "schema/agent.terse.schema.json": "**/agents/**/config.terse",
     "schema/prompt.terse.schema.json": "**/prompts/**/*.terse",
     "schema/resource.terse.schema.json": "**/resources/**/config.terse"
   }
@@ -69,6 +71,9 @@ Each schema enforces required fields, value constraints, and structural rules fo
   - `{ directory: string }` discovery config (default: `resources`), or
   - inline concrete resource definitions array.
 - `resource_templates` — Optional inline resource-template definitions array.
+- `agents.directory` — String (default: `agents`).
+- `agents.tool_access.mode` — Enum: `allow_all`, `allow_none`, `allow_list`.
+- `agents.tool_access.tools` — Array of tool names; required when `mode=allow_list`.
 - `server.port` — Integer or string.
 - `server.log_level` — Integer, 1–4.
 - `build.out` / `build.out_dir` — String.
@@ -125,6 +130,27 @@ See [Prompt configuration](/reference/prompt-config).
 
 See [Resource configuration](/reference/resource-config).
 
+### Agent (`agent.terse.schema.json`)
+
+- `name` — Required string. Pattern: `^[a-z][a-z0-9_-]*$`.
+- `description` — Optional string.
+- `instruction` — Required string.
+- `model.provider` — Required string provider identifier.
+- `model.model` — Required provider-specific model name.
+- `model.options` — Optional scalar map (`string`/`number`/`boolean`) for provider options.
+- `tool_access` — Optional object. Defaults to `inherit` when omitted.
+- `tool_access.mode` — Enum: `inherit`, `allow_all`, `allow_none`, `allow_list`.
+- `tool_access.tools` — Optional array of tool names, required when `mode=allow_list`.
+
+## Role ownership
+
+- Root scope (`.hyperterse`) owns service-level defaults and discovery wiring (`root`, `tools`, `adapters`, `prompts`, `resources`, `agents`, and optional inline `resource_templates`).
+- Adapter scope (`app/adapters/*.terse`) owns connector and connection configuration.
+- Tool scope (`app/tools/**/config.terse`) owns execution/query behavior and auth/cache controls.
+- Prompt scope (`app/prompts/**/*.terse`) owns MCP prompt messages and arguments.
+- Resource scope (`app/resources/**/config.terse`) owns MCP resources and URI templates.
+- Agent scope (`app/agents/**/config.terse`) owns LLM runtime behavior (`instruction`, model, and tool access policy).
+
 ## Keeping schemas in sync
 
 When configuration shapes change, schemas and documentation must update in the same change:
@@ -136,5 +162,6 @@ When configuration shapes change, schemas and documentation must update in the s
    - `root.terse.schema.json`
    - `adapter.terse.schema.json`
    - `tool.terse.schema.json`
+   - `agent.terse.schema.json`
    - `prompt.terse.schema.json`
    - `resource.terse.schema.json`

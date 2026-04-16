@@ -1,0 +1,114 @@
+---
+title: Agent
+description: Complete field reference for declarative agent definition files.
+---
+
+Each `app/agents/*/config.terse` defines one ADK-backed agent exposed at `/agent/{name}`.
+
+## Full schema
+
+```yaml app/agents/support/config.terse
+name: support
+description: 'Support assistant'
+instruction: 'Resolve user support requests and call tools when needed.'
+model:
+  provider: openai_compatible
+  model: gpt-4o-mini
+  options:
+    base_url: 'https://api.openai.com/v1'
+    api_key: '{{ env.OPENAI_API_KEY }}'
+tool_access:
+  mode: inherit
+```
+
+## Field reference
+
+<ParamField
+  body="name"
+  type="string"
+  required
+>
+  Agent name. Must be unique across all discovered agents and match
+  `^[a-z][a-z0-9_-]*$`.
+</ParamField>
+
+<ParamField
+  body="description"
+  type="string"
+>
+  Optional agent summary used in app listings and diagnostics.
+</ParamField>
+
+<ParamField
+  body="instruction"
+  type="string"
+  required
+>
+  Primary system instruction passed to the model runtime.
+</ParamField>
+
+<ParamField body="model" type="object" required>
+  Model provider configuration for this agent.
+
+  <Expandable title="properties">
+    <ParamField body="provider" type="string" required>
+      Model provider identifier.
+
+      Runtime-supported values:
+
+      - `gemini`, `google_ai_studio`
+      - `vertex`, `vertex_ai`
+      - `openai_compatible`, `openai`
+
+      Provider names are normalized at runtime (lowercased, `-` converted to `_`).
+    </ParamField>
+
+    <ParamField body="model" type="string" required>
+      Provider-specific model name.
+    </ParamField>
+
+    <ParamField body="options" type="object">
+      Provider-specific options map.
+
+      In config, option values may be scalar (`string`, `number`, `boolean`). During
+      compilation, values are stringified for runtime consumption.
+
+      Model option values support `{{ env.VAR_NAME }}` substitution at runtime model
+      initialization. Missing variables fail startup.
+
+      For secrets, use provider default env vars (for example `OPENAI_API_KEY`,
+      `GOOGLE_API_KEY`) or `api_key: "{{ env.YOUR_SECRET_VAR }}"`.
+
+      For provider-specific keys and env fallbacks, see
+      [Model providers](/agents/model-providers).
+    </ParamField>
+
+  </Expandable>
+</ParamField>
+
+<ParamField body="tool_access" type="object">
+  Tool access policy for this agent. Optional — defaults to `inherit` when omitted,
+  which uses the root-level defaults from `.hyperterse` (`agents.tool_access`).
+  If no root-level default is set either, the effective mode is `allow_all`.
+
+  <Expandable title="properties">
+    <ParamField body="mode" type="string" default="inherit">
+      One of:
+
+      - `inherit` — use root-level defaults from `.hyperterse` (`agents.tool_access`).
+      - `allow_all` — agent can call every discovered tool.
+      - `allow_none` — agent cannot call any project tools.
+      - `allow_list` — agent can call only the listed tools.
+    </ParamField>
+
+    <ParamField body="tools" type="string[]">
+      Required when `mode=allow_list`. Every tool name must exist in the project.
+    </ParamField>
+
+  </Expandable>
+</ParamField>
+
+## JSON Schema
+
+Editor validation: `schema/agent.terse.schema.json`. Associate with
+`**/agents/**/config.terse`. See [Configuration schemas](/reference/configuration-schemas).

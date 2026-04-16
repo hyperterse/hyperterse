@@ -13,8 +13,9 @@ var (
 )
 
 // SubstituteEnvVars replaces {{ env.VARIABLE_NAME }} placeholders with environment variable values
-// This is called at runtime (server startup/connection time) to prevent sensitive data from being
-// baked into the final bundle. Only allowed in connection_string and statement fields.
+// This is called at runtime at the point of use (for example connector initialization,
+// statement execution, and agent model option resolution) to prevent sensitive data from
+// being baked into the final bundle.
 func SubstituteEnvVars(value string) (string, error) {
 	result := value
 	matches := envVarPattern.FindAllStringSubmatch(value, -1)

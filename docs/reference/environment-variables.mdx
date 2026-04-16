@@ -15,11 +15,12 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 | Adapter `options` values    | `sslmode: "{{ env.DB_SSL_MODE }}"`                                                            |
 | Tool `statement`            | `"SELECT * FROM {{ env.TABLE_PREFIX }}_users WHERE id = {{ inputs.user_id }}"`               |
 | Tool `auth.policy` values   | `value: "{{ env.API_KEY }}"`                                                                  |
+| Agent `model.options` values | `api_key: "{{ env.OPENAI_API_KEY }}"`                                                         |
 | Root config `server.port`   | `port: "{{ env.PORT }}"`                                                                      |
 
 ### Resolution behavior
 
-- Placeholders resolve at the point of use: connector initialization, statement execution, or auth check.
+- Placeholders resolve at the point of use: connector initialization, statement execution, auth check, or agent model initialization.
 - Missing variables cause a hard failure with an error identifying the unresolved variable.
 - Placeholders are not recursive — a variable whose value contains `{{ env.OTHER }}` is not expanded further.
 - The `.env` file in the working directory is loaded before command execution.
@@ -46,6 +47,25 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 **Precedence:** `--log-tags` flag → `HYPERTERSE_LOG_TAGS` env
 
 </ParamField>
+
+## Agent model provider variables
+
+These variables are used when resolving model configuration for declarative agents
+(`app/agents/*/config.terse`).
+
+| Variable | Used by | Purpose | Precedence |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | `openai_compatible`, `openai` | Fallback API key for OpenAI-compatible model calls. | `model.options.api_key` → `OPENAI_API_KEY` |
+| `GOOGLE_API_KEY` | `gemini`, `google_ai_studio`, `vertex`, `vertex_ai` (optional on Vertex) | Fallback API key for Gemini/Vertex model calls. | `model.options.api_key` → `GOOGLE_API_KEY` |
+| `GOOGLE_CLOUD_PROJECT` | `vertex`, `vertex_ai` | Fallback Vertex project id. | `model.options.project` → `GOOGLE_CLOUD_PROJECT` |
+| `GOOGLE_CLOUD_LOCATION` | `vertex`, `vertex_ai` | Primary Vertex location fallback. | `model.options.location` → `GOOGLE_CLOUD_LOCATION` → `GOOGLE_CLOUD_REGION` |
+| `GOOGLE_CLOUD_REGION` | `vertex`, `vertex_ai` | Secondary Vertex location fallback when location is still empty. | Used only after `model.options.location` and `GOOGLE_CLOUD_LOCATION` are absent/empty |
+
+### Agent model options and env substitution
+
+- `model.options` string values support `{{ env.VAR_NAME }}` substitution at runtime model initialization.
+- Missing variables referenced in `model.options` placeholders fail startup with a clear error.
+- This is in addition to provider-level fallback variables in the table above.
 
 ## `.env` file
 

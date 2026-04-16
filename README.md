@@ -63,9 +63,11 @@ Generated starter structure:
 ```text
 .
 ├── .hyperterse
-├── .agent/
+├── .agents/
 │   └── skills/
-│       └── hyperterse-docs/
+│       ├── hyperterse-docs/
+│       │   └── SKILL.md
+│       └── hyperterse-agents/
 │           └── SKILL.md
 └── app/
     └── tools/

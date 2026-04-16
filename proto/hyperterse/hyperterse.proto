@@ -105,6 +105,25 @@ message CompiledManifest {
   repeated ToolBundleManifest tools = 2; // Tool metadata required at runtime
 }
 
+message AgentModelConfig {
+  string provider = 1; // Provider identifier (gemini, vertex, openai_compatible)
+  string model = 2; // Provider-specific model name
+  map<string, string> options = 3; // Provider-specific options
+}
+
+message AgentToolAccessConfig {
+  string mode = 1; // Resolved policy mode (allow_all, allow_none, allow_list)
+  repeated string tools = 2; // Resolved allowlist of project tool names
+}
+
+message Agent {
+  string name = 1; // Agent name exposed under /agent/{name}
+  string description = 2; // Optional description for app listings
+  string instruction = 3; // Primary instruction/prompt for the agent
+  AgentModelConfig model = 4; // Model provider + model id + provider options
+  AgentToolAccessConfig tool_access = 5; // Resolved tool access metadata
+}
+
 // Top-level container for the DSL
 message Model {
   string name = 1; // Required: configuration name - must be lower-kebab-case or lower_snake_case
@@ -118,6 +137,7 @@ message Model {
   repeated PromptDefinition prompts = 9; // Optional project prompts
   repeated ResourceDefinition resources = 10; // Optional project resources
   repeated ResourceTemplateDefinition resource_templates = 11; // Optional project resource templates
+  repeated Agent agents = 12; // Optional declarative agents
 }
 
 // Adapter Configuration
