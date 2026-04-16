@@ -1,3 +1,28 @@
+# v2.4.0
+
+Timestamp: 2026-04-17
+
+🎉 **Declarative Agents**
+
+This release adds first-class support for **declarative AI agents** in the Hyperterse engine: discover agents from the project layout, compile them alongside tools, and run OpenAI-compatible and Google model providers with configurable tool access and validation. Distribution manifests are updated to **v2.4.0**, dependencies are refreshed (including security-related bumps), and the README now includes an MCP **spec compliance** summary table.
+
+**Backward compatible** for projects that do not define agents; add `app/agents/` and related config when you are ready.
+
+## ✨ Features
+
+### Declarative agents (engine)
+
+- **Discovery and compilation** — Agents are discovered and compiled with the framework, with inherited tool access and validation of model definitions and tool policies.
+- **Model providers** — Runtime support for OpenAI-compatible APIs and Google-backed providers (including Gemini and Vertex AI), with environment-variable substitution for secrets and model options (for example `{{ env.VAR_NAME }}`).
+- **Tool access** — Configurable tool access for agents, including sensible defaults and inheritance when omitted.
+- **Observability** — Improved logging for agent endpoints, requests, and model calls for easier operations and debugging.
+
+## 🔧 Improvements
+
+- **Dependencies** — Upgraded vulnerable and stale dependencies (including `esbuild`, MCP `go-sdk`, OpenTelemetry, and related indirect packages).
+
+---
+
 # v2.3.0
 
 Timestamp: 2026-03-17
