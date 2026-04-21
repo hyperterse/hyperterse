@@ -1,3 +1,24 @@
+# v2.5.0
+
+Timestamp: 2026-04-21
+
+**A2A-compatible agents**
+
+This release aligns declarative agents with the **[A2A (Agent2Agent) protocol](https://github.com/a2aproject/a2a-go)**: new wire/executor paths, registry and HTTP surface updates, and broad test coverage. **Older, non-A2A agent shapes are no longer supported**—upgrade agent configs and clients to the new endpoints and behavior.
+
+Distribution manifests are bumped to **v2.5.0**. Demo apps gain example agents (`demo-concierge`, `notes-analyst`, `weather-guide`) and README updates; agent docs (overview, quickstart, runtime API, model providers) and the agent JSON schema / generator are refreshed. `hyperterse init` output is updated for the new agent endpoint layout.
+
+## ✨ Features
+
+- **A2A runtime** — New A2A wiring and executor (`a2a_wire.go`, `a2a_executor.go`) integrated with the agent registry, server, and endpoints; extensive unit and runtime tests.
+- **Dependencies** — Adds `github.com/a2aproject/a2a-go` v0.3.3 and `github.com/google/go-cmp` v0.7.0; dependency graph cleanup (e.g. drops some prior indirects such as GCP OTel detector and `gorilla/mux` where no longer needed).
+
+## ⚠️ Breaking changes
+
+- **Agent compatibility** — Compatibility with the previous (pre-A2A) agent API has been removed; migrate to A2A-oriented configuration and HTTP usage as documented.
+
+---
+
 # v2.4.0
 
 Timestamp: 2026-04-17
