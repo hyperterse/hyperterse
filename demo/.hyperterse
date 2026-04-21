@@ -4,3 +4,8 @@ version: 2.0.0-beta-1
 server:
   port: 8080
   log_level: 3
+
+agents:
+  directory: agents
+  tool_access:
+    mode: allow_none

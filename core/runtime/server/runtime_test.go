@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +76,12 @@ func TestRuntimeLifecycle_StartReloadStop(t *testing.T) {
 func TestRuntimeLifecycle_AgentEndpointsMountAndReload(t *testing.T) {
 	port := freePort(t)
 	model := testRuntimeModelWithAgent("assistant")
+	cardURL := fmt.Sprintf(
+		"http://127.0.0.1:%s/agent/assistant/.well-known/agent-card.json",
+		port,
+	)
+	rpcURL := fmt.Sprintf("http://127.0.0.1:%s/agent/assistant", port)
+	rpcTrailingSlashURL := rpcURL + "/"
 
 	rt, err := NewRuntime(model, port, "test")
 	if err != nil {
@@ -96,11 +104,14 @@ func TestRuntimeLifecycle_AgentEndpointsMountAndReload(t *testing.T) {
 		t.Fatalf("heartbeat endpoint did not become healthy: %v", err)
 	}
 
-	if err := expectOptionsStatus(
-		fmt.Sprintf("http://127.0.0.1:%s/agent/assistant/run", port),
-		http.StatusOK,
-	); err != nil {
-		t.Fatalf("expected mounted assistant endpoint: %v", err)
+	if err := expectGETStatus(cardURL, http.StatusOK); err != nil {
+		t.Fatalf("expected mounted assistant card endpoint: %v", err)
+	}
+	if err := expectExtendedCardMethod(rpcURL, http.StatusOK, rpcURL); err != nil {
+		t.Fatalf("expected mounted assistant json-rpc endpoint: %v", err)
+	}
+	if err := expectExtendedCardMethod(rpcTrailingSlashURL, http.StatusOK, rpcURL); err != nil {
+		t.Fatalf("expected mounted assistant trailing-slash json-rpc endpoint: %v", err)
 	}
 
 	reloadedModel := testRuntimeModelWithAgent("replacement")
@@ -108,17 +119,29 @@ func TestRuntimeLifecycle_AgentEndpointsMountAndReload(t *testing.T) {
 		t.Fatalf("ReloadModel failed: %v", err)
 	}
 
-	if err := expectOptionsStatus(
-		fmt.Sprintf("http://127.0.0.1:%s/agent/assistant/run", port),
-		http.StatusNotFound,
-	); err != nil {
-		t.Fatalf("expected old agent endpoint to be removed after reload: %v", err)
+	if err := expectGETStatus(cardURL, http.StatusNotFound); err != nil {
+		t.Fatalf("expected old agent card endpoint to be removed after reload: %v", err)
 	}
-	if err := expectOptionsStatus(
-		fmt.Sprintf("http://127.0.0.1:%s/agent/replacement/run", port),
-		http.StatusOK,
-	); err != nil {
-		t.Fatalf("expected replacement endpoint to be mounted after reload: %v", err)
+	if err := expectExtendedCardMethod(rpcURL, http.StatusNotFound, ""); err != nil {
+		t.Fatalf("expected old agent json-rpc endpoint to be removed after reload: %v", err)
+	}
+	if err := expectExtendedCardMethod(rpcTrailingSlashURL, http.StatusNotFound, ""); err != nil {
+		t.Fatalf("expected old trailing-slash json-rpc endpoint to be removed after reload: %v", err)
+	}
+	replacementCardURL := fmt.Sprintf(
+		"http://127.0.0.1:%s/agent/replacement/.well-known/agent-card.json",
+		port,
+	)
+	replacementRPCURL := fmt.Sprintf("http://127.0.0.1:%s/agent/replacement", port)
+	replacementRTPTrailingSlashURL := replacementRPCURL + "/"
+	if err := expectGETStatus(replacementCardURL, http.StatusOK); err != nil {
+		t.Fatalf("expected replacement card endpoint to be mounted after reload: %v", err)
+	}
+	if err := expectExtendedCardMethod(replacementRPCURL, http.StatusOK, replacementRPCURL); err != nil {
+		t.Fatalf("expected replacement json-rpc endpoint to be mounted after reload: %v", err)
+	}
+	if err := expectExtendedCardMethod(replacementRTPTrailingSlashURL, http.StatusOK, replacementRPCURL); err != nil {
+		t.Fatalf("expected replacement trailing-slash json-rpc endpoint to be mounted after reload: %v", err)
 	}
 
 	if err := rt.Stop(); err != nil {
@@ -244,22 +267,61 @@ func waitForHTTP200(url string, timeout time.Duration) error {
 	return fmt.Errorf("timed out waiting for %s", url)
 }
 
-func expectOptionsStatus(url string, expectedStatus int) error {
-	req, err := http.NewRequest(http.MethodOptions, url, nil)
+func expectGETStatus(url string, expectedStatus int) error {
+	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("failed to build OPTIONS request for %s: %w", url, err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send OPTIONS request for %s: %w", url, err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
 		return fmt.Errorf("expected status %d for %s, got %d", expectedStatus, url, resp.StatusCode)
 	}
-	if expectedStatus == http.StatusOK && resp.Header.Get("Access-Control-Allow-Origin") != "*" {
-		return fmt.Errorf("expected CORS header on %s", url)
+	return nil
+}
+
+func expectExtendedCardMethod(url string, expectedStatus int, expectedAgentURL string) error {
+	body := strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"GetExtendedAgentCard"}`)
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		return fmt.Errorf("failed to build POST request for %s: %w", url, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send POST request for %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != expectedStatus {
+		return fmt.Errorf("expected status %d for %s, got %d", expectedStatus, url, resp.StatusCode)
+	}
+	if expectedStatus != http.StatusOK {
+		return nil
+	}
+
+	var payload struct {
+		JSONRPC string `json:"jsonrpc"`
+		Result  *struct {
+			SupportedInterfaces []struct {
+				URL string `json:"url"`
+			} `json:"supportedInterfaces"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return fmt.Errorf("failed to decode JSON-RPC response for %s: %w", url, err)
+	}
+	if payload.JSONRPC != "2.0" {
+		return fmt.Errorf("expected jsonrpc 2.0 for %s, got %q", url, payload.JSONRPC)
+	}
+	if payload.Result == nil {
+		return fmt.Errorf("expected JSON-RPC result for %s", url)
+	}
+	if len(payload.Result.SupportedInterfaces) == 0 {
+		return fmt.Errorf("expected supported interfaces in result for %s", url)
+	}
+	if payload.Result.SupportedInterfaces[0].URL != expectedAgentURL {
+		return fmt.Errorf("expected extended card URL %q for %s, got %q", expectedAgentURL, url, payload.Result.SupportedInterfaces[0].URL)
 	}
 	return nil
 }

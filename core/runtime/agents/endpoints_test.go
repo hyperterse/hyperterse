@@ -14,20 +14,16 @@ func TestRegisteredRouteCountPerAgent_MatchesRuntimeEndpointLogEntries(t *testin
 	}
 }
 
-func TestRuntimeEndpointLogEntries_EnumeratesAgentRoutesWithColonParams(t *testing.T) {
+func TestRuntimeEndpointLogEntries_ListsA2AMountsForAgent(t *testing.T) {
 	entries := RuntimeEndpointLogEntries("assistant")
 
-	if len(entries) != 18 {
-		t.Fatalf("expected 18 endpoint log entries, got %d", len(entries))
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 endpoint log entries, got %d", len(entries))
 	}
 
 	expected := []string{
-		"POST /agent/assistant/run",
-		"POST /agent/assistant/run_sse",
-		"GET /agent/assistant/list-apps",
-		"GET /agent/assistant/apps/:appName/users/:userId/sessions/:sessionId",
-		"DELETE /agent/assistant/apps/:appName/users/:userId/sessions/:sessionId/artifacts/:artifactName",
-		"POST /agent/assistant/apps/:appName/eval_sets/:evalSetName",
+		"GET /agent/assistant/.well-known/agent-card.json",
+		"POST /agent/assistant",
 	}
 	for _, want := range expected {
 		if !slices.Contains(entries, want) {

@@ -3,7 +3,8 @@ title: Quickstart
 description: Create your first declarative agent, run it, and stream responses.
 ---
 
-This guide sets up one ADK-backed agent with explicit tool permissions, then exercises both non-streaming and streaming execution.
+This guide sets up one A2A agent with explicit tool permissions, then exercises
+both non-streaming and streaming execution.
 
 ## Prerequisites
 
@@ -71,65 +72,75 @@ hyperterse start
 ## Verify the route is mounted
 
 ```bash
-curl -s http://localhost:8080/agent/support/list-apps | jq
+curl -s http://localhost:8080/agent/support/.well-known/agent-card.json | jq
 ```
 
-You should see `support` in the returned app list.
+You should see an A2A agent card for `support`.
 
-## Create a session
+## Execute non-streaming request
 
-`run` and `run_sse` are session-aware and require a pre-existing session:
-
-```bash
-curl -s -X POST \
-  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session \
-  -H "Content-Type: application/json" \
-  -d '{}' | jq
-```
-
-## Execute non-streaming run
+Send a v1 A2A JSON-RPC request:
 
 ```bash
-curl -s -X POST http://localhost:8080/agent/support/run \
+curl -s -X POST http://localhost:8080/agent/support \
   -H "Content-Type: application/json" \
   -d '{
-    "appName": "support",
-    "userId": "demo-user",
-    "sessionId": "demo-session",
-    "newMessage": {
-      "role": "user",
-      "parts": [{ "text": "Find pending orders" }]
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "SendMessage",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{ "text": "Find pending orders" }]
+      }
     }
   }' | jq
 ```
 
-## Execute streaming run (SSE)
+## Execute streaming request (SSE)
 
 ```bash
-curl -N -X POST http://localhost:8080/agent/support/run_sse \
+curl -N -X POST http://localhost:8080/agent/support \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "SendStreamingMessage",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{ "text": "Summarize pending orders in 3 bullets" }]
+      }
+    }
+  }'
+```
+
+## Get a task later
+
+If `SendMessage` returns a task-shaped result, you can retrieve it later:
+
+```bash
+curl -s -X POST http://localhost:8080/agent/support \
   -H "Content-Type: application/json" \
   -d '{
-    "appName": "support",
-    "userId": "demo-user",
-    "sessionId": "demo-session",
-    "newMessage": {
-      "role": "user",
-      "parts": [{ "text": "Summarize pending orders in 3 bullets" }]
-    },
-    "streaming": true
-  }'
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "GetTask",
+    "params": { "id": "<task-id>" }
+  }' | jq
 ```
 
 ## Common issues
 
 <Warning>
-  If `run` returns session not found, ensure the `appName`, `userId`, and `sessionId`
-  in your request exactly match your session path parameters.
+  If your model call fails, verify provider credentials (`OPENAI_API_KEY`,
+  `GOOGLE_API_KEY`, or Vertex env vars) are present.
 </Warning>
 
 <Warning>
-  If your model call fails, verify provider credentials (`OPENAI_API_KEY`,
-  `GOOGLE_API_KEY`, or Vertex env vars) are present.
+  If tool invocation is unexpectedly blocked, verify the agent allowlist and
+  root `agents.tool_access` defaults in `.hyperterse`.
 </Warning>
 
 Next:

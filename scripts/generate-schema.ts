@@ -683,12 +683,12 @@ const agentSchema = {
   $id: `${schemaBaseURL}/agent.terse.schema.json`,
   title: "HyperterseAgentConfig",
   description:
-    "Schema for agent-level `.terse` files. This schema validates declarative ADK-backed agent definitions.",
+    "Schema for agent-level `.terse` files. This schema validates declarative A2A-compatible agent definitions.",
   type: "object" as const,
   properties: {
     name: {
       type: "string" as const,
-      description: "Agent name exposed under `/agent/{name}`.",
+      description: "Agent name exposed under the A2A runtime mount `/agent/{name}`.",
       pattern: toolNamePattern,
       minLength: 1,
     },

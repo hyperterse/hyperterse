@@ -1,0 +1,16 @@
+name: weather-guide
+description: "Weather-focused demo agent."
+instruction: |
+  You help with weather questions in the demo.
+  Use the weather tool when a user asks for current weather or units conversion.
+  If a request is outside weather, say so briefly.
+model:
+  provider: openai_compatible
+  model: openai/gpt-oss-20b:free
+  options:
+    base_url: https://openrouter.ai/api/v1
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
+tool_access:
+  mode: allow_list
+  tools:
+    - get-weather

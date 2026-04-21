@@ -29,7 +29,7 @@ This document is the source-of-truth checklist for config schema coverage in the
   - Owns concrete resources and URI-template resources exposed through MCP resources.
   - Fields: `uri` / `uri_template`, metadata (`name`, `title`, `description`, `mime_type`), content (`text`/`file` or `text_template`/`file_template`), `arguments`.
 - **Agent (`app/agents/**/config.terse`)**
-  - Owns declarative runtime agents and HTTP `/agent/{name}` behavior.
+  - Owns declarative runtime agents and A2A behavior mounted at `/agent/{name}`.
   - Fields: `name`, `description`, `instruction`, `model` (`provider`, `model`, `options`), `tool_access`.
 
 ## Required vs Optional and Constraints

@@ -1,6 +1,6 @@
 ---
 title: Runtime API
-description: Use ADK-style run, streaming, apps, and session endpoints mounted per agent.
+description: Use Hyperterse A2A v1 endpoints mounted per agent.
 ---
 
 Each compiled agent is exposed behind its own route prefix:
@@ -11,154 +11,147 @@ Each compiled agent is exposed behind its own route prefix:
 
 So a `support` agent gets:
 
-- `/agent/support/run`
-- `/agent/support/run_sse`
-- `/agent/support/list-apps`
-- `/agent/support/apps/{app_name}/users/{user_id}/sessions...`
+- `GET /agent/support/.well-known/agent-card.json`
+- `POST /agent/support`
 
-## Why these endpoints exist
+## What the endpoint serves
 
-These routes provide a **stateful ADK runtime contract**, not just one-off function calls:
+The A2A mount provides a stateful agent contract over one JSON-RPC endpoint:
 
-- **`/run`**: request/response agent execution.
-- **`/run_sse`**: streaming event execution via SSE.
-- **`/list-apps`**: discover app names available under the route.
-- **`/apps/.../sessions...`**: create/list/get/delete sessions for continuity.
-
-In short: these endpoints give you memory, resumability, and event streams, which plain tool execution endpoints do not.
+- agent discovery via the public card
+- request/response execution
+- SSE streaming
+- task retrieval, cancellation, and resubscription
+- push-notification config operations
 
 ## Endpoint reference
 
 | Endpoint | Method(s) | Purpose |
 | --- | --- | --- |
-| `/agent/{agentName}/list-apps` | `GET` | List ADK app names for this mounted agent route. |
-| `/agent/{agentName}/run` | `POST` | Run agent and return full event list as JSON. |
-| `/agent/{agentName}/run_sse` | `POST` | Run agent with streamed events (`text/event-stream`). |
-| `/agent/{agentName}/apps/{app_name}/users/{user_id}/sessions` | `POST`, `GET` | Create or list sessions for a user. |
-| `/agent/{agentName}/apps/{app_name}/users/{user_id}/sessions/{session_id}` | `POST`, `GET`, `DELETE` | Create with fixed id, read, or delete a specific session. |
+| `/agent/{agentName}/.well-known/agent-card.json` | `GET` | Return the public A2A agent card. |
+| `/agent/{agentName}` | `POST` | Serve A2A v1 JSON-RPC methods. |
 
-## Request body contract for `run` / `run_sse`
+## Supported JSON-RPC methods
 
-Both endpoints use the same payload shape:
+- `SendMessage`
+- `SendStreamingMessage`
+- `GetTask`
+- `ListTasks`
+- `CancelTask`
+- `SubscribeToTask`
+- `GetTaskPushNotificationConfig`
+- `ListTaskPushNotificationConfigs`
+- `CreateTaskPushNotificationConfig`
+- `DeleteTaskPushNotificationConfig`
+- `GetExtendedAgentCard`
+
+## Request body contract
+
+`SendMessage` and `SendStreamingMessage` use this shape:
 
 ```json
 {
-  "appName": "support",
-  "userId": "demo-user",
-  "sessionId": "demo-session",
-  "newMessage": {
-    "role": "user",
-    "parts": [{ "text": "Find pending orders" }]
-  },
-  "streaming": true
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "SendMessage",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [{ "text": "Find pending orders" }]
+    }
+  }
 }
 ```
 
-`streaming` is optional and typically used with `run_sse`.
+Streaming uses the same payload but changes `method` to
+`SendStreamingMessage`.
 
 ## Typical flow (recommended)
 
-1. `GET /agent/{agentName}/list-apps`
-2. `POST /agent/{agentName}/apps/{app_name}/users/{user_id}/sessions/{session_id}`
-3. `POST /agent/{agentName}/run` or `POST /agent/{agentName}/run_sse`
-4. Reuse the same session id for follow-ups
+1. `GET /agent/{agentName}/.well-known/agent-card.json`
+2. `POST /agent/{agentName}` with `SendMessage` or `SendStreamingMessage`
+3. If you receive a task result, use `GetTask` for later polling
+4. Use `SubscribeToTask` for SSE replay of task events
 
 <Tip>
-  For single-agent mounts, `app_name` and `appName` usually match the mounted agent name.
+  Hyperterse does not expose the old ADK session surface anymore. Task state is
+  the continuity primitive now.
 </Tip>
-
-## Typical usage flow
-
-1. Call `list-apps`.
-2. Create a session.
-3. Send messages using `run` or `run_sse`.
-4. Reuse session ID for follow-ups.
 
 ## Request examples
 
-### Create session
+### SendMessage
 
 ```bash
-curl -s -X POST \
-  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-### Run (non-streaming)
-
-```bash
-curl -s -X POST http://localhost:8080/agent/support/run \
+curl -s -X POST http://localhost:8080/agent/support \
   -H "Content-Type: application/json" \
   -d '{
-    "appName": "support",
-    "userId": "demo-user",
-    "sessionId": "demo-session",
-    "newMessage": {
-      "role": "user",
-      "parts": [{ "text": "Find all pending orders from today" }]
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "SendMessage",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{ "text": "Find all pending orders from today" }]
+      }
     }
   }' | jq
 ```
 
-### Run SSE (streaming)
+### SendStreamingMessage
 
 ```bash
-curl -N -X POST http://localhost:8080/agent/support/run_sse \
+curl -N -X POST http://localhost:8080/agent/support \
   -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
   -d '{
-    "appName": "support",
-    "userId": "demo-user",
-    "sessionId": "demo-session",
-    "newMessage": {
-      "role": "user",
-      "parts": [{ "text": "Summarize pending orders in 3 bullets" }]
-    },
-    "streaming": true
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "SendStreamingMessage",
+    "params": {
+      "message": {
+        "role": "user",
+        "parts": [{ "text": "Summarize pending orders in 3 bullets" }]
+      }
+    }
   }'
 ```
 
-## When to use `run` vs `run_sse`
-
-- Use **`run`** for backend jobs or synchronous integrations.
-- Use **`run_sse`** for chat UIs and incremental output rendering.
-
-## Session operations
-
-### Get an existing session
+### GetTask
 
 ```bash
-curl -s \
-  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session | jq
+curl -s -X POST http://localhost:8080/agent/support \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "GetTask",
+    "params": { "id": "<task-id>" }
+  }' | jq
 ```
 
-### List sessions for a user
+### SubscribeToTask
 
 ```bash
-curl -s \
-  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions | jq
-```
-
-### Delete a session
-
-```bash
-curl -s -X DELETE \
-  http://localhost:8080/agent/support/apps/support/users/demo-user/sessions/demo-session | jq
+curl -N -X POST http://localhost:8080/agent/support \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "SubscribeToTask",
+    "params": { "id": "<task-id>" }
+  }'
 ```
 
 ## Operational notes
 
-- Sessions are required for `run` and `run_sse`.
+- `SendMessage` can return a task-shaped result when execution is stateful.
 - Tool permissions are enforced from compiled allowlists.
 - On model reload, mounted agent routes are rebuilt to match new declarations.
 - CORS headers are applied by Hyperterse wrappers to agent routes.
 
 ## Troubleshooting
-
-<Warning>
-  If you get a session error on `run`, verify all three fields match an existing
-  session exactly: `appName`, `userId`, `sessionId`.
-</Warning>
 
 <Warning>
   If tool invocation is unexpectedly blocked, inspect the compiled agent `tool_access`

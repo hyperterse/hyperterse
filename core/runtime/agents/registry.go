@@ -7,28 +7,21 @@ import (
 	"net"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	sdkagent "google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/cmd/launcher"
-	sdkmodel "google.golang.org/adk/model"
-	agentrest "google.golang.org/adk/server/adkrest"
-	sdksession "google.golang.org/adk/session"
-	sdktool "google.golang.org/adk/tool"
+	"github.com/a2aproject/a2a-go/a2a"
+	"github.com/a2aproject/a2a-go/a2asrv"
+	"github.com/a2aproject/a2a-go/a2asrv/eventqueue"
+	"github.com/a2aproject/a2a-go/a2asrv/push"
 	"google.golang.org/genai"
 
 	"github.com/hyperterse/hyperterse/core/framework"
 	"github.com/hyperterse/hyperterse/core/logger"
 	"github.com/hyperterse/hyperterse/core/observability"
 	"github.com/hyperterse/hyperterse/core/proto/hyperterse"
-	protoprimitives "github.com/hyperterse/hyperterse/core/proto/primitives"
-	"github.com/hyperterse/hyperterse/core/types"
 )
-
-const defaultSSEWriteTimeout = 120 * time.Second
 
 // Registry stores per-agent HTTP handlers mounted by the runtime server.
 type Registry struct {
@@ -36,7 +29,7 @@ type Registry struct {
 	names    []string
 }
 
-func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, error) {
+func NewRegistry(model *hyperterse.Model, engine *framework.Engine, runtimeBaseURL string) (*Registry, error) {
 	log := logger.New("agents")
 	if model == nil {
 		return nil, fmt.Errorf("agent registry requires model")
@@ -53,14 +46,6 @@ func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, 
 	}
 	log.Debugf("Preparing %d agent definition(s)", len(model.Agents))
 
-	toolDefinitions := make(map[string]*hyperterse.Tool, len(model.Tools))
-	for _, toolDef := range model.Tools {
-		if toolDef == nil {
-			continue
-		}
-		toolDefinitions[toolDef.Name] = toolDef
-	}
-
 	for _, agentDef := range model.Agents {
 		if agentDef == nil {
 			continue
@@ -69,7 +54,7 @@ func NewRegistry(model *hyperterse.Model, engine *framework.Engine) (*Registry, 
 		if _, exists := registry.handlers[agentDef.Name]; exists {
 			return nil, fmt.Errorf("duplicate agent definition %q", agentDef.Name)
 		}
-		handler, err := newAgentHandler(agentDef, toolDefinitions, engine)
+		handler, err := newAgentHandler(model, agentDef, engine, runtimeBaseURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize runtime for agent %q: %w", agentDef.Name, err)
 		}
@@ -101,278 +86,184 @@ func (r *Registry) Handler(agentName string) http.Handler {
 }
 
 func newAgentHandler(
+	modelDef *hyperterse.Model,
 	agentDef *hyperterse.Agent,
-	toolDefinitions map[string]*hyperterse.Tool,
 	engine *framework.Engine,
+	runtimeBaseURL string,
 ) (http.Handler, error) {
 	log := logger.New("agents")
+	if modelDef == nil {
+		return nil, fmt.Errorf("model definition is required")
+	}
 	if agentDef == nil {
 		return nil, fmt.Errorf("agent definition is nil")
 	}
 	if agentDef.Model == nil {
 		return nil, fmt.Errorf("model config is required")
 	}
+	if strings.TrimSpace(runtimeBaseURL) == "" {
+		return nil, fmt.Errorf("runtime base URL is required")
+	}
+	if err := validateRuntimeToolAccess(agentDef); err != nil {
+		return nil, err
+	}
 	log.Debugf("Building runtime handler for agent: %s", agentDef.Name)
-
-	modelLLM, err := resolveAgentModel(context.Background(), agentDef.Name, agentDef.Model)
+	model, err := resolveAgentModel(context.Background(), agentDef.Name, agentDef.Model)
+	if err != nil {
+		return nil, fmt.Errorf("resolve model for agent %q: %w", agentDef.Name, err)
+	}
+	toolBridge, err := buildAgentToolBridge(modelDef, agentDef, engine)
 	if err != nil {
 		return nil, err
 	}
-
-	tools, err := buildToolBridges(agentDef.Name, agentDef.ToolAccess, toolDefinitions, engine)
+	executor, err := newAgentExecutor(agentDef.Name, model, toolBridge)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build executor for agent %q: %w", agentDef.Name, err)
 	}
-	log.Debugf("Agent %s has %d bridged tool(s)", agentDef.Name, len(tools))
-
-	llmRuntimeAgent, err := llmagent.New(llmagent.Config{
-		Name:        agentDef.Name,
-		Description: agentDef.Description,
-		Instruction: agentDef.Instruction,
-		Model:       modelLLM,
-		Tools:       tools,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to build llm agent: %w", err)
-	}
-
-	cfg := &launcher.Config{
-		AgentLoader:    sdkagent.NewSingleLoader(llmRuntimeAgent),
-		SessionService: sdksession.InMemoryService(),
-	}
-
-	handler := agentrest.NewHandler(cfg, defaultSSEWriteTimeout)
+	agentURL := strings.TrimRight(runtimeBaseURL, "/") + "/agent/" + agentDef.Name
+	taskStore := newTrackedTaskStore()
+	card := buildAgentCard(agentURL, agentDef)
+	requestHandler := a2asrv.NewHandler(
+		executor,
+		a2asrv.WithTaskStore(taskStore),
+		a2asrv.WithEventQueueManager(newReplayEventQueueManager()),
+		a2asrv.WithPushNotifications(push.NewInMemoryStore(), push.NewHTTPPushSender(nil)),
+	)
+	jsonrpcHandler := newV1JSONRPCHandler(requestHandler, card, taskStore)
+	cardHandler := newV1AgentCardHandler(card)
+	handler := newA2AHTTPHandler(agentDef.Name, cardHandler, jsonrpcHandler)
 	log.Infof("Agent runtime ready: %s", agentDef.Name)
 	return withAgentRequestLogging(agentDef.Name, handler), nil
 }
 
-func buildToolBridges(
-	agentName string,
-	toolAccess *hyperterse.AgentToolAccessConfig,
-	toolDefinitions map[string]*hyperterse.Tool,
-	engine *framework.Engine,
-) ([]sdktool.Tool, error) {
-	log := logger.New("agents")
-	if toolAccess == nil {
-		return nil, fmt.Errorf("agent tool access is required")
-	}
-	if len(toolAccess.Tools) == 0 {
-		log.Debugf("Agent %s configured with no tool access", agentName)
-		return []sdktool.Tool{}, nil
-	}
-	if engine == nil {
-		return nil, fmt.Errorf("tool-enabled agents require a compiled project engine")
-	}
-
-	bridges := make([]sdktool.Tool, 0, len(toolAccess.Tools))
-	seen := make(map[string]struct{}, len(toolAccess.Tools))
-	for _, toolName := range toolAccess.Tools {
-		if _, exists := seen[toolName]; exists {
-			continue
-		}
-		seen[toolName] = struct{}{}
-
-		toolDef, ok := toolDefinitions[toolName]
-		if !ok {
-			return nil, fmt.Errorf("tool %q was not found in project model", toolName)
-		}
-		bridges = append(bridges, &hyperterseToolBridge{
-			agentName:  agentName,
-			name:       toolName,
-			definition: toolDef,
-			engine:     engine,
-		})
-		log.Debugf("Agent %s granted tool: %s", agentName, toolName)
-	}
-	return bridges, nil
-}
-
-type hyperterseToolBridge struct {
-	agentName  string
-	name       string
-	definition *hyperterse.Tool
-	engine     *framework.Engine
-}
-
-func (t *hyperterseToolBridge) Name() string {
-	return t.name
-}
-
-func (t *hyperterseToolBridge) Description() string {
-	if t.definition == nil || strings.TrimSpace(t.definition.Description) == "" {
-		return fmt.Sprintf("Execute Hyperterse tool %q.", t.name)
-	}
-	return t.definition.Description
-}
-
-func (t *hyperterseToolBridge) IsLongRunning() bool {
-	return false
-}
-
-func (t *hyperterseToolBridge) Declaration() *genai.FunctionDeclaration {
-	return &genai.FunctionDeclaration{
-		Name:                 t.name,
-		Description:          t.Description(),
-		ParametersJsonSchema: buildToolInputSchema(t.definition),
-	}
-}
-
-// ProcessRequest packs this tool declaration into the model request.
-// It mirrors the SDK function-tool packing behavior used by the runtime agent.
-func (t *hyperterseToolBridge) ProcessRequest(_ sdktool.Context, req *sdkmodel.LLMRequest) error {
-	if req.Tools == nil {
-		req.Tools = make(map[string]any)
-	}
-	if _, exists := req.Tools[t.name]; exists {
-		return fmt.Errorf("duplicate tool %q in llm request", t.name)
-	}
-	req.Tools[t.name] = t
-
-	if req.Config == nil {
-		req.Config = &genai.GenerateContentConfig{}
-	}
-	decl := t.Declaration()
-	if decl == nil {
+func validateRuntimeToolAccess(agentDef *hyperterse.Agent) error {
+	if agentDef == nil || agentDef.ToolAccess == nil {
 		return nil
 	}
-
-	var fnTool *genai.Tool
-	for _, cfgTool := range req.Config.Tools {
-		if cfgTool != nil && cfgTool.FunctionDeclarations != nil {
-			fnTool = cfgTool
-			break
-		}
-	}
-	if fnTool == nil {
-		req.Config.Tools = append(req.Config.Tools, &genai.Tool{
-			FunctionDeclarations: []*genai.FunctionDeclaration{decl},
-		})
+	mode := strings.TrimSpace(agentDef.ToolAccess.Mode)
+	if mode == "" || mode == "allow_none" || mode == "allow_all" || mode == "inherit" {
 		return nil
 	}
-	fnTool.FunctionDeclarations = append(fnTool.FunctionDeclarations, decl)
-	return nil
+	if mode == "allow_list" {
+		return nil
+	}
+	return fmt.Errorf("unsupported agent tool access mode %q", agentDef.ToolAccess.Mode)
 }
 
-func (t *hyperterseToolBridge) Run(ctx sdktool.Context, args any) (map[string]any, error) {
-	log := logger.New("agents.tool")
-	baseAttrs := map[string]any{
-		observability.AttrAgentName: t.agentName,
-		observability.AttrToolName:  t.name,
-	}
-	log.DebugfCtx(ctx, baseAttrs, "Agent tool call started: %s", t.name)
-
-	inputs := map[string]any{}
-	if args != nil {
-		typed, ok := args.(map[string]any)
-		if !ok {
-			log.WarnfCtx(ctx, map[string]any{
-				observability.AttrAgentName: t.agentName,
-				observability.AttrToolName:  t.name,
-				observability.AttrErrorType: "invalid_tool_args",
-				observability.AttrErrorMessage: fmt.Sprintf(
-					"unexpected args type %T",
-					args,
-				),
-			}, "Agent tool call failed: invalid args for %s", t.name)
-			return nil, fmt.Errorf("unexpected tool args type %T for %q", args, t.name)
-		}
-		inputs = typed
-	}
-	log.DebugfCtx(ctx, map[string]any{
-		observability.AttrAgentName: t.agentName,
-		observability.AttrToolName:  t.name,
-		"input_count":               len(inputs),
-	}, "Agent tool call inputs prepared")
-
-	rows, err := t.engine.Execute(ctx, t.name, inputs)
+func buildAgentToolBridge(modelDef *hyperterse.Model, agentDef *hyperterse.Agent, engine *framework.Engine) (*agentToolBridge, error) {
+	toolDefs, err := selectAgentTools(modelDef, agentDef)
 	if err != nil {
-		log.WarnfCtx(ctx, map[string]any{
-			observability.AttrAgentName:    t.agentName,
-			observability.AttrToolName:     t.name,
-			observability.AttrErrorType:    "tool_execution_failed",
-			observability.AttrErrorMessage: err.Error(),
-		}, "Agent tool call failed: %s", t.name)
 		return nil, err
 	}
-	log.InfofCtx(ctx, baseAttrs, "Agent tool call completed: %s", t.name)
-	log.DebugfCtx(ctx, map[string]any{
-		observability.AttrAgentName: t.agentName,
-		observability.AttrToolName:  t.name,
-		"result_count":              len(rows),
-	}, "Agent tool call returned rows")
-	return map[string]any{"result": rows}, nil
+	if len(toolDefs) == 0 {
+		return nil, nil
+	}
+	if engine == nil {
+		return nil, fmt.Errorf("tool-enabled agent runtime requires engine")
+	}
+	declarations := make([]*genai.FunctionDeclaration, 0, len(toolDefs))
+	allowed := make(map[string]struct{}, len(toolDefs))
+	for _, toolDef := range toolDefs {
+		declaration := buildToolDeclaration(toolDef)
+		if declaration == nil {
+			continue
+		}
+		declarations = append(declarations, declaration)
+		allowed[toolDef.Name] = struct{}{}
+	}
+	if len(declarations) == 0 {
+		return nil, nil
+	}
+	return &agentToolBridge{
+		declarations: declarations,
+		execute: func(ctx context.Context, toolName string, inputs map[string]any) (map[string]any, error) {
+			if _, ok := allowed[toolName]; !ok {
+				return nil, fmt.Errorf("tool %q is not allowed for agent %q", toolName, agentDef.Name)
+			}
+			results, err := engine.Execute(ctx, toolName, inputs)
+			if err != nil {
+				return nil, err
+			}
+			if len(results) == 1 {
+				return results[0], nil
+			}
+			return map[string]any{"results": results}, nil
+		},
+	}, nil
 }
 
-func buildToolInputSchema(toolDef *hyperterse.Tool) map[string]any {
-	properties := map[string]any{}
-	required := make([]string, 0)
+func selectAgentTools(modelDef *hyperterse.Model, agentDef *hyperterse.Agent) ([]*hyperterse.Tool, error) {
+	if modelDef == nil || agentDef == nil {
+		return nil, nil
+	}
+	toolsByName := make(map[string]*hyperterse.Tool, len(modelDef.Tools))
+	for _, toolDef := range modelDef.Tools {
+		if toolDef == nil || strings.TrimSpace(toolDef.Name) == "" {
+			continue
+		}
+		toolsByName[toolDef.Name] = toolDef
+	}
+	if len(toolsByName) == 0 {
+		return nil, nil
+	}
 
-	if toolDef != nil {
-		for _, input := range toolDef.Inputs {
-			if input == nil || strings.TrimSpace(input.Name) == "" {
+	mode := "allow_none"
+	requested := []string(nil)
+	if agentDef.ToolAccess != nil {
+		mode = strings.TrimSpace(agentDef.ToolAccess.Mode)
+		requested = agentDef.ToolAccess.Tools
+	}
+
+	switch mode {
+	case "", "allow_none":
+		return nil, nil
+	case "allow_all", "inherit":
+		selected := make([]*hyperterse.Tool, 0, len(toolsByName))
+		for _, toolDef := range modelDef.Tools {
+			if toolDef == nil || strings.TrimSpace(toolDef.Name) == "" {
 				continue
 			}
-			prop := map[string]any{
-				"type": primitiveToJSONSchemaType(input.Type),
-			}
-			if input.Description != "" {
-				prop["description"] = input.Description
-			}
-			if input.DefaultValue != "" {
-				prop["default"] = parseInputDefaultValue(input)
-			}
-			properties[input.Name] = prop
-			if !input.Optional {
-				required = append(required, input.Name)
-			}
+			selected = append(selected, toolDef)
 		}
-	}
-
-	schema := map[string]any{
-		"type":       "object",
-		"properties": properties,
-	}
-	if len(required) > 0 {
-		schema["required"] = required
-	}
-	return schema
-}
-
-func primitiveToJSONSchemaType(primitive protoprimitives.Primitive) string {
-	switch strings.ToLower(types.PrimitiveEnumToString(primitive)) {
-	case "int":
-		return "integer"
-	case "float":
-		return "number"
-	case "boolean":
-		return "boolean"
-	case "datetime":
-		return "string"
+		return selected, nil
+	case "allow_list":
+		selected := make([]*hyperterse.Tool, 0, len(requested))
+		seen := make(map[string]struct{}, len(requested))
+		for _, toolName := range requested {
+			toolName = strings.TrimSpace(toolName)
+			if toolName == "" {
+				continue
+			}
+			if _, ok := seen[toolName]; ok {
+				continue
+			}
+			toolDef, ok := toolsByName[toolName]
+			if !ok {
+				return nil, fmt.Errorf("agent %q references unknown tool %q", agentDef.Name, toolName)
+			}
+			selected = append(selected, toolDef)
+			seen[toolName] = struct{}{}
+		}
+		return selected, nil
 	default:
-		return "string"
+		return nil, fmt.Errorf("unsupported agent tool access mode %q", agentDef.ToolAccess.Mode)
 	}
 }
 
-func parseInputDefaultValue(input *hyperterse.Input) any {
-	if input == nil || input.DefaultValue == "" {
-		return nil
-	}
-	raw := input.DefaultValue
-	switch strings.ToLower(types.PrimitiveEnumToString(input.Type)) {
-	case "int":
-		if v, err := strconv.Atoi(raw); err == nil {
-			return v
+func newA2AHTTPHandler(agentName string, cardHandler http.Handler, jsonrpcHandler http.Handler) http.Handler {
+	basePath := "/agent/" + agentName
+	cardPath := basePath + a2asrv.WellKnownAgentCardPath
+
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case a2asrv.WellKnownAgentCardPath, cardPath:
+			cardHandler.ServeHTTP(rw, req)
+		case "", "/", basePath, basePath + "/":
+			jsonrpcHandler.ServeHTTP(rw, req)
+		default:
+			http.NotFound(rw, req)
 		}
-	case "float":
-		if v, err := strconv.ParseFloat(raw, 64); err == nil {
-			return v
-		}
-	case "boolean":
-		if v, err := strconv.ParseBool(raw); err == nil {
-			return v
-		}
-	}
-	return raw
+	})
 }
 
 type agentStatusRecorder struct {
@@ -414,10 +305,7 @@ func withAgentRequestLogging(agentName string, next http.Handler) http.Handler {
 	log := logger.New("agents.http")
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		start := time.Now()
-		endpoint := fmt.Sprintf("/agent/%s%s", agentName, req.URL.Path)
-		if req.URL.RawQuery != "" {
-			endpoint = endpoint + "?" + req.URL.RawQuery
-		}
+		endpoint := buildLoggedAgentEndpoint(agentName, req)
 		startAttrs := map[string]any{
 			observability.AttrAgentName:    agentName,
 			observability.AttrHTTPMethod:   req.Method,
@@ -445,4 +333,150 @@ func withAgentRequestLogging(agentName string, next http.Handler) http.Handler {
 	})
 }
 
-var _ sdktool.Tool = (*hyperterseToolBridge)(nil)
+func buildLoggedAgentEndpoint(agentName string, req *http.Request) string {
+	if req == nil || req.URL == nil {
+		return "/agent/" + agentName
+	}
+	endpoint := req.URL.Path
+	if endpoint == "" {
+		endpoint = "/agent/" + agentName
+	}
+	if req.URL.RawQuery != "" {
+		endpoint += "?" + req.URL.RawQuery
+	}
+	return endpoint
+}
+
+const replayEventQueueBufferSize = 32
+
+type replayEventQueueManager struct {
+	mu      sync.Mutex
+	streams map[a2a.TaskID]*replayEventStream
+}
+
+type replayEventStream struct {
+	history     []a2a.Event
+	subscribers map[*replayEventQueue]struct{}
+	destroyed   bool
+}
+
+type replayEventQueue struct {
+	manager *replayEventQueueManager
+	taskID  a2a.TaskID
+	stream  *replayEventStream
+	events  chan a2a.Event
+	closed  bool
+}
+
+func newReplayEventQueueManager() eventqueue.Manager {
+	return &replayEventQueueManager{streams: make(map[a2a.TaskID]*replayEventStream)}
+}
+
+func (m *replayEventQueueManager) GetOrCreate(_ context.Context, taskID a2a.TaskID) (eventqueue.Queue, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	stream, ok := m.streams[taskID]
+	if !ok {
+		stream = &replayEventStream{subscribers: make(map[*replayEventQueue]struct{})}
+		m.streams[taskID] = stream
+	}
+	return m.connectLocked(taskID, stream), nil
+}
+
+func (m *replayEventQueueManager) Get(_ context.Context, taskID a2a.TaskID) (eventqueue.Queue, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	stream, ok := m.streams[taskID]
+	if !ok || stream.destroyed {
+		return nil, false
+	}
+	return m.connectLocked(taskID, stream), true
+}
+
+func (m *replayEventQueueManager) Destroy(_ context.Context, taskID a2a.TaskID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	stream, ok := m.streams[taskID]
+	if !ok {
+		return nil
+	}
+	stream.destroyed = true
+	for queue := range stream.subscribers {
+		queue.closeLocked()
+	}
+	delete(m.streams, taskID)
+	return nil
+}
+
+func (m *replayEventQueueManager) connectLocked(taskID a2a.TaskID, stream *replayEventStream) *replayEventQueue {
+	queue := &replayEventQueue{
+		manager: m,
+		taskID:  taskID,
+		stream:  stream,
+		events:  make(chan a2a.Event, replayEventQueueBufferSize),
+	}
+	for _, event := range stream.history {
+		queue.events <- event
+	}
+	stream.subscribers[queue] = struct{}{}
+	return queue
+}
+
+func (q *replayEventQueue) Write(ctx context.Context, event a2a.Event) error {
+	q.manager.mu.Lock()
+	if q.closed || q.stream == nil || q.stream.destroyed {
+		q.manager.mu.Unlock()
+		return eventqueue.ErrQueueClosed
+	}
+	q.stream.history = append(q.stream.history, event)
+	subscribers := make([]*replayEventQueue, 0, len(q.stream.subscribers))
+	for subscriber := range q.stream.subscribers {
+		if subscriber == q || subscriber.closed {
+			continue
+		}
+		subscribers = append(subscribers, subscriber)
+	}
+	q.manager.mu.Unlock()
+
+	for _, subscriber := range subscribers {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case subscriber.events <- event:
+		}
+	}
+	return nil
+}
+
+func (q *replayEventQueue) Read(ctx context.Context) (a2a.Event, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case event, ok := <-q.events:
+		if !ok {
+			return nil, eventqueue.ErrQueueClosed
+		}
+		return event, nil
+	}
+}
+
+func (q *replayEventQueue) Close() error {
+	q.manager.mu.Lock()
+	defer q.manager.mu.Unlock()
+	q.closeLocked()
+	return nil
+}
+
+func (q *replayEventQueue) closeLocked() {
+	if q.closed {
+		return
+	}
+	q.closed = true
+	if q.stream != nil {
+		delete(q.stream.subscribers, q)
+	}
+	close(q.events)
+}

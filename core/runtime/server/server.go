@@ -97,7 +97,7 @@ func NewRuntime(model *hyperterse.Model, port string, serviceVersion string, opt
 		_ = manager.CloseAll()
 		return nil, log.Errorf("failed to initialize mcp server adapter: %w", err)
 	}
-	runtimeInstance.agentRegistry, err = runtimeAgents.NewRegistry(runtimeInstance.model, runtimeInstance.engine)
+	runtimeInstance.agentRegistry, err = runtimeAgents.NewRegistry(runtimeInstance.model, runtimeInstance.engine, runtimeBaseURL(port))
 	if err != nil {
 		_ = manager.CloseAll()
 		return nil, log.Errorf("failed to initialize agent runtime adapter: %w", err)
@@ -170,7 +170,7 @@ func (r *Runtime) registerEndpoints() {
 	// Track endpoints for startup logging.
 	systemEndpoints := []string{}
 	mcpEndpoints := []string{}
-	agentMountNames := []string{}
+	agentNames := []string{}
 
 	mcpHTTPHandler := mcpsdk.NewStreamableHTTPHandler(func(_ *http.Request) *mcpsdk.Server {
 		if r.mcpAdapter == nil {
@@ -205,13 +205,14 @@ func (r *Runtime) registerEndpoints() {
 				continue
 			}
 			prefix := fmt.Sprintf("/agent/%s", agentName)
-			r.mux.Handle(prefix+"/", r.instrumentHandler(prefix, r.withCORS(http.StripPrefix(prefix, handler))))
-			agentMountNames = append(agentMountNames, agentName)
+			wrapped := r.instrumentHandler(prefix, r.withCORS(handler))
+			r.mux.Handle(prefix, wrapped)
+			r.mux.Handle(prefix+"/", wrapped)
+			agentNames = append(agentNames, agentName)
 		}
 	}
 
-	routesPerAgent := runtimeAgents.RegisteredRouteCountPerAgent()
-	totalAgentEndpoints := len(agentMountNames) * routesPerAgent
+	totalAgentEndpoints := len(agentNames) * runtimeAgents.RegisteredRouteCountPerAgent()
 
 	// Log all registered endpoints grouped by domain.
 	log.Infof("Endpoints registered: %d total", len(systemEndpoints)+len(mcpEndpoints)+totalAgentEndpoints)
@@ -223,9 +224,17 @@ func (r *Runtime) registerEndpoints() {
 	for _, endpoint := range mcpEndpoints {
 		log.Infof("  %s", dimEndpointMethod(endpoint))
 	}
-	if len(agentMountNames) > 0 {
-		log.Infof("Agent HTTP mounts: %d agent(s), %d HTTP routes each — %s",
-			len(agentMountNames), routesPerAgent, strings.Join(agentMountNames, ", "))
+	if len(agentNames) > 0 {
+		log.Infof("Agent endpoints:")
+		for _, agentName := range agentNames {
+			for _, endpoint := range runtimeAgents.RuntimeEndpointLogEntries(agentName) {
+				log.Infof("  %s", dimEndpointMethod(endpoint))
+			}
+		}
+	}
+	if len(agentNames) > 0 {
+		log.Infof("Agent HTTP mounts: %d agent(s), %d HTTP routes each - %s",
+			len(agentNames), runtimeAgents.RegisteredRouteCountPerAgent(), strings.Join(agentNames, ", "))
 	}
 }
 
@@ -271,7 +280,7 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 		log.Debugf("MCP server adapter updated in place")
 	}
 
-	agentRegistry, err := runtimeAgents.NewRegistry(r.model, r.engine)
+	agentRegistry, err := runtimeAgents.NewRegistry(r.model, r.engine, runtimeBaseURL(r.port))
 	if err != nil {
 		return log.Errorf("failed to rebuild agent runtime adapter: %w", err)
 	}
@@ -288,6 +297,9 @@ func (r *Runtime) ReloadModel(model *hyperterse.Model) error {
 
 	log.Infof("Model reloaded successfully")
 	return nil
+}
+func runtimeBaseURL(port string) string {
+	return fmt.Sprintf("http://127.0.0.1:%s", port)
 }
 
 // Stop stops the runtime server gracefully

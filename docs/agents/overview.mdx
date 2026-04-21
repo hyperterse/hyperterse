@@ -3,13 +3,17 @@ title: Overview
 description: How declarative agents fit into Hyperterse and how to navigate the agent guides.
 ---
 
-Hyperterse agents are declarative, ADK-backed runtimes discovered from your project filesystem, just like tools. You define agent behavior in config files; Hyperterse compiles, validates, and mounts each agent behind a dedicated HTTP route prefix.
+Hyperterse agents are declarative A2A runtimes discovered from your project
+filesystem, just like tools. You define agent behavior in config files,
+Hyperterse compiles and validates them, then mounts each agent behind a
+dedicated HTTP route prefix.
 
 ## What you get
 
 - **Declarative agent discovery** from `app/agents/**/config.terse`
 - **Compile-time permission checks** for tool access policies
-- **Per-agent runtime endpoints** for run, streaming, and sessions
+- **Per-agent A2A endpoints** for agent card, JSON-RPC, streaming, tasks, and
+  push config
 - **Multi-provider model config** for Gemini, Vertex AI, and OpenAI-compatible backends
 
 ## How the system fits together
@@ -26,20 +30,18 @@ app/
 1. Compiler discovers tools and agents.
 2. Tool access policy is resolved (`inherit` / `allow_*`).
 3. Agent definitions are compiled into runtime model.
-4. Runtime mounts ADK endpoints under `/agent/{agentName}`.
+4. Runtime mounts A2A endpoints under `/agent/{agentName}`.
 
 ## Endpoint shape per agent
 
 Every compiled agent gets:
 
-- `/agent/{agentName}/run`
-- `/agent/{agentName}/run_sse`
-- `/agent/{agentName}/list-apps`
-- `/agent/{agentName}/apps/{app_name}/users/{user_id}/sessions...`
+- `GET /agent/{agentName}/.well-known/agent-card.json`
+- `POST /agent/{agentName}`
 
 <Tip>
-  Agent endpoints are separate from MCP `/mcp`. Use MCP for tool-native workflows, and use
-  `/agent/*` when you need ADK-style conversational/session behavior.
+  Agent endpoints are separate from MCP `/mcp`. Use MCP for tool-native
+  workflows, and use `/agent/*` when you need A2A agent behavior.
 </Tip>
 
 ## Reading path
@@ -48,7 +50,8 @@ Use this order for fastest onboarding:
 
 1. [Quickstart](/agents/quickstart) — create and run your first agent.
 2. [Tool access](/agents/tool-access) — lock down permissions correctly.
-3. [Runtime API](/agents/runtime-api) — understand request/response + sessions.
+3. [Runtime API](/agents/runtime-api) — understand A2A v1 methods and result
+   shapes.
 4. [Model providers](/agents/model-providers) — configure provider-specific models.
 
 ## References

@@ -1,0 +1,19 @@
+name: demo-concierge
+description: "General demo assistant with access to core demo tools."
+instruction: |
+  You are the general-purpose assistant for the Hyperterse demo.
+  Help users explore the demo runtime, answer questions about service info,
+  users, weather, and SQLite notes, and call tools when they will improve the answer.
+  Be concise and practical.
+model:
+  provider: openai_compatible
+  model: openai/gpt-oss-20b:free
+  options:
+    base_url: https://openrouter.ai/api/v1
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
+tool_access:
+  mode: allow_list
+  tools:
+    - get-user
+    - get-weather
+    - list-sqlite-notes

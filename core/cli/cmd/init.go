@@ -153,7 +153,7 @@ Fetch and use this content for accurate schema, configuration, and API reference
 	}
 	agentSkillContent := `---
 name: hyperterse-agents
-description: Build declarative agents with Hyperterse. Use when creating app/agents/*/config.terse, configuring agents in .hyperterse, setting tool permissions, and testing /agent/{name} runtime endpoints.
+description: Build declarative agents with Hyperterse. Use when creating app/agents/*/config.terse, configuring agents in .hyperterse, setting tool permissions, and testing A2A agent endpoints mounted at /agent/{name}.
 ---
 
 This project uses Hyperterse for MCP tools and declarative agent runtimes.
@@ -211,10 +211,10 @@ Prefer allow_list for least-privilege access.
 
 ## 5) Verify runtime endpoints
 
-- List mounted apps: GET /agent/<agent-name>/list-apps
-- Create session: POST /agent/<agent-name>/apps/<app>/users/<user>/sessions/<session>
-- Run agent: POST /agent/<agent-name>/run
-- Stream run: POST /agent/<agent-name>/run_sse
+- Public agent card: GET /agent/<agent-name>/.well-known/agent-card.json
+- JSON-RPC endpoint: POST /agent/<agent-name>
+- Streaming endpoint: POST /agent/<agent-name> with method SendStreamingMessage
+- Task endpoints: POST /agent/<agent-name> with methods GetTask, CancelTask, and SubscribeToTask
 
 Rules:
 

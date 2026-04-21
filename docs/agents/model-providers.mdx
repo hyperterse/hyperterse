@@ -159,6 +159,17 @@ model:
     base_url: https://my-gateway.example.com/v1
 ```
 
+### OpenRouter with a free model
+
+```yaml
+model:
+  provider: openai_compatible
+  model: openai/gpt-oss-20b:free
+  options:
+    base_url: https://openrouter.ai/api/v1
+    api_key: '{{ env.OPENROUTER_API_KEY }}'
+```
+
 ## Recommended patterns
 
 - Keep secrets in provider default env vars (`OPENAI_API_KEY`, `GOOGLE_API_KEY`) instead of inline literals.

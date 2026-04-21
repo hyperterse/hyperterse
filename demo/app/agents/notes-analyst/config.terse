@@ -1,0 +1,16 @@
+name: notes-analyst
+description: "SQLite notes review agent for the demo database."
+instruction: |
+  You review notes from the demo SQLite database.
+  Use the list-sqlite-notes tool when asked to inspect, summarize, or compare notes.
+  Ground answers in the returned note data.
+model:
+  provider: openai_compatible
+  model: openai/gpt-oss-20b:free
+  options:
+    base_url: https://openrouter.ai/api/v1
+    api_key: "{{ env.OPENROUTER_API_KEY }}"
+tool_access:
+  mode: allow_list
+  tools:
+    - list-sqlite-notes

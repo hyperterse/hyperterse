@@ -24,6 +24,13 @@ demo/
     prompts/
       incident-update.terse
       summarize-release.terse
+    agents/
+      demo-concierge/
+        config.terse
+      weather-guide/
+        config.terse
+      notes-analyst/
+        config.terse
     resources/
       service-info/
         config.terse
@@ -43,6 +50,7 @@ demo/
 - Adapter discovery from `app/adapters/*.terse` (including SQLite connector)
 - Tool discovery from `app/tools/*/config.terse`
 - Prompt discovery from `app/prompts/**/*.terse`
+- Agent discovery from `app/agents/*/config.terse`
 - Resource + resource-template discovery from `app/resources/**/config.terse`
 - Concrete resources from both inline `text` and file-backed `file`
 - Resource templates from both `text_template` and `file_template`
@@ -83,13 +91,38 @@ The SQLite adapter uses `file:./demo.db` by default; the database file is create
 From repository root:
 
 ```bash
+export OPENROUTER_API_KEY=your_openrouter_key
 hyperterse start -f demo/.hyperterse
 ```
 
 Or in dev mode:
 
 ```bash
+export OPENROUTER_API_KEY=your_openrouter_key
 hyperterse start --watch -f demo/.hyperterse
+```
+
+## Try demo agents
+
+The demo now includes three A2A agents backed by an OpenRouter free model:
+
+- `demo-concierge`
+- `weather-guide`
+- `notes-analyst`
+
+Examples:
+
+```bash
+curl -s http://localhost:8080/agent/demo-concierge/.well-known/agent-card.json | jq
+
+curl -s -X POST http://localhost:8080/agent/weather-guide \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"SendMessage",
+    "params":{"message":{"role":"user","parts":[{"text":"What is the weather in Austin in imperial units?"}]}}
+  }' | jq
 ```
 
 ## Try MCP APIs
