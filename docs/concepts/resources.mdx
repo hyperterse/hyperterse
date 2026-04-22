@@ -1,21 +1,18 @@
 ---
-title: Resources
-description: Define MCP resources and URI templates backed by inline content or files.
-tag: NEW
+title: Overview
+description: MCP resources and URI templates—inline content or files.
 ---
 
 Resources expose structured read-only context through MCP `resources/*` APIs. Hyperterse supports both:
 
-- **concrete resources** with fixed `uri`
-- **resource templates** with parameterized `uri_template`
+- concrete resources with fixed `uri`
+- resource templates with parameterized `uri_template`
 
 ## Where resource definitions live
 
-By default, resource config files are discovered from:
+Resources use a `config.terse` per logical item, often with sibling content files. Default layout and discovery are covered in [Project structure](/concepts/project-structure).
 
-- `app/resources/**/config.terse`
-
-Each resource lives in its own folder. That folder contains:
+Each resource typically has its own folder containing:
 
 - `config.terse` (required)
 - optional resource content files (for example `release-notes.md`, `1001.json`, images, or other formats)
@@ -36,7 +33,7 @@ Concrete resources define a fixed URI and one content source:
 - inline `text`, or
 - file-backed `file`
 
-```yaml app/resources/release-notes/config.terse
+```yaml
 uri: memory://release-notes/latest
 name: release-notes
 mime_type: text/markdown
@@ -50,7 +47,7 @@ Templates define parameterized URIs and template-based content:
 - inline `text_template`, or
 - file-backed `file_template`
 
-```yaml app/resources/order-by-id/config.terse
+```yaml
 uri_template: memory://orders/{id}
 name: order-details
 mime_type: application/json
@@ -59,7 +56,7 @@ arguments:
   id:
     description: Order identifier
     required: true
-    completion: ["1001", "1002", "1003"]
+    completion: ['1001', '1002', '1003']
 ```
 
 ## Runtime behavior

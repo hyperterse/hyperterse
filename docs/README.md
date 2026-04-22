@@ -1,20 +1,23 @@
 # Hyperterse Docs (Mintlify)
 
-This directory now contains Mintlify-native docs source.
+Documentation for **Hyperterse**, the **agentic server framework**—declarative agents (A2A), MCP tools, prompts, resources, adapters, and runtime guides—in Mintlify-native source.
 
 ## Structure
 
-- `docs.json` - Mintlify site configuration and navigation.
-- `assets/` - logo and favicon assets.
-- `*.mdx` - documentation pages.
-- section folders:
-  - `getting-started/`
-  - `concepts/`
-  - `runtime/`
-  - `reference/`
-  - `security/`
-  - `deployment/`
-  - `migration/`
+- `docs.json` — Mintlify site configuration and navigation.
+- `assets/` — Logo, favicon, and diagrams.
+- `*.mdx` — Top-level documentation pages.
+- Section folders:
+  - `agents/` — Declarative agents, A2A runtime, model providers, tool access.
+  - `concepts/` — Shared concepts; **Tools**, **Resources**, and **Prompts** each have dedicated guides under this folder (see sidebar groups in `docs.json`).
+  - `runtime/` — MCP transport, A2A transport, execution pipeline, caching, observability.
+  - `reference/` — CLI and configuration schema references.
+  - `databases/` — Connector guides.
+  - `deployment/` — Deployment methods and providers.
+  - `security/` — Input safety and production hardening.
+  - `migration/` — Version upgrades.
+
+Navigation is grouped by **Agents**, **Tools**, **Resources**, and **Prompts**, plus **Foundation** (project structure and authentication), **Runtime**, **Databases**, **Deployment**, and **Security**.
 
 ## Local development
 
@@ -27,10 +30,10 @@ bun run dev
 
 This starts the Mintlify local server (hot reload enabled).
 
-## Build
+## Validate (static checks)
 
 ```bash
-bun run build
+bunx mintlify validate
 ```
 
 ## One-off (without install)

@@ -3,7 +3,7 @@ title: Authentication
 description: Tool-level authentication with built-in and custom plugins.
 ---
 
-Authentication in Hyperterse is tool-scoped and plugin-based. Each tool declares which plugin to use and supplies policy parameters. The auth check runs as the second stage of the execution pipeline — after tool resolution, before input transforms or execution.
+Authentication in Hyperterse is tool-scoped and plugin-based. Each tool declares which plugin to use and supplies policy parameters. Auth runs after the tool is resolved and before input transforms or execution.
 
 Tools without an `auth` block are unauthenticated. There is no global auth middleware.
 
@@ -24,14 +24,14 @@ The `plugin` field selects the auth strategy. The `policy` map passes plugin-spe
 
 Hyperterse ships with two plugins that cover the most common access patterns:
 
-**`allow_all`** — Unconditionally allows every request. Use for health checks, public tools, or development.
+The `allow_all` plugin unconditionally allows every request. Use for health checks, public tools, or development.
 
 ```yaml
 auth:
   plugin: allow_all
 ```
 
-**`api_key`** — Validates the `X-API-Key` HTTP header against a configured value. The expected key is resolved from `policy.value` (supports `{{ env.VAR }}` substitution) or falls back to the `HYPERTERSE_API_KEY` environment variable.
+The `api_key` plugin validates the `X-API-Key` HTTP header against a configured value. The expected key is resolved from `policy.value` (supports `{{ env.VAR }}` substitution) or falls back to the `HYPERTERSE_API_KEY` environment variable.
 
 ```yaml
 auth:
@@ -42,7 +42,7 @@ auth:
 
 ## Auth flow
 
-When a tool is invoked, the runtime checks whether the matched tool has an `auth` block. If present, the configured plugin is resolved and executed with the request context and policy map. A successful check allows the pipeline to continue. An error halts the pipeline immediately and returns an authentication error.
+When a tool runs, Hyperterse checks for an `auth` block on that tool. If you configured one, the plugin runs with the request context and policy map. Success continues the request; failure stops immediately with an authentication error.
 
 ## Custom plugins
 
@@ -60,7 +60,7 @@ A plugin receives the request headers (extracted from the HTTP transport) and th
 
 ## Key points
 
-- **Auth is per-tool.** Every tool that needs protection must declare it. There is no implicit inheritance.
-- **No `auth` block means no authentication.** The tool is accessible to anyone who can reach the endpoint.
-- **Use environment variables for secrets.** `{{ env.VAR }}` in policy values keeps credentials out of config files.
-- **`allow_all` is not a security boundary.** It exists for convenience — do not use it on production tools that access sensitive data.
+- Auth is per-tool. Every tool that needs protection must declare it. There is no implicit inheritance.
+- No `auth` block means no authentication. The tool is accessible to anyone who can reach the endpoint.
+- Use environment variables for secrets. `{{ env.VAR }}` in policy values keeps credentials out of config files.
+- `allow_all` is not a security boundary. It exists for convenience — do not use it on production tools that access sensitive data.

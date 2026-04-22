@@ -3,7 +3,7 @@ title: MCP transport
 description: Full MCP 2025-11-25 surface in Hyperterse, including tools, prompts, resources, completion, notifications, and session behavior.
 ---
 
-Hyperterse is an MCP server. Tool discovery and execution use the MCP Streamable HTTP transport over JSON-RPC 2.0 on `/mcp`. There are no per-tool REST endpoints for tools, no GraphQL layer, and no custom protocol for tool execution. The transport is the protocol, and the protocol is MCP.
+Hyperterse is a full MCP server for tools, prompts, and resources. Discovery and execution use Streamable HTTP and JSON-RPC 2.0 on `/mcp`. There are no separate REST endpoints per tool, no GraphQL layer, and no custom tool protocol beyond MCP.
 
 Hyperterse serves MCP over Streamable HTTP (`/mcp`) using JSON-RPC 2.0. It supports:
 
@@ -16,9 +16,9 @@ Hyperterse serves MCP over Streamable HTTP (`/mcp`) using JSON-RPC 2.0. It suppo
 - session continuity across model reloads
 
 <Tip>
-  Hyperterse also supports declarative ADK-backed **agent** endpoints under
-  `/agent/{agentName}`. Those are separate from MCP tool transport. See
-  [Runtime API](/agents/runtime-api).
+  Declarative agents use A2A on `/agent/{agentName}`—separate from MCP.
+  See [A2A transport](/runtime/a2a-transport); method details in [Runtime
+  API](/agents/runtime-api).
 </Tip>
 
 ## Endpoints
@@ -30,7 +30,7 @@ Hyperterse serves MCP over Streamable HTTP (`/mcp`) using JSON-RPC 2.0. It suppo
 
 ## Protocol version
 
-The runtime uses MCP `2025-11-25` protocol types through the Go MCP SDK.
+Hyperterse implements MCP `2025-11-25`.
 
 ## Capability surface
 
@@ -48,7 +48,7 @@ Hyperterse capability exposure includes:
 | ---------------------------------- | ---------------- | ---------------------------------------------------- |
 | `initialize`                       | client -> server | Standard MCP handshake                               |
 | `notifications/initialized`        | client -> server | Standard MCP post-init notification                  |
-| `ping`                             | client -> server | Supported by SDK                                     |
+| `ping`                             | client -> server | Supported                                            |
 | `tools/list`                       | client -> server | Returns transport entry tools (`search`, `execute`)  |
 | `tools/call`                       | client -> server | Calls `search` or `execute`                          |
 | `prompts/list`                     | client -> server | Lists configured prompts                             |
@@ -59,9 +59,9 @@ Hyperterse capability exposure includes:
 | `resources/subscribe`              | client -> server | Validates subscription target and enables updates    |
 | `resources/unsubscribe`            | client -> server | Unsubscribes from resource updates                   |
 | `completion/complete`              | client -> server | Provides completions for prompt/template arguments   |
-| `notifications/progress`           | client -> server | Accepted and logged by runtime                       |
-| `notifications/roots/list_changed` | client -> server | Accepted and logged by runtime                       |
-| `notifications/cancelled`          | client -> server | Handled by SDK cancellation flow                     |
+| `notifications/progress`           | client -> server | Supported (logged)                                   |
+| `notifications/roots/list_changed` | client -> server | Supported (logged)                                   |
+| `notifications/cancelled`          | client -> server | Supported (MCP cancellation)                         |
 
 ## Tool entrypoint design
 
@@ -86,8 +86,8 @@ If omitted, default is `10`.
 
 Prompts come from:
 
-- discovered files under `app/prompts/**/*.terse` (or configured directory)
-- inline root config `prompts` array
+- prompt definitions discovered in your project (see [Project structure](/concepts/project-structure)), unless you override the directory in `.hyperterse`
+- inline `prompts` in root config
 
 `prompts/get` interpolates `{{ argumentName }}` placeholders from request arguments.
 
@@ -107,8 +107,8 @@ Prompts come from:
 
 Resources come from:
 
-- discovered files under `app/resources/**/config.terse` (or configured directory)
-- inline root config `resources` and `resource_templates`
+- resource definitions discovered in your project (see [Project structure](/concepts/project-structure)), unless you override the directory in `.hyperterse`
+- inline `resources` and `resource_templates` in root config
 
 `resources/read` resolves:
 
@@ -168,18 +168,18 @@ During `tools/call` execution for `search` and `execute`:
 
 ## Cancellation behavior
 
-Hyperterse runs tool execution with request context propagation. MCP cancellation and transport-level context cancellation are propagated through the execution path where connectors/scripts support context-aware operations.
+Cancellation from the client propagates through tool execution when connectors and scripts support it.
 
 ## Session behavior and reload continuity
 
 - Streamable HTTP session IDs use `Mcp-Session-Id`.
 - `DELETE /mcp` terminates a session.
-- Runtime reload updates the existing MCP adapter in place (does not replace the server instance), preserving active sessions.
-- Existing sessions continue to function after reload and receive list/update notifications for changed MCP entities.
+- After a model reload, MCP stays on the same server process and keeps active sessions.
+- Sessions keep working and receive list or update notifications when tools, prompts, or resources change.
 
 ## CORS and headers
 
-The runtime applies CORS headers on `/mcp` responses, including:
+Hyperterse sends CORS headers on `/mcp` responses, including:
 
 - `Access-Control-Allow-Origin: *`
 - `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
@@ -233,10 +233,11 @@ curl http://localhost:8080/heartbeat
 { "success": true }
 ```
 
-Heartbeat indicates HTTP runtime liveness, not downstream adapter health.
+Heartbeat shows the HTTP server is up, not that every database adapter is healthy.
 
 ## Related docs
 
+- [A2A transport](/runtime/a2a-transport) — Agent HTTP on `/agent/{agentName}`
 - [Prompts](/concepts/prompts)
 - [Resources](/concepts/resources)
 - [Prompt configuration](/reference/prompt-config)

@@ -63,13 +63,13 @@ The cache operates as a read-through layer in front of connectors and handler sc
 ### On execution
 
 1. Before connector execution, the executor checks the cache using the derived key.
-2. **Hit:** cached result returned immediately; connector is not called.
-3. **Miss:** connector executes; result stored with configured TTL before being returned.
+2. Hit — cached result returned immediately; connector is not called.
+3. Miss — connector executes; result stored with configured TTL before being returned.
 
 ### Eviction
 
-- **TTL-based.** Entries expire after their configured TTL.
-- **Capacity-based.** The cache enforces memory bounds (128 MiB default). When approaching capacity, least-recently-used entries are evicted.
+- TTL-based — entries expire after their configured TTL.
+- Capacity-based — the cache enforces memory bounds (128 MiB default). When approaching capacity, least-recently-used entries are evicted.
 
 ### No explicit invalidation
 
@@ -87,13 +87,13 @@ There is no API for manual cache invalidation. Entries are evicted only by TTL o
 
 ## When to enable caching
 
-**Enable for:**
+Enable for:
 
 - Read-heavy tools with stable data (reference tables, configuration lookups).
 - Expensive queries where staleness within the TTL window is acceptable.
 - High-frequency tools where connector load reduction matters.
 
-**Disable for:**
+Disable for:
 
 - Write operations or tools that must return real-time data.
 - Highly variable inputs where cache fill exceeds hit rate.

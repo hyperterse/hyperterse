@@ -1,18 +1,15 @@
 ---
-title: Prompts
-description: Define reusable MCP prompts with arguments, interpolation, and completion hints.
-tag: NEW
+title: Overview
+description: Reusable MCP prompts with arguments, interpolation, and completion hints.
 ---
 
 Prompts let you package reusable conversation scaffolding directly in your Hyperterse project. At runtime, these definitions are exposed through MCP `prompts/list` and `prompts/get`, so clients can discover prompt templates and instantiate them with concrete arguments.
 
 ## Where prompt definitions live
 
-By default, prompt config files are discovered from:
+Prompts are ordinary `.terse` files in your project tree. Default folder layout and discovery rules are documented in [Project structure](/concepts/project-structure)—use that page when you need to know exactly where files go.
 
-- `app/prompts/**/*.terse`
-
-You can override discovery in `.hyperterse`:
+You can point prompt discovery at a different directory from `.hyperterse`:
 
 ```yaml .hyperterse
 prompts:
@@ -30,7 +27,7 @@ Each prompt file defines:
 - optional argument definitions (`arguments`)
 - one or more message templates (`messages`)
 
-```yaml app/prompts/summarize-release.terse
+```yaml
 name: summarize-release
 title: Release summary helper
 description: Generate a concise release summary from notes.
@@ -38,10 +35,10 @@ arguments:
   audience:
     description: Intended audience for the summary
     required: true
-    completion: ["engineering", "product", "customers"]
+    completion: ['engineering', 'product', 'customers']
   tone:
     description: Writing tone
-    completion: ["concise", "detailed"]
+    completion: ['concise', 'detailed']
 messages:
   - role: system
     text: You summarize software releases for {{ audience }}.

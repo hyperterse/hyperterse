@@ -87,8 +87,8 @@ For external access, use an Ingress controller or change the type to `LoadBalanc
 
 Hyperterse exposes `/heartbeat` on the configured port. Use it for both liveness and readiness probes:
 
-- **Liveness** — Restart the pod if the process is unresponsive. Set a reasonable `initialDelaySeconds` to allow connector initialization.
-- **Readiness** — Remove the pod from the service until all connectors are ready. The heartbeat endpoint only responds after the server is fully initialized.
+- Liveness — Restart the pod if the process is unresponsive. Set a reasonable `initialDelaySeconds` to allow connector initialization.
+- Readiness — Remove the pod from the service until all connectors are ready. The heartbeat endpoint only responds after the server is fully initialized.
 
 ## Secrets
 
@@ -114,8 +114,8 @@ If your tools use MCP session management, enable sticky sessions through your in
 
 The manifest above follows security best practices:
 
-- **Read-only root filesystem** prevents runtime modifications to the binary or manifest.
-- **Non-root user** (UID 1001) limits the blast radius of a container escape.
-- **Resource limits** prevent a single pod from consuming all node resources.
+- Read-only root filesystem prevents runtime modifications to the binary or manifest.
+- Non-root user (UID 1001) limits the blast radius of a container escape.
+- Resource limits prevent a single pod from consuming all node resources.
 
 See [Production hardening](/security/production-hardening) for additional recommendations.

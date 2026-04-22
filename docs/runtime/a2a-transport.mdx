@@ -1,0 +1,59 @@
+---
+title: A2A transport
+description: Per-agent A2A HTTP surface in Hyperterse—JSON-RPC, agent card, tasks, and streaming—separate from MCP.
+---
+
+Every agent you define is served at its own route prefix. Clients use JSON-RPC over `POST`, in the A2A (Agent2Agent) style: agent card, messages, tasks, and optional streaming. That is separate from MCP—there are no MCP tool-list or prompt endpoints on these routes. For tools, prompts, and resources, use [MCP transport](/runtime/mcp-transport) at `/mcp`.
+
+<Tip>
+  Configuration and permissions live in the agent guides. Start with [Agents
+  overview](/agents/overview); for every method and curl example, see [Runtime
+  API](/agents/runtime-api).
+</Tip>
+
+## How it fits next to MCP
+
+| Surface | Path | Role |
+| ------- | ---- | ---- |
+| MCP | `/mcp` | Tools (`search` / `execute`), prompts, resources, completion, MCP session |
+| A2A | `/agent/{agentName}` | Agent card, messaging, tasks, streaming, push config |
+
+MCP and A2A share one Hyperterse server and the same tool-access rules for agents, but the protocols and client contracts differ.
+
+## Endpoints
+
+| Endpoint | Method(s) | Purpose |
+| -------- | --------- | ------- |
+| `/agent/{agentName}/.well-known/agent-card.json` | `GET` | Public agent card for discovery |
+| `/agent/{agentName}` | `POST` | A2A JSON-RPC (messages, tasks, streaming, push config) |
+
+Replace `{agentName}` with your agent’s name (see [Agents overview](/agents/overview)).
+
+## What the transport covers
+
+- Discovery — clients fetch the agent card before calling the JSON-RPC endpoint.
+- Messaging — `SendMessage` and `SendStreamingMessage` (SSE when using streaming).
+- Tasks — create, poll, list, cancel, and subscribe to task updates when responses include trackable work.
+- Push — list, create, or delete task push notification configuration when you use those flows.
+
+Method names and payloads match the A2A-style contract in [Runtime API](/agents/runtime-api).
+
+## Protocol
+
+Requests use JSON-RPC 2.0 over HTTP `POST` on `/agent/{agentName}`. The surface is A2A-compatible so standard agent clients can integrate without a custom protocol. For the exact methods Hyperterse exposes, see [Runtime API](/agents/runtime-api).
+
+## Session and reload
+
+- Task state is how you continue work across turns (not a legacy session-only API).
+- After a model reload, agent routes match your latest config; see [Runtime API](/agents/runtime-api) for behavior notes.
+
+## CORS
+
+Hyperterse applies CORS on agent routes so browser and cross-origin clients can call them in development. Tighten rules in production like any HTTP API (see [Production hardening](/security/production-hardening)).
+
+## Related docs
+
+- [MCP transport](/runtime/mcp-transport) — Streamable HTTP MCP on `/mcp`
+- [Runtime API](/agents/runtime-api) — Full A2A method list and examples
+- [Agents overview](/agents/overview) — Declarative agents and routing
+- [Tool access](/agents/tool-access) — Which tools an agent may call

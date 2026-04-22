@@ -3,13 +3,13 @@ title: Tools
 description: How tool definitions specify MCP tools, input schemas, and execution strategies.
 ---
 
-A tool definition is the central abstraction in Hyperterse. Each `app/tools/*/config.terse` file defines exactly one MCP tool — its name, description, execution strategy, input schema, authentication policy, and caching behavior. When the server starts, every valid tool definition is registered as a callable tool in the MCP `tools/list` response.
+A tool definition is the central abstraction in Hyperterse. Each tool config file defines exactly one MCP tool: name, description, how it runs, inputs, authentication, and caching. On startup, every valid definition appears in the MCP `tools/list` response.
 
 ## Execution models
 
 A tool definition's execution model is determined by its configuration. There are two primary models.
 
-**DB-backed tools** execute a SQL or database command through a connector. They require `use` (the adapter name) and `statement`:
+DB-backed tools execute a SQL or database command through a connector. They require `use` (the adapter name) and `statement`:
 
 ```yaml
 description: 'Retrieve a user by their identifier'
@@ -26,7 +26,7 @@ auth:
   plugin: allow_all
 ```
 
-**Script-backed tools** delegate execution to a TypeScript handler. No adapter or statement is needed:
+Script-backed tools delegate execution to a TypeScript handler. No adapter or statement is needed:
 
 ```yaml
 description: 'Retrieve current weather conditions for a location'
@@ -35,12 +35,12 @@ auth:
   plugin: allow_all
 ```
 
-**Hybrid tools** combine a DB adapter with mappers for pre-processing and post-processing.
+Hybrid tools combine a DB adapter with mappers for pre-processing and post-processing.
 Execution order is: auth, input mapper, DB execution, output mapper.
 
 ## Tool naming
 
-The MCP tool name comes from the tool definition. If the config sets a `name` field, that value is used. Otherwise, the directory name becomes the tool name. `app/tools/get-user/` becomes `get-user`. Tool names must be unique — duplicates are rejected at compile time.
+The MCP tool name comes from the tool definition. If the config sets a `name` field, that value wins. Otherwise the folder name becomes the tool name (for example a folder named `get-user` yields the tool `get-user`). Names must be unique—Hyperterse rejects duplicates when you build or start.
 
 ## Input schema
 

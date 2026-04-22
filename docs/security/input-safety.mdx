@@ -5,8 +5,8 @@ description: Statement substitution model, security implications, and defensive 
 
 Hyperterse uses textual substitution for `{{ inputs.field }}` placeholders. Before a statement reaches the connector driver, the executor performs two passes:
 
-1. **Environment substitution** — `{{ env.VAR }}` placeholders are replaced with process environment values.
-2. **Input substitution** — `{{ inputs.field }}` placeholders are replaced with string representations of validated input values.
+1. Environment substitution — `{{ env.VAR }}` placeholders are replaced with process environment values.
+2. Input substitution — `{{ inputs.field }}` placeholders are replaced with string representations of validated input values.
 
 The resulting statement is a complete string passed to the connector's `Execute` method. No parameterized query binding occurs at the substitution layer.
 
@@ -19,7 +19,7 @@ The resulting statement is a complete string passed to the connector's `Execute`
 
 ## Built-in protections
 
-The runtime validates and sanitizes inputs before they reach connectors or scripts.
+Hyperterse validates and sanitizes inputs before they reach connectors or scripts.
 
 ### Input type validation
 
@@ -40,13 +40,13 @@ Type validation constrains the value space: an `int` input only accepts numbers,
 ### Auth enforcement
 
 - Tool-level auth runs before any input processing.
-- Auth failures halt the pipeline immediately.
+- Auth failures stop the request immediately.
 
 ## What the framework does not protect against
 
-- **SQL injection via string inputs.** A `string`-typed input has no content restriction. Malicious SQL can be injected through string placeholders.
-- **Statement manipulation via crafted values.** Any input that contributes to statement structure (not just data values) is an injection vector.
-- **Business logic abuse.** Negative IDs, excessive limits, and semantically invalid values are not caught by type validation.
+- SQL injection via string inputs — a `string`-typed input has no content restriction. Malicious SQL can be injected through string placeholders.
+- Statement manipulation via crafted values — any input that contributes to statement structure (not just data values) is an injection vector.
+- Business logic abuse — negative IDs, excessive limits, and semantically invalid values are not caught by type validation.
 
 ## Defensive patterns
 
@@ -117,7 +117,7 @@ export default async function handler(payload: {
 
 ### Deploy behind a gateway
 
-Place the runtime behind an API gateway or reverse proxy with rate limiting, request size limits, IP access control, and TLS termination.
+Place Hyperterse behind an API gateway or reverse proxy with rate limiting, request size limits, IP access control, and TLS termination.
 
 ## Environment variable safety
 

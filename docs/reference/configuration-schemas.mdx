@@ -49,7 +49,7 @@ Requires the [YAML extension](https://marketplace.visualstudio.com/items?itemNam
 
 ### JetBrains IDEs
 
-**Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings.** Add one mapping per schema with the appropriate file pattern.
+In the IDE: Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings. Add one mapping per schema with the appropriate file pattern.
 
 ## Schema highlights
 
@@ -96,7 +96,7 @@ Each schema enforces required fields, value constraints, and structural rules fo
 - `mappers` — Optional `input` / `output` mapper paths (`path#exportName` supported; defaults to `export default`).
 - `auth` — `plugin`, `policy`.
 - `cache` — `enabled`, `ttl`.
-- **Constraint:** exactly one of `use` or `handler` is required (enforced via `oneOf`).
+- Constraint: exactly one of `use` or `handler` is required (enforced via `oneOf`).
 
 ### Prompt (`prompt.terse.schema.json`)
 
@@ -149,7 +149,7 @@ See [Resource configuration](/reference/resource-config).
 - Tool scope (`app/tools/**/config.terse`) owns execution/query behavior and auth/cache controls.
 - Prompt scope (`app/prompts/**/*.terse`) owns MCP prompt messages and arguments.
 - Resource scope (`app/resources/**/config.terse`) owns MCP resources and URI templates.
-- Agent scope (`app/agents/**/config.terse`) owns LLM runtime behavior (`instruction`, model, and tool access policy).
+- Agent scope (`app/agents/**/config.terse`) owns agent behavior: `instruction`, model, and tool access policy.
 
 ## Keeping schemas in sync
 

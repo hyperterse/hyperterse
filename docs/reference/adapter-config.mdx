@@ -3,7 +3,7 @@ title: Adapter
 description: Complete field reference for adapter definition files.
 ---
 
-Each file in `app/adapters/` defines one adapter — a named binding between the runtime and a database. Adapter files are YAML documents with a fixed schema.
+Each file in `app/adapters/` defines one adapter — a named binding between Hyperterse and your database. Adapter files are YAML documents with a fixed schema.
 
 ## Full schema
 
@@ -21,14 +21,14 @@ options:
 <ParamField body="name" type="string">
   Adapter identifier, referenced by tools via `use`. Must be unique across all adapters. Must match `^[a-zA-Z][a-zA-Z0-9_-]*$`.
 
-**Default:** filename without the `.terse` extension (e.g., `primary-db` from `primary-db.terse`).
+Default: filename without the `.terse` extension (e.g., `primary-db` from `primary-db.terse`).
 
 </ParamField>
 
 <ParamField body="connector" type="string" required>
   Connector type. Determines which database driver to use.
 
-**Allowed values:** `postgres`, `mysql`, `mongodb`, `redis`, `sqlite`
+Allowed values: `postgres`, `mysql`, `mongodb`, `redis`, `sqlite`
 
 </ParamField>
 
@@ -62,7 +62,7 @@ options:
 
     Standard PostgreSQL DSN. Supports all driver parameters in the query string or `options` map.
 
-    **Common options:**
+    Common options:
 
     | Key | Example | Description |
     |---|---|---|
@@ -128,7 +128,7 @@ options:
 
 <Steps>
   <Step title="Discovery">
-    The compiler scans `app/adapters/*.terse` for adapter definitions.
+    Hyperterse loads adapter definitions from `app/adapters/*.terse`.
   </Step>
   <Step title="Validation">
     Connector type, connection string presence, and name uniqueness are verified

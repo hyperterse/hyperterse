@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/schema.json",
   "name": "Hyperterse",
-  "description": "MCP framework for building tool-first data interfaces with declarative configuration, embedded scripting, and pluggable authentication.",
+  "description": "Agentic server framework: declarative agents, MCP tools, prompts, and resources with adapters, auth, caching, and observability.",
   "logo": {
     "light": "/assets/logo-light.svg",
     "dark": "/assets/logo-dark.svg"
@@ -28,10 +28,10 @@
   },
   "seo": {
     "metatags": {
-      "og:title": "Hyperterse — Declarative MCP framework.",
-      "twitter:title": "Hyperterse — Declarative MCP framework.",
-      "og:description": "Production grade MCP tools that scale. Build declarative, deploy-ready AI tooling. No glue code.",
-      "twitter:description": "Production grade MCP tools that scale. Build declarative, deploy-ready AI tooling. No glue code.",
+      "og:title": "Hyperterse — Agentic server framework.",
+      "twitter:title": "Hyperterse — Agentic server framework.",
+      "og:description": "One build for agents, tools, prompts, resources, data planes, auth, cache, and telemetry—MCP and A2A from a single engine.",
+      "twitter:description": "One build for agents, tools, prompts, resources, data planes, auth, cache, and telemetry—MCP and A2A from a single engine.",
       "og:image": "assets/og.png"
     }
   },
@@ -47,21 +47,14 @@
             "pages": ["introduction", "installation", "quickstart"]
           },
           {
-            "group": "Core concepts",
-            "icon": "brain",
-            "pages": [
-              "concepts/project-structure",
-              "concepts/adapters",
-              "concepts/tools",
-              "concepts/prompts",
-              "concepts/resources",
-              "concepts/scripts",
-              "concepts/authentication"
-            ]
+            "group": "Foundation",
+            "icon": "layout",
+            "pages": ["concepts/project-structure", "concepts/authentication"]
           },
           {
             "group": "Agents",
             "icon": "robot",
+            "tag": "NEW",
             "pages": [
               "agents/overview",
               "agents/quickstart",
@@ -71,10 +64,26 @@
             ]
           },
           {
+            "group": "Tools",
+            "icon": "hammer",
+            "pages": ["concepts/tools", "concepts/scripts", "concepts/adapters"]
+          },
+          {
+            "group": "Resources",
+            "icon": "files",
+            "pages": ["concepts/resources"]
+          },
+          {
+            "group": "Prompts",
+            "icon": "message",
+            "pages": ["concepts/prompts"]
+          },
+          {
             "group": "Runtime",
             "icon": "run",
             "pages": [
               "runtime/mcp-transport",
+              "runtime/a2a-transport",
               "runtime/execution-pipeline",
               "runtime/caching",
               "runtime/observability"
@@ -124,11 +133,6 @@
             "group": "Security",
             "icon": "shield-half",
             "pages": ["security/input-safety", "security/production-hardening"]
-          },
-          {
-            "group": "Migration",
-            "icon": "arrow-right",
-            "pages": ["migration/v1-to-v2"]
           }
         ]
       },

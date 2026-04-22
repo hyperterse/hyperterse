@@ -3,7 +3,7 @@ title: Tool access
 description: Practical playbooks for choosing and rolling out agent tool permissions.
 ---
 
-This page focuses on **how to choose and roll out** tool permissions for agents safely.
+This page focuses on how to choose and roll out tool permissions for agents safely.
 For exact field definitions, schema constraints, and every option, use
 [Agent configuration reference](/reference/agent-config).
 
@@ -127,8 +127,7 @@ This often hides prompt/tool routing problems until late.
 
 ### Mistake: setting `allow_list` but forgetting one tool
 
-Compilation catches unknown tools and missing lists, but runtime behavior can still
-be confusing without tests.
+The build catches unknown tools and bad lists, but live behavior is still easier to reason about with tests.
 
 ### Mistake: treating this page as schema docs
 

@@ -1,7 +1,7 @@
 <!-- Start of - Dont change this block -->
 <div align="center">
   <picture>
-    <img alt="Hyperterse - connect your data to your agents." src="docs/assets/og.png" />
+    <img alt="Hyperterse — The agentic server framework." src="docs/assets/og.png" />
   </picture>
 </div>
 <br />
@@ -9,7 +9,7 @@
   <h1>Hyperterse</h1>
 </div>
 <p align="center">
-  <strong>The declarative framework for performant MCP servers.</strong><br />
+  <strong>The agentic server framework.</strong><br />
   <a href="https://hyperterse.com">Website</a>
   •
   <a href="https://docs.hyperterse.com">Documentation</a>
@@ -25,21 +25,30 @@
 
 <!-- End of - Dont change this block -->
 
-Hyperterse is a **tool-first MCP framework** for building AI-ready backend surfaces from declarative config.
+**Hyperterse** is an **agentic server framework**: one build ships **agents** (A2A), **tools** (MCP), **prompts**, **resources**, database adapters, auth, caching, and observability from a single process. You declare surfaces in config; the compiler validates and bundles them. Clients use [MCP](https://modelcontextprotocol.io/) Streamable HTTP at `/mcp` for tools, prompts, and resources; [A2A](https://github.com/a2aproject/a2a-go)-style agent routes live at `/agent/{name}` when you define agents.
 
-You define tools and adapters in the filesystem, and Hyperterse handles compile-time validation, script bundling, runtime execution, auth, caching, and observability.
+## Where to start
+
+- **Agents** — Declarative agents and A2A: [Agents overview](https://docs.hyperterse.com/agents/overview), [Agents quickstart](https://docs.hyperterse.com/agents/quickstart).
+- **Tools** — Callable MCP tools (DB or scripts): [Tools](https://docs.hyperterse.com/concepts/tools), [Scripts](https://docs.hyperterse.com/concepts/scripts), [Adapters](https://docs.hyperterse.com/concepts/adapters).
+- **Resources** — Static context for clients: [Resources](https://docs.hyperterse.com/concepts/resources).
+- **Prompts** — Reusable prompt templates: [Prompts](https://docs.hyperterse.com/concepts/prompts).
+
+The [Quickstart](https://docs.hyperterse.com/quickstart) walks through install, scaffold, and run, then optional MCP tool checks.
 
 ## What Hyperterse is for
 
-- Exposing database queries and custom logic as MCP tools
-- Running a production MCP server over Streamable HTTP
-- Keeping tool definitions declarative while still supporting TypeScript handlers/transforms
+- Running **agents** alongside **MCP tools**, **prompts**, and **resources** in one deployable service
+- Exposing database queries and custom logic as MCP tools with declarative config
+- Production **Streamable HTTP** for MCP and **A2A** routes for agents
+- TypeScript handlers and transforms where config alone is not enough
 
 ## Core capabilities
 
-- **Filesystem discovery**: each `app/tools/*/config.terse` becomes one project tool.
+- **Agents**: declarative configs, tool-access policies, multi-provider models, per-agent A2A HTTP.
+- **Filesystem discovery**: one MCP tool per tool definition; prompts and resources follow the same discover-and-compile model (see [Project structure](https://docs.hyperterse.com/concepts/project-structure)).
 - **Execution models**: DB-backed tools (`use` + `statement`) or script-backed tools (`handler`).
-- **Database adapters**: PostgreSQL, MySQL, MongoDB, Redis.
+- **Database adapters**: PostgreSQL, MySQL, SQLite, MongoDB, Redis.
 - **Per-tool auth**: built-in `allow_all` and `api_key`, plus custom plugins.
 - **In-memory caching**: global defaults + per-tool overrides.
 - **Observability**: OpenTelemetry tracing/metrics + structured logging.
@@ -100,7 +109,7 @@ Expected response:
 { "success": true }
 ```
 
-### 5) List MCP entry tools
+### Optional: list MCP tools
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -117,7 +126,7 @@ By design, Hyperterse exposes two transport-layer tools:
 - `search` - discover project tools by natural language
 - `execute` - execute a project tool by name
 
-### 6) Discover project tools
+### Optional: discover project tools (search)
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -247,7 +256,9 @@ Each tool must define exactly one execution mode:
 
 ## Runtime model
 
-All MCP interaction happens through Streamable HTTP at `/mcp` (JSON-RPC 2.0), including tools, prompts, resources, completion, and subscriptions.
+**MCP** — Streamable HTTP at `/mcp` (JSON-RPC 2.0): tools, prompts, resources, completion, subscriptions. See [MCP transport](https://docs.hyperterse.com/runtime/mcp-transport).
+
+**A2A** — JSON-RPC per agent at `/agent/{agentName}` (agent card, messaging, tasks, streaming). See [A2A transport](https://docs.hyperterse.com/runtime/a2a-transport) and [Agents](https://docs.hyperterse.com/agents/overview).
 
 Execution pipeline:
 
@@ -289,16 +300,16 @@ Text content for tool results is supported; image, audio, and resource links are
 - [Introduction](https://docs.hyperterse.com/introduction)
 - [Quickstart](https://docs.hyperterse.com/quickstart)
 - [Project structure](https://docs.hyperterse.com/concepts/project-structure)
-- [Tools](https://docs.hyperterse.com/concepts/tools)
-- [Prompts](https://docs.hyperterse.com/concepts/prompts)
-- [Resources](https://docs.hyperterse.com/concepts/resources)
-- [Adapters](https://docs.hyperterse.com/concepts/adapters)
-- [Scripts](https://docs.hyperterse.com/concepts/scripts)
+- **Agents** — [Overview](https://docs.hyperterse.com/agents/overview), [Agents quickstart](https://docs.hyperterse.com/agents/quickstart), [Tool access](https://docs.hyperterse.com/agents/tool-access), [Runtime API](https://docs.hyperterse.com/agents/runtime-api), [Model providers](https://docs.hyperterse.com/agents/model-providers)
+- **Tools** — [Tools](https://docs.hyperterse.com/concepts/tools), [Scripts](https://docs.hyperterse.com/concepts/scripts), [Adapters](https://docs.hyperterse.com/concepts/adapters)
+- **Resources** — [Resources](https://docs.hyperterse.com/concepts/resources)
+- **Prompts** — [Prompts](https://docs.hyperterse.com/concepts/prompts)
+- [Authentication](https://docs.hyperterse.com/concepts/authentication)
 - [MCP transport](https://docs.hyperterse.com/runtime/mcp-transport)
+- [A2A transport](https://docs.hyperterse.com/runtime/a2a-transport)
 - [Execution pipeline](https://docs.hyperterse.com/runtime/execution-pipeline)
 - [CLI reference](https://docs.hyperterse.com/reference/cli)
-- [Prompt config reference](https://docs.hyperterse.com/reference/prompt-config)
-- [Resource config reference](https://docs.hyperterse.com/reference/resource-config)
+- [Agent config](https://docs.hyperterse.com/reference/agent-config), [Prompt config](https://docs.hyperterse.com/reference/prompt-config), [Resource config](https://docs.hyperterse.com/reference/resource-config)
 - [Configuration schemas](https://docs.hyperterse.com/reference/configuration-schemas)
 
 ## Contributing
@@ -314,7 +325,7 @@ See `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
 ---
 
 <p align="center">
-  The declarative framework for performant MCP servers.<br />
+  Agentic server framework—agents, tools, prompts, resources, one engine.<br />
   <a href="https://hyperterse.com">Website</a>
   •
   <a href="https://github.com/hyperterse/hyperterse">GitHub</a>

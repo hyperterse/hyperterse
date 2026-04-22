@@ -36,7 +36,7 @@ cache:
 <ParamField body="name" type="string">
   MCP tool name. Must be unique across all tools.
 
-**Default:** directory name (e.g., `get-user` from `app/tools/get-user/`).
+Default: directory name (e.g., `get-user` from `app/tools/get-user/`).
 
 </ParamField>
 
@@ -186,7 +186,7 @@ A tool is valid when exactly one of these conditions is met:
 
 ## Runtime mapping
 
-- Tool configs are compiled into project tool definitions at startup/reload.
+- Tool configs become live tool definitions when the server starts or reloads.
 - Project tools are discoverable via MCP `tools/call` on `search` (ranked metadata results).
 - Project tools execute via MCP `tools/call` on `execute` with:
   - `tool` = resolved tool name

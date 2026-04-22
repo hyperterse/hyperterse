@@ -26,7 +26,7 @@ Browser → Vercel Edge → API Handler → Hyperterse Server → Database
 
 <Steps>
   <Step title="Set the Hyperterse URL as an environment variable">
-    In the Vercel dashboard, go to **Settings > Environment Variables** and add:
+    In the Vercel dashboard, go to Settings → Environment Variables and add:
 
     ```
     HYPERTERSE_URL=https://your-hyperterse-deployment.example.com
@@ -85,6 +85,6 @@ Add this to your `vercel.json`. Vercel forwards matching requests to your Hypert
 
 ## Considerations
 
-- **Latency**: Place your Hyperterse server in the same region as your primary user base to minimize round-trip time.
-- **Authentication**: Add authentication in your API handler or Vercel middleware before forwarding requests to Hyperterse.
-- **Timeouts**: Vercel serverless functions have execution time limits. For long-running tool calls, ensure your Hyperterse queries complete within the Vercel timeout window, or use streaming responses.
+- Latency: Place your Hyperterse server in the same region as your primary user base to minimize round-trip time.
+- Authentication: Add authentication in your API handler or Vercel middleware before forwarding requests to Hyperterse.
+- Timeouts: Vercel serverless functions have execution time limits. For long-running tool calls, ensure your Hyperterse queries complete within the Vercel timeout window, or use streaming responses.

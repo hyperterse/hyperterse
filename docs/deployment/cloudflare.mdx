@@ -80,7 +80,7 @@ Cloudflare Tunnel creates a secure, outbound-only connection from your server to
 
 ## DNS proxy
 
-If your Hyperterse server already has a public IP, use Cloudflare as a reverse proxy by adding an A or CNAME record with proxy enabled (orange cloud). Set SSL/TLS mode to **Full (strict)**.
+If your Hyperterse server already has a public IP, use Cloudflare as a reverse proxy by adding an A or CNAME record with proxy enabled (orange cloud). Set SSL/TLS mode to Full (strict).
 
 ## Caching
 
@@ -93,7 +93,7 @@ Configure Cloudflare to cache read-heavy endpoints like `/heartbeat` while bypas
 
 Cloudflare provides several layers of protection:
 
-- **WAF**: Enable managed rulesets under Security > WAF
-- **Rate limiting**: Create rules to limit requests to `/mcp` (e.g., 100 requests per minute per IP)
-- **Bot management**: Enable Bot Fight Mode to block automated abuse
-- **DDoS protection**: Enabled automatically on all plans
+- WAF: Enable managed rulesets under Security > WAF
+- Rate limiting: Create rules to limit requests to `/mcp` (e.g., 100 requests per minute per IP)
+- Bot management: Enable Bot Fight Mode to block automated abuse
+- DDoS protection: Enabled automatically on all plans

@@ -20,7 +20,7 @@ auth:
     value: '{{ env.ROUTE_API_KEY }}'
 ```
 
-**Audit checklist:**
+Audit checklist:
 
 - Review all `app/tools/*/config.terse` files for missing `auth` blocks.
 - `allow_all` should only appear on health checks and intentionally public tools.
@@ -42,25 +42,25 @@ Hyperterse listens on plain HTTP. Encryption and access control belong to the in
 
 Hyperterse does not terminate TLS natively. Deploy behind a reverse proxy:
 
-- **Nginx** — `proxy_pass` to `http://localhost:8080`.
-- **Caddy** — Automatic HTTPS with Let's Encrypt.
-- **AWS ALB / GCP LB** — Managed TLS.
-- **Kubernetes Ingress** — cert-manager or cloud provider integration.
+- Nginx — `proxy_pass` to `http://localhost:8080`.
+- Caddy — automatic HTTPS with Let's Encrypt.
+- AWS ALB / GCP LB — managed TLS.
+- Kubernetes Ingress — cert-manager or cloud provider integration.
 
 ### CORS
 
-The runtime applies permissive CORS by default. For production:
+Hyperterse applies permissive CORS by default. For production:
 
 1. Deploy behind a reverse proxy.
 2. Configure restrictive CORS at the proxy.
-3. Restrict the runtime's built-in CORS to your domain.
+3. Restrict built-in CORS to your domain.
 
 ### Network segmentation
 
-- Place the runtime in a private network segment.
+- Place Hyperterse in a private network segment.
 - Restrict inbound traffic to the reverse proxy only.
 - Restrict outbound to database hosts and external APIs used by handlers.
-- Block direct internet access to the runtime port.
+- Block direct internet access to the Hyperterse listen port.
 
 ## Logging hygiene
 
@@ -155,9 +155,9 @@ Use a sidecar or init container to fetch from AWS Secrets Manager, Vault, etc. S
 
 No built-in rate limiting. Implement at the infrastructure layer:
 
-- **Reverse proxy** — Nginx `limit_req`, Caddy `rate_limit`, Envoy rate limit filter.
-- **API gateway** — AWS API Gateway, Kong, Traefik.
-- **Cloud provider** — Cloud Armor, AWS WAF, Azure Front Door.
+- Reverse proxy — Nginx `limit_req`, Caddy `rate_limit`, Envoy rate limit filter.
+- API gateway — AWS API Gateway, Kong, Traefik.
+- Cloud provider — Cloud Armor, AWS WAF, Azure Front Door.
 
 Apply to `/mcp`, which handles all tool invocations.
 
@@ -196,7 +196,7 @@ auth:
 - [ ] CORS restricted to application domain.
 - [ ] Log level at 2 or 3.
 - [ ] Container runs as non-root.
-- [ ] Runtime port not exposed to public internet.
+- [ ] Hyperterse listen port not exposed to the public internet.
 - [ ] Rate limiting at infrastructure layer.
 - [ ] Health and readiness probes configured.
 - [ ] Observability enabled.

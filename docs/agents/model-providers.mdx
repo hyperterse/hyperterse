@@ -7,24 +7,24 @@ Hyperterse resolves model providers per agent from `model.provider`, `model.mode
 
 ## Provider matrix
 
-| Provider value                | Runtime target                                 |
+| Provider value                | Backend                                        |
 | ----------------------------- | ---------------------------------------------- |
 | `gemini`, `google_ai_studio`  | Gemini via Google AI Studio                    |
 | `vertex`, `vertex_ai`         | Gemini via Vertex AI                           |
 | `openai_compatible`, `openai` | OpenAI-compatible `/chat/completions` endpoint |
 
-Provider values are normalized at runtime (lowercased; `-` converted to `_`).
+When an agent loads, Hyperterse normalizes provider values (lowercased; `-` becomes `_`).
 
 ## Option keys and env behavior
 
 | Key        | Used by                           | Behavior / fallback                                                                                                     |
 | ---------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `api_key`  | Gemini, Vertex, OpenAI-compatible | Inline key value. Supports `{{ env.VAR_NAME }}` substitution. If unset, runtime falls back to provider default env var. |
+| `api_key`  | Gemini, Vertex, OpenAI-compatible | Inline key value. Supports `{{ env.VAR_NAME }}` substitution. If unset, Hyperterse falls back to each provider's default env var. |
 | `base_url` | OpenAI-compatible                 | Base URL; defaults to `https://api.openai.com/v1` when unset.                                                           |
 | `project`  | Vertex                            | Vertex project id; fallback `GOOGLE_CLOUD_PROJECT`.                                                                     |
 | `location` | Vertex                            | Vertex location; fallback `GOOGLE_CLOUD_LOCATION`, then `GOOGLE_CLOUD_REGION`.                                          |
 
-Model option string values support `{{ env.VAR_NAME }}` substitution at runtime model initialization.
+Model option string values support `{{ env.VAR_NAME }}` substitution when the agent model is initialized.
 
 ## Gemini (Google AI Studio)
 
@@ -105,7 +105,7 @@ gateway in front first.
 
 #### Accepted provider identifiers
 
-After normalization (lowercase, with `-` converted to `_`), runtime accepts:
+After normalization (lowercase, with `-` converted to `_`), Hyperterse accepts:
 
 - `openai_compatible` (canonical)
 - `openai` (alias)

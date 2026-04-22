@@ -14,7 +14,7 @@ Every `tools/call` request passes through a deterministic pipeline. The stages a
 
 ## Tool resolution
 
-The runtime matches the tool name from the `tools/call` request to a compiled tool definition loaded at startup.
+Hyperterse matches the tool name from `tools/call` to the tool definition it loaded for that server run.
 
 If no tool matches, a JSON-RPC error is returned with code `-32601`.
 
@@ -22,15 +22,15 @@ If no tool matches, a JSON-RPC error is returned with code `-32601`.
 
 If the tool defines an `auth` block, the configured plugin is invoked with the request context and policy parameters.
 
-- Plugin returns `nil`: authentication passes, pipeline continues.
-- Plugin returns an error: pipeline halts, error returned to caller.
+- Plugin returns `nil`: authentication passes; the request continues.
+- Plugin returns an error: the request stops; the error goes back to the caller.
 - No `auth` block: stage is skipped entirely.
 
 ## Input transform
 
 If `mappers.input` is configured or discovered by convention, the mapper script's `export default` function executes in the embedded runtime.
 
-**Payload:**
+Payload:
 
 ```json
 {
@@ -39,7 +39,7 @@ If `mappers.input` is configured or discovered by convention, the mapper script'
 }
 ```
 
-The returned object replaces the inputs for all subsequent stages. Throwing an error aborts the pipeline.
+The returned object replaces the inputs for all subsequent stages. Throwing an error stops processing.
 
 If no input transform is configured, inputs pass through unchanged.
 
@@ -55,18 +55,18 @@ When `handler` is configured, the handler script's `export default` function exe
 
 When `use` and `statement` are configured, the executor runs six substeps:
 
-1. **Input validation.** Validate all declared inputs against type definitions. Missing required inputs and type mismatches produce errors.
-2. **Environment substitution.** Resolve `{{ env.VAR }}` placeholders. Missing variables produce errors.
-3. **Input substitution.** Replace `{{ inputs.field }}` placeholders with post-transform values. Substitution is textual.
-4. **Cache check.** If caching is enabled, compute the cache key from tool name + statement hash. On hit, return cached result and skip connector execution.
-5. **Connector execution.** Execute the statement against the configured connector and return row/object results.
-6. **Cache store.** On miss, store the result with the configured TTL.
+1. Input validation — validate all declared inputs against type definitions. Missing required inputs and type mismatches produce errors.
+2. Environment substitution — resolve `{{ env.VAR }}` placeholders. Missing variables produce errors.
+3. Input substitution — replace `{{ inputs.field }}` placeholders with post-transform values. Substitution is textual.
+4. Cache check — if caching is enabled, compute the cache key from tool name + statement hash. On hit, return cached result and skip connector execution.
+5. Connector execution — run the statement against the configured connector and return row/object results.
+6. Cache store — on miss, store the result with the configured TTL.
 
 ## Output transform
 
 If `mappers.output` is configured or discovered by convention, the mapper script's `export default` function executes in the embedded runtime.
 
-**Payload:**
+Payload:
 
 ```json
 {
@@ -75,7 +75,7 @@ If `mappers.output` is configured or discovered by convention, the mapper script
 }
 ```
 
-The returned value replaces the result for response serialization. Throwing an error aborts the pipeline.
+The returned value replaces the result for response serialization. Throwing an error stops processing.
 
 If no output transform is configured, the raw result is used directly.
 

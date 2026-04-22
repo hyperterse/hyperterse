@@ -1,64 +1,66 @@
 ---
 title: Quickstart
-description: Scaffold a Hyperterse project, define a tool, and invoke it through MCP in under five minutes.
+description: The agentic server framework—docs entry points, install, run, optional MCP checks.
 ---
 
-This guide takes you from an empty directory to a running MCP tool server. By the end, you will have a script-backed hello-world tool responding to `tools/call` requests.
+Hyperterse is an agentic server framework: one project can ship agents, tools, prompts, and resources together—plus databases, auth, caching, and observability—in one process.
 
-## Scaffold a project
+MCP is how most clients list and call tools, read resources, and fetch prompts. When you add agents, they get their own HTTP routes (A2A-style), separate from MCP. You do not need both on day one; add surfaces as your product grows.
+
+## Where to start
+
+<CardGroup cols={2}>
+  <Card
+    title="Agents"
+    icon="robot"
+    href="/agents/overview"
+  >
+    Long-running agents with models, permissions over tools, and standard agent HTTP—without wiring a second server.
+  </Card>
+  <Card
+    title="Tools"
+    icon="hammer"
+    href="/concepts/tools"
+  >
+    Actions exposed to MCP: queries, APIs, or scripts, with validation and auth in one declarative layer.
+  </Card>
+  <Card
+    title="Resources"
+    icon="files"
+    href="/concepts/resources"
+  >
+    Read-only context clients can pull in—static text, files, or parameterized templates.
+  </Card>
+  <Card
+    title="Prompts"
+    icon="message"
+    href="/concepts/prompts"
+  >
+    Reusable prompt templates with arguments and client-side completion hints.
+  </Card>
+</CardGroup>
+
+[Project structure](/concepts/project-structure) — layout and discovery.
+
+## Baseline: install and run
+
+### Install the CLI
+
+```bash
+curl -fsSL https://hyperterse.com/install | bash
+```
+
+[Installation](/installation) — package managers and verification.
+
+### Scaffold a project
 
 ```bash
 hyperterse init
 ```
 
-This generates the starter structure:
+You get a root config, a sample tool, and starter agent-skills helpers. The exact tree depends on the template.
 
-<Tree>
-  <Tree.File name=".hyperterse" />
-  <Tree.Folder
-    name=".agents"
-    defaultOpen
-  >
-    <Tree.Folder
-      name="skills"
-      defaultOpen
-    >
-      <Tree.Folder
-        name="hyperterse-docs"
-        defaultOpen
-      >
-        <Tree.File name="SKILL.md" />
-      </Tree.Folder>
-      <Tree.Folder
-        name="hyperterse-agents"
-        defaultOpen
-      >
-        <Tree.File name="SKILL.md" />
-      </Tree.Folder>
-    </Tree.Folder>
-  </Tree.Folder>
-  <Tree.Folder
-    name="app"
-    defaultOpen
-  >
-    <Tree.Folder
-      name="tools"
-      defaultOpen
-    >
-      <Tree.Folder
-        name="hello-world"
-        defaultOpen
-      >
-        <Tree.File name="config.terse" />
-        <Tree.File name="handler.ts" />
-      </Tree.Folder>
-    </Tree.Folder>
-  </Tree.Folder>
-</Tree>
-
-`.hyperterse` is the root service configuration. `app/tools/hello-world/` contains a script-backed tool. `.agents/skills/` contains [Agent Skills](https://agentskills.io/home)-compliant starter skills: `hyperterse-docs` (docs lookup) and `hyperterse-agents` (agent creation workflow). Add `app/adapters/` when you need database connections.
-
-## Review the root configuration
+### Review the root configuration
 
 Open `.hyperterse`:
 
@@ -69,25 +71,21 @@ server:
   log_level: 3
 ```
 
-`name` identifies the service. `server.port` sets the TCP port. `server.log_level` controls verbosity: 1 = error, 2 = warn, 3 = info, 4 = debug.
+`name` is the service id. `server.port` is the HTTP port. `server.log_level` is verbosity: 1 errors only, 2 warnings, 3 info, 4 debug.
 
-This is the entire root config. Adapters and tools live in the `app/` directory — the root config handles service-level settings only.
-
-## Start the server
+### Start the server
 
 ```bash
 hyperterse start
 ```
 
-The CLI loads `.hyperterse` from the current directory, discovers adapters and tools under `app/`, compiles tool definitions, bundles any TypeScript scripts, and starts the MCP server.
-
-For automatic restarts on file changes during development:
+The CLI loads your config, validates the project, packages TypeScript tools when needed, and serves MCP. For reload on save while developing:
 
 ```bash
 hyperterse start --watch
 ```
 
-## Verify the server is running
+### Verify the server is running
 
 ```bash
 curl http://localhost:8080/heartbeat
@@ -97,9 +95,13 @@ curl http://localhost:8080/heartbeat
 { "success": true }
 ```
 
-The `/heartbeat` endpoint confirms the HTTP server is accepting connections. It does not check connector health.
+This only proves HTTP is up—not that a database or model provider is healthy.
 
-## List registered tools
+## Optional: verify MCP tools
+
+The template includes a hello-world tool.
+
+### List registered tools
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -111,11 +113,11 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
-The response contains a `tools` array with one entry per compiled tool. Each tool includes its name, description, and a JSON Schema describing its input parameters.
+You should see each tool’s name, description, and input schema.
 
-## Inspect the scaffolded tool
+### Inspect the sample tool
 
-Open `app/tools/hello-world/config.terse`:
+Open the hello-world tool’s `config.terse` next to its handler.
 
 ```yaml
 description: 'Hello world tool'
@@ -128,11 +130,7 @@ auth:
   plugin: allow_all
 ```
 
-This is a script-backed tool — no adapter required. The handler returns a greeting. Add `app/adapters/` and DB-backed tools when you need database connections.
-
-## Test the tool
-
-Call the scaffolded tool:
+### Call the tool
 
 ```bash
 curl -s -X POST http://localhost:8080/mcp \
@@ -148,19 +146,17 @@ curl -s -X POST http://localhost:8080/mcp \
   }' | jq
 ```
 
-## Validate before deploying
+### Validate before deploying
 
 ```bash
 hyperterse validate
 ```
 
-Validation catches errors before they reach production: missing adapter fields, invalid input types, unresolvable script paths, and bundle compilation failures. A zero exit code means the project is structurally sound.
+This catches bad config, missing adapters, schema mistakes, and script packaging errors before you ship.
 
 ## Next steps
 
-- [Project structure](/concepts/project-structure) — Filesystem conventions and discovery rules.
-- [Adapters](/concepts/adapters) — Connector configuration for each supported database.
-- [Tools](/concepts/tools) — DB-backed and script-backed tool definitions.
-- [Quickstart (agents)](/agents/quickstart) — Add declarative ADK-backed agents on top of your tools.
-- [Scripts](/concepts/scripts) — TypeScript handler and transform contracts.
-- [CLI reference](/reference/cli) — Complete command and flag documentation.
+- [Project structure](/concepts/project-structure) — How discovery and layout work.
+- [MCP transport](/runtime/mcp-transport) — How Streamable HTTP and JSON-RPC fit together.
+- [Agents overview](/agents/overview) — When to use agent routes vs MCP alone.
+- [CLI reference](/reference/cli) — Commands and flags.

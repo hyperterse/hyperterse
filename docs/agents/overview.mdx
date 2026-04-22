@@ -3,56 +3,44 @@ title: Overview
 description: How declarative agents fit into Hyperterse and how to navigate the agent guides.
 ---
 
-Hyperterse agents are declarative A2A runtimes discovered from your project
-filesystem, just like tools. You define agent behavior in config files,
-Hyperterse compiles and validates them, then mounts each agent behind a
-dedicated HTTP route prefix.
+Hyperterse agents are declarative A2A workloads you define next to tools. You describe behavior in config; Hyperterse validates it and serves each agent on its own HTTP prefix—no separate agent service required.
 
 ## What you get
 
-- **Declarative agent discovery** from `app/agents/**/config.terse`
-- **Compile-time permission checks** for tool access policies
-- **Per-agent A2A endpoints** for agent card, JSON-RPC, streaming, tasks, and
-  push config
-- **Multi-provider model config** for Gemini, Vertex AI, and OpenAI-compatible backends
+- Declarative setup — agents are config-first, like tools
+- Up-front permission checks for which tools an agent may call
+- Per-agent HTTP — agent card, JSON-RPC, streaming, tasks, and push settings
+- Multi-provider models — Gemini, Vertex AI, and OpenAI-compatible APIs
 
 ## How the system fits together
 
-```text
-.hyperterse
-app/
-  tools/
-    get-orders/config.terse
-  agents/
-    support/config.terse
-```
+Tools and agents live in the same project. When you build or start the server, Hyperterse loads both, applies tool-access policy, and exposes MCP for tool-style calls and per-agent routes when you want conversational or task-style behavior.
 
-1. Compiler discovers tools and agents.
+Rough flow:
+
+1. Hyperterse discovers tools and agents from your project.
 2. Tool access policy is resolved (`inherit` / `allow_*`).
-3. Agent definitions are compiled into runtime model.
-4. Runtime mounts A2A endpoints under `/agent/{agentName}`.
+3. Agent definitions are ready to serve.
+4. A2A endpoints are available under `/agent/{agentName}`.
 
 ## Endpoint shape per agent
 
-Every compiled agent gets:
+Each agent gets:
 
 - `GET /agent/{agentName}/.well-known/agent-card.json`
 - `POST /agent/{agentName}`
 
 <Tip>
-  Agent endpoints are separate from MCP `/mcp`. Use MCP for tool-native
-  workflows, and use `/agent/*` when you need A2A agent behavior.
+  Agent routes are separate from MCP `/mcp`. Use MCP when the client is
+  tool-centric; use `/agent/*` when you need agent protocol behavior.
 </Tip>
 
 ## Reading path
 
-Use this order for fastest onboarding:
-
 1. [Quickstart](/agents/quickstart) — create and run your first agent.
 2. [Tool access](/agents/tool-access) — lock down permissions correctly.
-3. [Runtime API](/agents/runtime-api) — understand A2A v1 methods and result
-   shapes.
-4. [Model providers](/agents/model-providers) — configure provider-specific models.
+3. [Runtime API](/agents/runtime-api) — A2A methods and response shapes.
+4. [Model providers](/agents/model-providers) — provider-specific setup.
 
 ## References
 

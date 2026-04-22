@@ -18,7 +18,7 @@ hyperterse [command] [flags]
 
 ## `hyperterse start`
 
-Parse config, compile the project, bundle scripts, initialize connectors, and start the HTTP/MCP server.
+Read config, validate the project, package tool scripts, open database connections, and start the HTTP server (MCP and optional A2A routes).
 
 ```bash
 hyperterse start [path] [flags]
@@ -31,16 +31,16 @@ Without arguments, loads `.hyperterse` from the current directory. A positional 
 <ParamField body="--port" type="string" default="">
   Server port. Overrides config and `PORT` env var.
 
-**Short:** `-p`
+Short: `-p`
 
-**Resolution order:** `--port` → `server.port` → `PORT` env → `8080`
+Resolution order: `--port` → `server.port` → `PORT` env → `8080`
 
 </ParamField>
 
 <ParamField body="--log-level" type="integer" default="0">
   Log verbosity. `1` = error, `2` = warn, `3` = info, `4` = debug. Overrides config.
 
-**Resolution order:** `--verbose` (4) → `--log-level` → `server.log_level` → `3`
+Resolution order: `--verbose` (4) → `--log-level` → `server.log_level` → `3`
 
 </ParamField>
 
@@ -55,7 +55,7 @@ Without arguments, loads `.hyperterse` from the current directory. A positional 
 <ParamField body="--source" type="string" default="">
   Configuration as an inline YAML string instead of reading from a file.
 
-**Short:** `-s`
+Short: `-s`
 
 </ParamField>
 
@@ -108,7 +108,7 @@ Without arguments, searches for `model.bin` in the current directory. A position
 <ParamField body="--port" type="string" default="">
   Server port. Overrides the value embedded in the manifest and `PORT` env var.
 
-**Short:** `-p`
+Short: `-p`
 
 </ParamField>
 
@@ -166,7 +166,7 @@ Without arguments, loads `.hyperterse` from the current directory.
 <ParamField body="--out" type="string" default="dist">
   Output directory for build artifacts.
 
-**Short:** `-o`
+Short: `-o`
 
 </ParamField>
 
@@ -228,7 +228,7 @@ hyperterse build path/to/project -o dist
 
 ## `hyperterse validate`
 
-Check configuration and project structure without starting the runtime.
+Check configuration and project structure without starting the server.
 
 ```bash
 hyperterse validate [path] [flags]
@@ -239,7 +239,7 @@ hyperterse validate [path] [flags]
 <ParamField body="--source" type="string" default="">
   Configuration as an inline YAML string instead of reading from a file.
 
-**Short:** `-s`
+Short: `-s`
 
 </ParamField>
 

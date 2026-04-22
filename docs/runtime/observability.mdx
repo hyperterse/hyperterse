@@ -3,11 +3,11 @@ title: Observability
 description: OpenTelemetry tracing and metrics, structured logging, attribute redaction, and collector integration.
 ---
 
-Hyperterse integrates with OpenTelemetry for distributed tracing and metrics. The observability subsystem instruments the execution pipeline, connector lifecycle, and MCP transport. Structured logging provides operational visibility at every level.
+Hyperterse integrates with OpenTelemetry for distributed tracing and metrics. Tracing covers the execution path, database connectors, and MCP traffic. Structured logging provides operational visibility at every level.
 
 ## Tracing
 
-When enabled, the runtime creates spans for each stage of tool execution:
+When tracing is on, Hyperterse records spans for each stage of tool execution:
 
 | Span                     | Attributes                                   |
 | ------------------------ | -------------------------------------------- |
@@ -36,11 +36,11 @@ Metrics export through the configured OpenTelemetry meter provider.
 
 Hyperterse uses a tagged structured logger with the following fields:
 
-- **Timestamp** — ISO 8601.
-- **Level** — ERROR (1), WARN (2), INFO (3), DEBUG (4).
-- **Tag** — Component identifier: `runtime`, `executor`, `connector`, `mcp`, `auth`.
-- **Message** — Descriptive text.
-- **Fields** — Structured key-value pairs (tool name, adapter, duration, error details).
+- Timestamp — ISO 8601.
+- Level — ERROR (1), WARN (2), INFO (3), DEBUG (4).
+- Tag — component identifier: `runtime`, `executor`, `connector`, `mcp`, `auth`.
+- Message — descriptive text.
+- Fields — structured key-value pairs (tool name, adapter, duration, error details).
 
 ### Log levels
 
@@ -62,11 +62,11 @@ Configure via `server.log_level` in `.hyperterse`, or `--log-level` / `--verbose
 
 ## Attribute redaction
 
-The observability subsystem redacts sensitive values before export:
+Sensitive values are redacted before export:
 
-- **Connection strings** — Replaced with `[REDACTED]` in trace spans.
-- **API keys** — Auth policy values excluded from trace attributes.
-- **Statement parameters** — Input values in substituted statements logged at debug level only.
+- Connection strings — replaced with `[REDACTED]` in trace spans.
+- API keys — auth policy values excluded from trace attributes.
+- Statement parameters — input values in substituted statements logged at debug level only.
 
 Redaction is applied at the observability contract layer, not per-exporter.
 

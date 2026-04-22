@@ -3,7 +3,7 @@ title: Scripts
 description: TypeScript handlers and transforms that extend tool behavior beyond configuration.
 ---
 
-Scripts extend tool behavior beyond what configuration can express. A handler script replaces database execution entirely. Transform scripts modify inputs before execution and results after. All three are TypeScript, bundled at compile time, and executed inside an embedded sandboxed runtime with no external dependencies.
+Scripts extend tool behavior beyond what configuration can express. A handler script replaces database execution entirely. Transform scripts modify inputs before execution and results after. All three are TypeScript: Hyperterse includes them when you build, then runs them in a sandboxed environment without extra runtimes on the host.
 
 ## Script hooks
 
@@ -27,7 +27,7 @@ mappers:
 ```
 
 Without `#exportName`, Hyperterse calls the script's `export default` function.  
-The function name itself is optional and ignored by the runtime.
+The function name itself is optional; Hyperterse does not use it.
 
 ## Handler
 
@@ -84,8 +84,8 @@ export default function outputTransform(payload: { results: any[]; tool: string 
 
 Scripts execute in a sandboxed runtime with two injected globals:
 
-- **`fetch(url, options?)`** — HTTP client for outbound requests. Returns `{ status, ok, text(), json() }`.
-- **`console`** — `log`, `error`, `warn`, `info`, `debug` — all wired to the framework's structured logger with the tool name as context.
+- `fetch(url, options?)` — HTTP client for outbound requests. Returns `{ status, ok, text(), json() }`.
+- `console` — `log`, `error`, `warn`, `info`, `debug` — wired to the structured logger with the tool name as context.
 
 Scripts cannot access the host filesystem, spawn processes, or open network sockets. `setTimeout` and `setInterval` are not available — use `async`/`await` instead.
 

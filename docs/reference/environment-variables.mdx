@@ -1,11 +1,11 @@
 ---
 title: Environment variables
-description: Environment variables used by the runtime, CLI, and configuration substitution system.
+description: Environment variables for the Hyperterse server, CLI, and `{{ env.* }}` substitution in config.
 ---
 
 ## Configuration substitution
 
-You can use `{{ env.VAR_NAME }}` placeholders in any string value across your configuration files. The runtime resolves these at startup.
+You can use `{{ env.VAR_NAME }}` placeholders in any string value across your configuration files. Hyperterse resolves these when the server starts.
 
 ### Supported locations
 
@@ -30,21 +30,21 @@ You can use `{{ env.VAR_NAME }}` placeholders in any string value across your co
 <ParamField body="PORT" type="integer" default="8080">
   Fallback port when not set via CLI flag or config.
 
-**Precedence:** `--port` flag → `server.port` config → `PORT` env → `8080`
+Precedence: `--port` flag → `server.port` config → `PORT` env → `8080`
 
 </ParamField>
 
 <ParamField body="HYPERTERSE_API_KEY" type="string">
   Fallback API key for the `api_key` auth plugin when `auth.policy.value` is not set on a tool.
 
-**Precedence:** `auth.policy.value` config → `HYPERTERSE_API_KEY` env
+Precedence: `auth.policy.value` config → `HYPERTERSE_API_KEY` env
 
 </ParamField>
 
 <ParamField body="HYPERTERSE_LOG_TAGS" type="string">
-  Comma-separated log tag filter. Limits which subsystem tags appear in output.
+  Comma-separated log tag filter. Limits which tags appear in log output.
 
-**Precedence:** `--log-tags` flag → `HYPERTERSE_LOG_TAGS` env
+Precedence: `--log-tags` flag → `HYPERTERSE_LOG_TAGS` env
 
 </ParamField>
 
@@ -63,7 +63,7 @@ These variables are used when resolving model configuration for declarative agen
 
 ### Agent model options and env substitution
 
-- `model.options` string values support `{{ env.VAR_NAME }}` substitution at runtime model initialization.
+- `model.options` string values support `{{ env.VAR_NAME }}` substitution when the agent model starts.
 - Missing variables referenced in `model.options` placeholders fail startup with a clear error.
 - This is in addition to provider-level fallback variables in the table above.
 
@@ -85,9 +85,9 @@ PORT=9090
 ## Security guidance
 
 <Warning>
-  **Do not commit `.env` to version control.** Add it to `.gitignore`.
+  Do not commit `.env` to version control. Add it to `.gitignore`.
 </Warning>
 
-- **Use `{{ env.VAR }}` for all credentials.** Connection strings, API keys, and tokens must reference environment variables — never hardcode secrets in `.terse` files.
-- **Rotation requires restart.** Environment variables resolve at startup. For zero-downtime rotation, use a secrets manager that updates the environment and signals a restart.
-- **Set production log level.** Debug logs may include substituted statement text. Use log level `2` (warn) or `3` (info) in production.
+- Use `{{ env.VAR }}` for all credentials. Connection strings, API keys, and tokens must reference environment variables — never hardcode secrets in `.terse` files.
+- Rotation requires restart. Environment variables resolve at startup. For zero-downtime rotation, use a secrets manager that updates the environment and signals a restart.
+- Set production log level. Debug logs may include substituted statement text. Use log level `2` (warn) or `3` (info) in production.

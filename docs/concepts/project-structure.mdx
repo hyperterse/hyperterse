@@ -3,7 +3,7 @@ title: Project structure
 description: Filesystem conventions and directory layout for Hyperterse projects.
 ---
 
-Hyperterse uses the filesystem as the source of truth. You define database connections, tools, prompts, and resources in role-based directories. File and directory names become identifiers. The framework discovers everything from project structure — you never register runtime entities manually.
+Hyperterse uses the filesystem as the source of truth. You define database connections, tools, prompts, and resources in role-based directories. File and directory names become identifiers. Hyperterse discovers everything from your project layout—you do not register tools or agents in code.
 
 ## Directory layout
 
@@ -91,13 +91,13 @@ When you run `hyperterse start` or `hyperterse build` without arguments, the CLI
 
 ## Adapter discovery
 
-The compiler scans `app/adapters/*.terse` at build time. Each file defines exactly one adapter. The filename (without extension) becomes the adapter's identifier, unless the file explicitly sets a `name` field.
+When you build or start the server, Hyperterse loads adapter definitions from `app/adapters/*.terse`. Each file defines one adapter. The filename (without extension) becomes the adapter's identifier, unless the file sets a `name` field.
 
 See [Adapters](/concepts/adapters) for how adapters work, and [Adapter configuration reference](/reference/adapter-config) for the field specification.
 
 ## Tool discovery
 
-The compiler scans `app/tools/*/config.terse` at build time. Each `config.terse` file defines one MCP tool. The directory name becomes the tool name, unless the file explicitly sets a `name` field.
+Hyperterse discovers tools from `app/tools/*/config.terse` when you build or start. Each `config.terse` defines one MCP tool. The directory name becomes the tool name unless the file sets `name`.
 
 Every tool must define either a database connection (`use`) or a handler script (`handler`). Tools with neither are rejected during validation.
 
@@ -105,19 +105,19 @@ See [Tools](/concepts/tools) for execution models, and [Tool configuration refer
 
 ## Prompt discovery
 
-The compiler scans `app/prompts/**/*.terse` at build time. Each file defines one MCP prompt. The filename becomes the prompt name unless an explicit `name` is set.
+Prompt definitions come from `app/prompts/**/*.terse`. Each file is one MCP prompt. The filename is the prompt name unless you set `name`.
 
 See [Prompts](/concepts/prompts) and [Prompt configuration reference](/reference/prompt-config).
 
 ## Resource discovery
 
-The compiler scans `app/resources/**/config.terse` at build time. Each resource folder defines one concrete resource (`uri`) or one resource template (`uri_template`), with optional content files colocated in the same folder.
+Resources are defined under `app/resources/**/config.terse`. Each folder is one concrete resource (`uri`) or one template (`uri_template`), with optional content files alongside.
 
 See [Resources](/concepts/resources) and [Resource configuration reference](/reference/resource-config).
 
 ## Agent discovery
 
-The compiler scans `app/agents/*/config.terse` at build time. Each `config.terse` file defines one ADK-backed runtime agent. The directory name becomes the agent name unless explicitly overridden by `name`.
+Agent definitions live in `app/agents/*/config.terse`. Each file is one declarative agent served over A2A. The directory name is the agent name unless you set `name`.
 
 Agent files define:
 

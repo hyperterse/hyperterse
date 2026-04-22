@@ -3,7 +3,9 @@ title: Runtime API
 description: Use Hyperterse A2A v1 endpoints mounted per agent.
 ---
 
-Each compiled agent is exposed behind its own route prefix:
+For how A2A fits next to MCP at runtime, see [A2A transport](/runtime/a2a-transport).
+
+Each agent is exposed behind its own route prefix:
 
 ```text
 /agent/{agentName}
@@ -74,8 +76,8 @@ Streaming uses the same payload but changes `method` to
 4. Use `SubscribeToTask` for SSE replay of task events
 
 <Tip>
-  Hyperterse does not expose the old ADK session surface anymore. Task state is
-  the continuity primitive now.
+  Continuity is task-based: use task IDs to poll, stream, or resume work across
+  turns.
 </Tip>
 
 ## Request examples
@@ -147,14 +149,14 @@ curl -N -X POST http://localhost:8080/agent/support \
 ## Operational notes
 
 - `SendMessage` can return a task-shaped result when execution is stateful.
-- Tool permissions are enforced from compiled allowlists.
-- On model reload, mounted agent routes are rebuilt to match new declarations.
-- CORS headers are applied by Hyperterse wrappers to agent routes.
+- Tool permissions follow the allowlist in each agent's config.
+- On model reload, agent routes match your latest declarations.
+- CORS headers are set on agent routes for browser-friendly access.
 
 ## Troubleshooting
 
 <Warning>
-  If tool invocation is unexpectedly blocked, inspect the compiled agent `tool_access`
+  If tool invocation is unexpectedly blocked, check the agent's `tool_access`
   policy and root defaults in `.hyperterse`.
 </Warning>
 

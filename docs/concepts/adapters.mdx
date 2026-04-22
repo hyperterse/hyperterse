@@ -3,7 +3,7 @@ title: Adapters
 description: Named database connections that tools reference for query execution.
 ---
 
-An adapter is a named binding between the Hyperterse runtime and a database. You define the connector type and connection string in a `.terse` file under `app/adapters/`, and tools reference adapters by name through the `use` field. The framework handles connection pooling, health checks, and graceful shutdown.
+An adapter is a named binding between Hyperterse and your database. You declare the connector and connection string in an adapter config file; tools point at adapters by name with the `use` field. The framework handles pooling, health checks, and graceful shutdown.
 
 ## Defining an adapter
 
@@ -17,7 +17,7 @@ options:
   sslmode: require
 ```
 
-The `connector` field selects the database engine. The `connection_string` accepts `{{ env.VAR }}` placeholders, which are resolved at runtime from environment variables. Never commit plaintext credentials — always use environment variables or a secrets manager.
+The `connector` field selects the database engine. The `connection_string` accepts `{{ env.VAR }}` placeholders, which Hyperterse resolves from environment variables when the server starts. Never commit plaintext credentials — always use environment variables or a secrets manager.
 
 ## Supported connectors
 
@@ -66,7 +66,7 @@ Hyperterse ships with many built-in connectors:
 Tools point to an adapter by name:
 
 ```yaml
-# app/tools/get-user/config.terse
+# excerpt from a tool definition
 use: primary-db
 statement: 'SELECT * FROM users WHERE id = {{ inputs.user_id }}'
 ```
@@ -100,7 +100,7 @@ A project can define multiple adapters, and different tools can reference differ
 
 ## Lifecycle
 
-All adapters referenced by at least one tool are initialized in parallel at startup. Each connector establishes its pool and runs a connectivity check. If any connector fails — unreachable host, invalid credentials, network timeout — the runtime exits immediately. This fail-fast behavior prevents serving tools that would error on every request.
+Every adapter your tools use starts in parallel when the server boots. Each connector opens its pool and checks connectivity. If any check fails (bad host, credentials, timeout), Hyperterse exits so you do not serve tools that would fail every call.
 
 On shutdown (`SIGINT` / `SIGTERM`), all connectors close concurrently after in-flight queries complete.
 

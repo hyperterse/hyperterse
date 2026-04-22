@@ -3,7 +3,7 @@ title: Agent
 description: Complete field reference for declarative agent definition files.
 ---
 
-Each `app/agents/*/config.terse` defines one ADK-backed agent exposed at `/agent/{name}`.
+Each `app/agents/*/config.terse` defines one declarative agent exposed at `/agent/{name}`.
 
 ## Full schema
 
@@ -54,13 +54,13 @@ tool_access:
     <ParamField body="provider" type="string" required>
       Model provider identifier.
 
-      Runtime-supported values:
+      Supported values:
 
       - `gemini`, `google_ai_studio`
       - `vertex`, `vertex_ai`
       - `openai_compatible`, `openai`
 
-      Provider names are normalized at runtime (lowercased, `-` converted to `_`).
+      Provider names are normalized when the agent loads (lowercased, `-` converted to `_`).
     </ParamField>
 
     <ParamField body="model" type="string" required>
@@ -70,11 +70,11 @@ tool_access:
     <ParamField body="options" type="object">
       Provider-specific options map.
 
-      In config, option values may be scalar (`string`, `number`, `boolean`). During
-      compilation, values are stringified for runtime consumption.
+      In config, option values may be scalar (`string`, `number`, `boolean`). At
+      build time, values are stringified for use by the agent.
 
-      Model option values support `{{ env.VAR_NAME }}` substitution at runtime model
-      initialization. Missing variables fail startup.
+      Model option values support `{{ env.VAR_NAME }}` substitution when the agent
+      model starts. Missing variables fail startup.
 
       For secrets, use provider default env vars (for example `OPENAI_API_KEY`,
       `GOOGLE_API_KEY`) or `api_key: "{{ env.YOUR_SECRET_VAR }}"`.

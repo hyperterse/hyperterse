@@ -92,7 +92,7 @@ services:
 
 ## Best practices
 
-- **Run as a non-root user.** All examples above use a dedicated `hyperterse` user with UID 1001.
-- **Use `env_file` or secrets for credentials.** Never bake connection strings into the image.
-- **Use health checks.** Hyperterse exposes `/heartbeat` — configure Docker's `HEALTHCHECK` or your orchestrator's probes to use it.
-- **Pin your base image.** Use specific tags like `alpine:3.19`, not `alpine:latest`.
+- Run as a non-root user. All examples above use a dedicated `hyperterse` user with UID 1001.
+- Use `env_file` or secrets for credentials. Never bake connection strings into the image.
+- Use health checks. Hyperterse exposes `/heartbeat` — configure Docker's `HEALTHCHECK` or your orchestrator's probes to use it.
+- Pin your base image. Use specific tags like `alpine:3.19`, not `alpine:latest`.
